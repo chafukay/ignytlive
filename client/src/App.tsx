@@ -6,11 +6,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import LiveRoom from "@/pages/live";
+import Explore from "@/pages/explore";
+import GoLive from "@/pages/go-live";
+import Chat from "@/pages/chat";
+import Profile from "@/pages/profile";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/explore" component={Explore} />
+      <Route path="/go-live" component={GoLive} />
+      <Route path="/chat" component={Chat} />
+      <Route path="/profile" component={Profile} />
       <Route path="/live/:id" component={LiveRoom} />
       <Route component={NotFound} />
     </Switch>
