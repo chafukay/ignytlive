@@ -1,16 +1,278 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { WebSocketServer, WebSocket } from "ws";
+import { 
+  insertUserSchema, 
+  insertStreamSchema,
+  insertShortSchema,
+  insertFollowSchema,
+  insertGiftTransactionSchema,
+  insertMessageSchema,
+  insertStreamCommentSchema 
+} from "@shared/schema";
+import { z } from "zod";
+
+// WebSocket connections per stream
+const streamConnections = new Map<string, Set<WebSocket>>();
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  
+  // WebSocket server for real-time features
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  
+  wss.on("connection", (ws: WebSocket, req) => {
+    const streamId = new URL(req.url!, `http://${req.headers.host}`).searchParams.get("streamId");
+    
+    if (streamId) {
+      if (!streamConnections.has(streamId)) {
+        streamConnections.set(streamId, new Set());
+      }
+      streamConnections.get(streamId)!.add(ws);
+      
+      ws.on("close", () => {
+        streamConnections.get(streamId)?.delete(ws);
+      });
+      
+      ws.on("message", async (data) => {
+        const message = JSON.parse(data.toString());
+        // Broadcast to all viewers of the stream
+        streamConnections.get(streamId)?.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      });
+    }
+  });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  // User routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      const existingUser = await storage.getUserByUsername(userData.username);
+      
+      if (existingUser) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+      
+      const user = await storage.createUser(userData);
+      res.json({ user: { ...user, password: undefined } });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user || user.password !== password) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      res.json({ user: { ...user, password: undefined } });
+    } catch (error) {
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.get("/api/users/:id", async (req, res) => {
+    const user = await storage.getUser(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json({ ...user, password: undefined });
+  });
+
+  // Stream routes
+  app.get("/api/streams/live", async (req, res) => {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const streams = await storage.getLiveStreams(limit);
+    res.json(streams);
+  });
+
+  app.get("/api/streams/:id", async (req, res) => {
+    const stream = await storage.getStream(req.params.id);
+    if (!stream) {
+      return res.status(404).json({ error: "Stream not found" });
+    }
+    res.json(stream);
+  });
+
+  app.post("/api/streams", async (req, res) => {
+    try {
+      const streamData = insertStreamSchema.parse(req.body);
+      const stream = await storage.createStream({
+        ...streamData,
+        streamKey: `stream_${Date.now()}_${Math.random().toString(36)}`,
+        isLive: true,
+        startedAt: new Date(),
+      });
+      res.json(stream);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
+    }
+  });
+
+  app.patch("/api/streams/:id", async (req, res) => {
+    try {
+      const stream = await storage.updateStream(req.params.id, req.body);
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      res.json(stream);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Update failed" });
+    }
+  });
+
+  app.get("/api/streams/:id/comments", async (req, res) => {
+    const limit = parseInt(req.query.limit as string) || 100;
+    const comments = await storage.getStreamComments(req.params.id, limit);
+    res.json(comments);
+  });
+
+  app.post("/api/streams/:id/comments", async (req, res) => {
+    try {
+      const comment = await storage.createStreamComment({
+        streamId: req.params.id,
+        ...req.body
+      });
+      
+      // Broadcast to WebSocket clients
+      const streamWs = streamConnections.get(req.params.id);
+      if (streamWs) {
+        streamWs.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'comment', data: comment }));
+          }
+        });
+      }
+      
+      res.json(comment);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to post comment" });
+    }
+  });
+
+  // Shorts routes
+  app.get("/api/shorts/feed", async (req, res) => {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const shorts = await storage.getShortsFeed(limit);
+    res.json(shorts);
+  });
+
+  app.get("/api/shorts/:id", async (req, res) => {
+    const short = await storage.getShort(req.params.id);
+    if (!short) {
+      return res.status(404).json({ error: "Short not found" });
+    }
+    res.json(short);
+  });
+
+  app.post("/api/shorts", async (req, res) => {
+    try {
+      const shortData = insertShortSchema.parse(req.body);
+      const short = await storage.createShort(shortData);
+      res.json(short);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
+    }
+  });
+
+  // Follow routes
+  app.post("/api/follows", async (req, res) => {
+    try {
+      const followData = insertFollowSchema.parse(req.body);
+      const follow = await storage.createFollow(followData);
+      res.json(follow);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to follow" });
+    }
+  });
+
+  app.delete("/api/follows", async (req, res) => {
+    try {
+      const { followerId, followingId } = req.body;
+      await storage.deleteFollow(followerId, followingId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to unfollow" });
+    }
+  });
+
+  app.get("/api/users/:id/followers", async (req, res) => {
+    const followers = await storage.getFollowers(req.params.id);
+    res.json(followers);
+  });
+
+  app.get("/api/users/:id/following", async (req, res) => {
+    const following = await storage.getFollowing(req.params.id);
+    res.json(following);
+  });
+
+  // Gift routes
+  app.get("/api/gifts", async (req, res) => {
+    const gifts = await storage.getGifts();
+    res.json(gifts);
+  });
+
+  app.post("/api/gifts/send", async (req, res) => {
+    try {
+      const transactionData = insertGiftTransactionSchema.parse(req.body);
+      const transaction = await storage.sendGift(transactionData);
+      
+      // Broadcast gift to stream viewers
+      if (transaction.streamId) {
+        const streamWs = streamConnections.get(transaction.streamId);
+        if (streamWs) {
+          streamWs.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: 'gift', data: transaction }));
+            }
+          });
+        }
+      }
+      
+      res.json(transaction);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to send gift" });
+    }
+  });
+
+  // Message routes
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const messageData = insertMessageSchema.parse(req.body);
+      const message = await storage.createMessage(messageData);
+      res.json(message);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to send message" });
+    }
+  });
+
+  app.get("/api/messages/conversation", async (req, res) => {
+    const { userId1, userId2 } = req.query as { userId1: string; userId2: string };
+    const messages = await storage.getConversation(userId1, userId2);
+    res.json(messages);
+  });
+
+  app.get("/api/users/:id/chats", async (req, res) => {
+    const chats = await storage.getRecentChats(req.params.id);
+    res.json(chats);
+  });
+
+  // Leaderboard routes
+  app.get("/api/leaderboard/:period", async (req, res) => {
+    const period = req.params.period as 'daily' | 'weekly';
+    const topStreamers = await storage.getTopStreamers(period);
+    res.json(topStreamers);
+  });
 
   return httpServer;
 }
