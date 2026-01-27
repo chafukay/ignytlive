@@ -69,7 +69,7 @@ export default function Register() {
         >
           <div className="flex items-center justify-center gap-2 mb-2">
             <Flame className="w-10 h-10 text-primary" />
-            <h1 className="text-4xl font-bold text-white font-display">Ignyt Live</h1>
+            <h1 className="text-4xl font-bold font-display"><span className="text-white">IGNYT</span><span className="text-pink-500">LIVE</span></h1>
           </div>
           <p className="text-white/50">Create your account</p>
         </motion.div>

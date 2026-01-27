@@ -45,8 +45,8 @@ export default function Home() {
         {/* Header */}
         <div className="flex justify-between items-center mb-4 pt-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              IGNYT<span className="text-primary">LIVE</span>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <span className="text-white">IGNYT</span><span className="text-pink-500">LIVE</span>
             </h1>
           </div>
           <div className="flex gap-2 items-center">

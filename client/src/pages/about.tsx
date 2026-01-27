@@ -19,7 +19,7 @@ export default function About() {
           <div className="w-20 h-20 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center mb-4">
             <Flame className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Ignyt Live</h2>
+          <h2 className="text-2xl font-bold"><span className="text-white">IGNYT</span><span className="text-pink-500">LIVE</span></h2>
           <p className="text-white/50">Version 1.0.0</p>
         </div>
 
