@@ -290,6 +290,66 @@ export async function registerRoutes(
     res.json(topStreamers);
   });
 
+  // Admin routes
+  const adminUpdateSchema = z.object({
+    role: z.enum(["user", "admin", "superadmin"]).optional(),
+    vipTier: z.number().min(0).max(5).optional(),
+    coins: z.number().min(0).optional(),
+    diamonds: z.number().min(0).optional(),
+    level: z.number().min(1).max(100).optional(),
+  });
+
+  app.get("/api/admin/users", async (req, res) => {
+    // Check admin access via header (in production, use proper session/JWT)
+    const adminUserId = req.headers["x-admin-user-id"] as string;
+    if (adminUserId) {
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || (adminUser.role !== "admin" && adminUser.role !== "superadmin")) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+    }
+    
+    const allUsers = await storage.getAllUsers();
+    // Strip passwords from response
+    const safeUsers = allUsers.map(({ password, ...user }) => user);
+    res.json(safeUsers);
+  });
+
+  app.patch("/api/admin/users/:id", async (req, res) => {
+    // Check admin access via header (in production, use proper session/JWT)
+    const adminUserId = req.headers["x-admin-user-id"] as string;
+    let requestingUser = null;
+    
+    if (adminUserId) {
+      requestingUser = await storage.getUser(adminUserId);
+      if (!requestingUser || (requestingUser.role !== "admin" && requestingUser.role !== "superadmin")) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+    }
+    
+    // Validate update payload
+    const parseResult = adminUpdateSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: "Invalid update data", details: parseResult.error.errors });
+    }
+    
+    const updates = parseResult.data;
+    
+    // Only superadmin can change roles
+    if (updates.role && (!requestingUser || requestingUser.role !== "superadmin")) {
+      return res.status(403).json({ error: "Only superadmin can change user roles" });
+    }
+    
+    const updatedUser = await storage.updateUser(req.params.id, updates);
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Strip password from response
+    const { password, ...safeUser } = updatedUser;
+    res.json(safeUser);
+  });
+
   // Badge routes
   app.get("/api/badges", async (req, res) => {
     const allBadges = await storage.getBadges();

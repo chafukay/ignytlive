@@ -31,6 +31,30 @@ export const api = {
     return res.json() as Promise<User>;
   },
 
+  async getAllUsers(adminUserId?: string) {
+    const headers: Record<string, string> = {};
+    if (adminUserId) {
+      headers["x-admin-user-id"] = adminUserId;
+    }
+    const res = await fetch(`${API_BASE}/api/admin/users`, { headers });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<User[]>;
+  },
+
+  async updateUser(userId: string, updates: Partial<User>, adminUserId?: string) {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (adminUserId) {
+      headers["x-admin-user-id"] = adminUserId;
+    }
+    const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<User>;
+  },
+
   async getFollowers(userId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/followers`);
     if (!res.ok) throw new Error(await res.text());

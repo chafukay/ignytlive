@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   isLive: boolean("is_live").notNull().default(false),
   vipTier: integer("vip_tier").notNull().default(0),
   dndEnabled: boolean("dnd_enabled").notNull().default(false),
+  role: text("role").notNull().default("user"), // user, admin, superadmin
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   usernameIdx: index("username_idx").on(table.username),
