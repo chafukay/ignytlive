@@ -21,6 +21,15 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Admin from "@/pages/admin";
 import Notifications from "@/pages/notifications";
+import Settings from "@/pages/settings";
+import Store from "@/pages/store";
+import UserLevel from "@/pages/user-level";
+import TopGifters from "@/pages/top-gifters";
+import ItemBag from "@/pages/item-bag";
+import EditProfile from "@/pages/edit-profile";
+import Privacy from "@/pages/privacy";
+import Help from "@/pages/help";
+import About from "@/pages/about";
 
 function Router() {
   return (
@@ -41,6 +50,15 @@ function Router() {
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/profile" component={Profile} />
       <Route path="/live/:id" component={LiveRoom} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/store" component={Store} />
+      <Route path="/user-level" component={UserLevel} />
+      <Route path="/top-gifters" component={TopGifters} />
+      <Route path="/item-bag" component={ItemBag} />
+      <Route path="/edit-profile" component={EditProfile} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/help" component={Help} />
+      <Route path="/about" component={About} />
       <Route component={NotFound} />
     </Switch>
   );
