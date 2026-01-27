@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Users, Compass, Coins, MessageCircle } from "lucide-react";
+import { Home, Users, Compass, Coins, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
@@ -13,6 +13,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
     { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Coins, label: "Coins", path: "/coins" },
     { icon: MessageCircle, label: "Chats", path: "/chat", badge: 99 },
+    { icon: User, label: "Profile", path: "/profile" },
   ];
 
   if (hideNav) {
