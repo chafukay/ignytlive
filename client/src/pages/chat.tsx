@@ -50,7 +50,7 @@ export default function Chat() {
                         <h3 className="font-bold text-white">Team Ignyt</h3>
                         <span className="text-xs text-white/40">1d ago</span>
                     </div>
-                    <p className="text-white/60 text-sm truncate">Welcome to Ignyt! Here are some tips...</p>
+                    <p className="text-white/60 text-sm truncate">Welcome to Ignyt Live! Here are some tips...</p>
                 </div>
             </div>
         </div>

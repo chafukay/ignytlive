@@ -26,7 +26,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6 pt-2">
           <h1 className="text-2xl md:text-3xl text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary font-black tracking-tight">
-            Ignyt
+            Ignyt Live
           </h1>
           <div className="flex gap-3">
             <button 
