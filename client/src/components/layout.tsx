@@ -16,7 +16,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
     { icon: User, label: "Profile", path: "/profile" },
   ];
 
-  if (hideNav) {
+  if (hideNav || !user) {
     return (
       <div className="min-h-screen bg-background text-foreground overflow-hidden">
         <main className="h-screen w-full overflow-y-auto no-scrollbar">

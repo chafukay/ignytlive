@@ -7,15 +7,44 @@ interface AuthContextType {
   logout: () => void;
   setUser: (user: User) => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
     const stored = localStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
-  });
+    if (stored) {
+      try {
+        const parsedUser = JSON.parse(stored);
+        fetch(`/api/users/${parsedUser.id}`)
+          .then(res => {
+            if (res.ok) {
+              return res.json();
+            }
+            throw new Error("User not found");
+          })
+          .then(validUser => {
+            setUser(validUser);
+            localStorage.setItem("user", JSON.stringify(validUser));
+          })
+          .catch(() => {
+            localStorage.removeItem("user");
+            setUser(null);
+          })
+          .finally(() => setIsLoading(false));
+      } catch {
+        localStorage.removeItem("user");
+        setIsLoading(false);
+      }
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
 
   const login = (user: User) => {
     setUser(user);
@@ -32,8 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("user", JSON.stringify(updatedUser));
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, setUser: updateUser, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, setUser: updateUser, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
