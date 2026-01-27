@@ -20,6 +20,7 @@ import Coins from "@/pages/coins";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Admin from "@/pages/admin";
+import Notifications from "@/pages/notifications";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/admin" component={Admin} />
+      <Route path="/notifications" component={Notifications} />
       <Route path="/following" component={Following} />
       <Route path="/explore" component={Explore} />
       <Route path="/coins" component={Coins} />

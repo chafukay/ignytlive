@@ -1,13 +1,15 @@
 import Layout from "@/components/layout";
-import { MessageCircle, MoreHorizontal, Pin, Mail } from "lucide-react";
+import { MessageCircle, Pin, Send, Lock, Mail } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useState } from "react";
 
 export default function Chat() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<'main' | 'other'>('main');
 
   const { data: chats, isLoading } = useQuery({
     queryKey: ['chats', user?.id],
@@ -85,20 +87,38 @@ export default function Chat() {
           </div>
         )}
 
-        {/* Promo Banner */}
-        <div className="mx-4 mt-4 bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-3xl">💎</div>
-            <div>
-              <p className="text-white font-bold">GET 100% BONUS</p>
-              <p className="text-white/80 text-sm">WITH CRYPTO!</p>
-            </div>
+        {/* Send Bulk Media */}
+        <div className="mx-4 mt-4 flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 cursor-pointer transition-colors">
+          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+            <Send className="w-5 h-5 text-blue-400" />
           </div>
-          <Link href="/coins">
-            <button className="bg-white text-black font-bold px-4 py-2 rounded-full text-sm">
-              Grab Now
-            </button>
-          </Link>
+          <span className="text-white font-medium">Send Bulk Media</span>
+        </div>
+
+        {/* Main/Other Tabs */}
+        <div className="flex gap-2 mx-4 mt-4">
+          <button 
+            onClick={() => setActiveTab('main')}
+            className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${
+              activeTab === 'main' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-white/10 text-white/70'
+            }`}
+          >
+            Main
+            <span className="bg-white/20 px-1.5 rounded-full text-xs">+99</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('other')}
+            className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${
+              activeTab === 'other' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-white/10 text-white/70'
+            }`}
+          >
+            Other
+            <span className="bg-white/20 px-1.5 rounded-full text-xs">27</span>
+          </button>
         </div>
 
         {/* Messages List */}
@@ -138,6 +158,11 @@ export default function Chat() {
                         LIVE
                       </span>
                     )}
+                    {chatUser.level && (
+                      <span className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-[9px] font-bold px-1.5 rounded-full">
+                        {chatUser.level}
+                      </span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -146,11 +171,18 @@ export default function Chat() {
                         <span className="text-yellow-400">✓</span>
                       )}
                     </div>
-                    <p className="text-white/50 text-sm truncate">{lastMessage.content}</p>
+                    <p className="text-white/50 text-sm truncate flex items-center gap-1">
+                      {lastMessage.content?.includes('Premium') && (
+                        <Lock className="w-3 h-3 text-yellow-400" />
+                      )}
+                      {lastMessage.content}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-xs text-white/30">{formatTime(lastMessage.createdAt)}</span>
-                    <Pin className="w-4 h-4 text-white/20" />
+                    {Math.random() > 0.5 && (
+                      <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 rounded-full">1</span>
+                    )}
                   </div>
                 </div>
               ))}

@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Trophy, Clapperboard, Users } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Phone, Gift, Building2, Package, Link2, Eye, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
@@ -68,47 +68,72 @@ export default function Profile() {
           <Settings className="w-6 h-6 text-white cursor-pointer" />
         </div>
 
-        {/* Profile Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent p-1">
-            <img 
-              src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
-              alt={user.username}
-              className="w-full h-full rounded-full bg-background object-cover"
-              data-testid="img-profile-avatar"
-            />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-2xl font-bold text-white" data-testid="text-username">
-                {user.username}
-              </h2>
-              <BadgesDisplay userId={user.id} size="md" />
+        <div className="flex justify-center gap-2 text-white/50 text-sm mb-4">
+          <span>ID: {user.id.slice(0, 8)}</span>
+          <button className="p-1 rounded hover:bg-white/10"><Eye className="w-4 h-4" /></button>
+          <button className="p-1 rounded hover:bg-white/10"><Users className="w-4 h-4" /></button>
+          <button className="p-1 rounded hover:bg-white/10"><Share2 className="w-4 h-4" /></button>
+        </div>
+
+        <div className="flex flex-col items-center mb-6">
+          <div className="relative mb-3">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent p-1">
+              <img 
+                src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+                alt={user.username}
+                className="w-full h-full rounded-full bg-background object-cover"
+                data-testid="img-profile-avatar"
+              />
             </div>
-            <p className="text-white/60 text-sm mb-3">
-              ID: {user.id.slice(0, 8)} • Lv. {user.level}
-            </p>
-            <div className="flex gap-6 text-center">
-              <div>
-                <div className="font-bold text-white" data-testid="text-following">
-                  {formatNumber(user.followingCount)}
-                </div>
-                <div className="text-xs text-white/50">Following</div>
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {user.level}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-xl font-bold text-white" data-testid="text-username">
+              {user.username}
+            </h2>
+            <BadgesDisplay userId={user.id} size="md" />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/60 mb-4">
+            <span>🌍 US</span>
+            <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
+              👑 Fans
+            </span>
+          </div>
+          <div className="flex justify-center gap-8 text-center">
+            <div>
+              <div className="font-bold text-white" data-testid="text-followers">
+                {formatNumber(user.followersCount)}
               </div>
-              <div>
-                <div className="font-bold text-white" data-testid="text-followers">
-                  {formatNumber(user.followersCount)}
-                </div>
-                <div className="text-xs text-white/50">Followers</div>
+              <div className="text-xs text-white/50">Followers</div>
+            </div>
+            <div>
+              <div className="font-bold text-white" data-testid="text-following">
+                {formatNumber(user.followingCount)}
               </div>
-              <div>
-                <div className="font-bold text-white" data-testid="text-likes">
-                  {formatNumber(user.totalLikes)}
-                </div>
-                <div className="text-xs text-white/50">Likes</div>
+              <div className="text-xs text-white/50">Following</div>
+            </div>
+            <div>
+              <div className="font-bold text-white flex items-center gap-1" data-testid="text-received">
+                <span className="text-yellow-400">💎</span>{formatNumber(user.diamonds)}
               </div>
+              <div className="text-xs text-white/50">Received</div>
+            </div>
+            <div>
+              <div className="font-bold text-white flex items-center gap-1" data-testid="text-sent">
+                <span className="text-yellow-400">🪙</span>{formatNumber(user.coins)}
+              </div>
+              <div className="text-xs text-white/50">Sent</div>
             </div>
           </div>
+        </div>
+
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <p className="text-white text-sm">Please verify your email address for privacy.</p>
+          <button className="bg-white/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+            Link Account
+          </button>
         </div>
 
         {/* Wallet Card */}
@@ -197,39 +222,53 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Menu Items */}
-        <div className="space-y-2">
+        {/* Menu Items - SuperLive Style */}
+        <div className="space-y-1">
           {[
-            { icon: User, label: "Edit Profile", color: "text-blue-400" },
-            { icon: Award, label: "My Level", color: "text-purple-400" },
-            { icon: Wallet, label: "My Wallet", color: "text-green-400" },
+            { icon: Clapperboard, label: "My Posts", color: "text-pink-400", href: "/shorts" },
+            { icon: Star, label: "Families", color: "text-yellow-400", href: "/groups" },
+            { icon: Wallet, label: "Purchase Coins", color: "text-yellow-500", href: "/coins" },
+            { icon: ShoppingBag, label: "Store", color: "text-blue-400", extra: "Purchase" },
+            { icon: Crown, label: "Millionaire", color: "text-yellow-400", extra: "Upgrade Now", special: true },
+            { icon: Award, label: "User Level", color: "text-purple-400" },
+            { icon: Phone, label: "Private Call Settings", color: "text-green-400" },
+            { icon: Gift, label: "Top Gifters", color: "text-pink-400" },
+            { icon: Building2, label: "Agency - Earn Extra Diamonds", color: "text-cyan-400" },
+            { icon: Package, label: "Item Bag", color: "text-orange-400" },
+            { icon: Link2, label: "Linked Accounts", color: "text-blue-400" },
             { icon: Settings, label: "Settings", color: "text-gray-400" },
           ].map((item) => (
-            <div 
-              key={item.label} 
-              className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 cursor-pointer transition-colors"
-              data-testid={`menu-${item.label.toLowerCase().replace(' ', '-')}`}
-            >
-              <div className={`w-10 h-10 rounded-full bg-white/5 flex items-center justify-center ${item.color}`}>
-                <item.icon className="w-5 h-5" />
+            <Link key={item.label} href={item.href || "#"}>
+              <div 
+                className={`flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 ${
+                  item.special ? 'bg-gradient-to-r from-yellow-900/20 to-transparent' : ''
+                }`}
+                data-testid={`menu-${item.label.toLowerCase().replace(/ /g, '-')}`}
+              >
+                {item.special ? (
+                  <div className="bg-gradient-to-r from-yellow-600 to-yellow-800 text-white text-xs font-bold px-3 py-1 rounded">
+                    MILLIONAIRE
+                  </div>
+                ) : (
+                  <item.icon className={`w-5 h-5 ${item.color}`} />
+                )}
+                <span className="flex-1 text-white font-medium">{item.special ? '' : item.label}</span>
+                {item.extra && (
+                  <span className="text-white/50 text-sm">{item.extra}</span>
+                )}
+                <ChevronRight className="w-5 h-5 text-white/30" />
               </div>
-              <span className="flex-1 text-white font-medium">{item.label}</span>
-              <ChevronRight className="w-5 h-5 text-white/30" />
-            </div>
+            </Link>
           ))}
 
           <div 
             onClick={() => dndMutation.mutate(!dndEnabled)}
-            className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-colors ${
-              dndEnabled ? "bg-purple-500/20" : "bg-white/5 hover:bg-white/10"
+            className={`flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-white/5 ${
+              dndEnabled ? "bg-purple-500/10" : "hover:bg-white/5"
             }`}
             data-testid="menu-dnd"
           >
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              dndEnabled ? "bg-purple-500/30 text-purple-400" : "bg-white/5 text-gray-400"
-            }`}>
-              <Moon className="w-5 h-5" />
-            </div>
+            <Moon className={`w-5 h-5 ${dndEnabled ? 'text-purple-400' : 'text-gray-400'}`} />
             <span className="flex-1 text-white font-medium">Do Not Disturb</span>
             <div className={`w-12 h-6 rounded-full p-1 transition-colors ${
               dndEnabled ? "bg-purple-500" : "bg-white/20"
@@ -242,12 +281,10 @@ export default function Profile() {
           
           <div 
             onClick={handleLogout}
-            className="flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 cursor-pointer transition-colors"
+            className="flex items-center gap-4 p-4 hover:bg-red-500/10 cursor-pointer transition-colors"
             data-testid="menu-logout"
           >
-            <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
-              <LogOut className="w-5 h-5" />
-            </div>
+            <LogOut className="w-5 h-5 text-red-400" />
             <span className="flex-1 text-red-400 font-medium">Log Out</span>
           </div>
         </div>
