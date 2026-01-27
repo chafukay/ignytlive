@@ -7,6 +7,12 @@ import {
   giftTransactions,
   messages,
   streamComments,
+  badges,
+  userBadges,
+  wishlistItems,
+  wheelPrizes,
+  wheelSpins,
+  callRequests,
   type User,
   type InsertUser,
   type Stream,
@@ -23,6 +29,16 @@ import {
   type InsertMessage,
   type StreamComment,
   type InsertStreamComment,
+  type Badge,
+  type InsertBadge,
+  type UserBadge,
+  type WishlistItem,
+  type InsertWishlistItem,
+  type WheelPrize,
+  type InsertWheelPrize,
+  type WheelSpin,
+  type CallRequest,
+  type InsertCallRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -73,6 +89,27 @@ export interface IStorage {
   
   // Leaderboard operations
   getTopStreamers(period: 'daily' | 'weekly'): Promise<User[]>;
+  
+  // Badge operations
+  getBadges(): Promise<Badge[]>;
+  getUserBadges(userId: string): Promise<(UserBadge & { badge: Badge })[]>;
+  awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
+  createBadge(badge: InsertBadge): Promise<Badge>;
+  
+  // Wishlist operations
+  getWishlistItems(userId: string): Promise<WishlistItem[]>;
+  createWishlistItem(item: InsertWishlistItem): Promise<WishlistItem>;
+  contributeToWishlist(itemId: string, amount: number): Promise<WishlistItem | undefined>;
+  
+  // Wheel operations
+  getWheelPrizes(): Promise<WheelPrize[]>;
+  spinWheel(userId: string, streamId?: string): Promise<WheelSpin & { prize: WheelPrize }>;
+  createWheelPrize(prize: InsertWheelPrize): Promise<WheelPrize>;
+  
+  // Call operations
+  createCallRequest(call: InsertCallRequest): Promise<CallRequest>;
+  updateCallRequest(id: string, updates: Partial<CallRequest>): Promise<CallRequest | undefined>;
+  getUserCallRequests(userId: string): Promise<CallRequest[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -413,6 +450,124 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .orderBy(desc(users.totalLikes))
       .limit(10);
+  }
+  
+  // Badge operations
+  async getBadges(): Promise<Badge[]> {
+    return await db.select().from(badges).where(eq(badges.isActive, true));
+  }
+  
+  async getUserBadges(userId: string): Promise<(UserBadge & { badge: Badge })[]> {
+    const results = await db
+      .select()
+      .from(userBadges)
+      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+      .where(eq(userBadges.userId, userId));
+    return results.map(r => ({ ...r.user_badges, badge: r.badges }));
+  }
+  
+  async awardBadge(userId: string, badgeId: string): Promise<UserBadge> {
+    const [badge] = await db
+      .insert(userBadges)
+      .values({ userId, badgeId })
+      .returning();
+    return badge;
+  }
+  
+  async createBadge(badge: InsertBadge): Promise<Badge> {
+    const [newBadge] = await db.insert(badges).values(badge).returning();
+    return newBadge;
+  }
+  
+  // Wishlist operations
+  async getWishlistItems(userId: string): Promise<WishlistItem[]> {
+    return await db
+      .select()
+      .from(wishlistItems)
+      .where(and(eq(wishlistItems.userId, userId), eq(wishlistItems.isActive, true)));
+  }
+  
+  async createWishlistItem(item: InsertWishlistItem): Promise<WishlistItem> {
+    const [newItem] = await db.insert(wishlistItems).values(item).returning();
+    return newItem;
+  }
+  
+  async contributeToWishlist(itemId: string, amount: number): Promise<WishlistItem | undefined> {
+    const [item] = await db
+      .update(wishlistItems)
+      .set({ currentAmount: sql`${wishlistItems.currentAmount} + ${amount}` })
+      .where(eq(wishlistItems.id, itemId))
+      .returning();
+    return item;
+  }
+  
+  // Wheel operations
+  async getWheelPrizes(): Promise<WheelPrize[]> {
+    return await db.select().from(wheelPrizes).where(eq(wheelPrizes.isActive, true));
+  }
+  
+  async spinWheel(userId: string, streamId?: string): Promise<WheelSpin & { prize: WheelPrize }> {
+    const prizes = await this.getWheelPrizes();
+    if (prizes.length === 0) throw new Error("No prizes available");
+    
+    // Weighted random selection
+    const totalWeight = prizes.reduce((sum, p) => sum + p.probability, 0);
+    let random = Math.random() * totalWeight;
+    let selectedPrize = prizes[0];
+    
+    for (const prize of prizes) {
+      random -= prize.probability;
+      if (random <= 0) {
+        selectedPrize = prize;
+        break;
+      }
+    }
+    
+    const [spin] = await db
+      .insert(wheelSpins)
+      .values({
+        userId,
+        prizeId: selectedPrize.id,
+        coinsWon: selectedPrize.coinValue,
+        streamId: streamId || null,
+      })
+      .returning();
+    
+    // Add coins to user
+    await db
+      .update(users)
+      .set({ coins: sql`${users.coins} + ${selectedPrize.coinValue}` })
+      .where(eq(users.id, userId));
+    
+    return { ...spin, prize: selectedPrize };
+  }
+  
+  async createWheelPrize(prize: InsertWheelPrize): Promise<WheelPrize> {
+    const [newPrize] = await db.insert(wheelPrizes).values(prize).returning();
+    return newPrize;
+  }
+  
+  // Call operations
+  async createCallRequest(call: InsertCallRequest): Promise<CallRequest> {
+    const [newCall] = await db.insert(callRequests).values(call).returning();
+    return newCall;
+  }
+  
+  async updateCallRequest(id: string, updates: Partial<CallRequest>): Promise<CallRequest | undefined> {
+    const [call] = await db
+      .update(callRequests)
+      .set(updates)
+      .where(eq(callRequests.id, id))
+      .returning();
+    return call;
+  }
+  
+  async getUserCallRequests(userId: string): Promise<CallRequest[]> {
+    return await db
+      .select()
+      .from(callRequests)
+      .where(or(eq(callRequests.callerId, userId), eq(callRequests.receiverId, userId)))
+      .orderBy(desc(callRequests.createdAt));
   }
 }
 

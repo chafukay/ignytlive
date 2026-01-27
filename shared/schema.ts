@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   totalLikes: integer("total_likes").notNull().default(0),
   isLive: boolean("is_live").notNull().default(false),
   vipTier: integer("vip_tier").notNull().default(0),
+  dndEnabled: boolean("dnd_enabled").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   usernameIdx: index("username_idx").on(table.username),
@@ -48,6 +49,9 @@ export const streams = pgTable("streams", {
   category: text("category"),
   isPKBattle: boolean("is_pk_battle").notNull().default(false),
   pkOpponentId: varchar("pk_opponent_id"),
+  isPrivate: boolean("is_private").notNull().default(false),
+  accessType: text("access_type").notNull().default("public"),
+  minVipTier: integer("min_vip_tier").notNull().default(0),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -258,3 +262,115 @@ export const insertStreamCommentSchema = createInsertSchema(streamComments).omit
 });
 export type InsertStreamComment = z.infer<typeof insertStreamCommentSchema>;
 export type StreamComment = typeof streamComments.$inferSelect;
+
+// Badges table
+export const badges = pgTable("badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  icon: text("icon").notNull(),
+  description: text("description"),
+  type: text("type").notNull(),
+  requirement: integer("requirement"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const insertBadgeSchema = createInsertSchema(badges).omit({ id: true });
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+export type Badge = typeof badges.$inferSelect;
+
+// User Badges junction table
+export const userBadges = pgTable("user_badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  badgeId: varchar("badge_id").notNull().references(() => badges.id),
+  earnedAt: timestamp("earned_at").notNull().defaultNow(),
+});
+
+export const userBadgesRelations = relations(userBadges, ({ one }) => ({
+  user: one(users, { fields: [userBadges.userId], references: [users.id] }),
+  badge: one(badges, { fields: [userBadges.badgeId], references: [badges.id] }),
+}));
+
+export type UserBadge = typeof userBadges.$inferSelect;
+
+// Wishlist items table
+export const wishlistItems = pgTable("wishlist_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  targetAmount: integer("target_amount").notNull(),
+  currentAmount: integer("current_amount").notNull().default(0),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const wishlistItemsRelations = relations(wishlistItems, ({ one }) => ({
+  user: one(users, { fields: [wishlistItems.userId], references: [users.id] }),
+}));
+
+export const insertWishlistItemSchema = createInsertSchema(wishlistItems).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWishlistItem = z.infer<typeof insertWishlistItemSchema>;
+export type WishlistItem = typeof wishlistItems.$inferSelect;
+
+// Wheel prizes table
+export const wheelPrizes = pgTable("wheel_prizes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  emoji: text("emoji").notNull(),
+  coinValue: integer("coin_value").notNull(),
+  probability: integer("probability").notNull(),
+  color: text("color").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const insertWheelPrizeSchema = createInsertSchema(wheelPrizes).omit({ id: true });
+export type InsertWheelPrize = z.infer<typeof insertWheelPrizeSchema>;
+export type WheelPrize = typeof wheelPrizes.$inferSelect;
+
+// Wheel spins table
+export const wheelSpins = pgTable("wheel_spins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  prizeId: varchar("prize_id").notNull().references(() => wheelPrizes.id),
+  coinsWon: integer("coins_won").notNull(),
+  streamId: varchar("stream_id").references(() => streams.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const wheelSpinsRelations = relations(wheelSpins, ({ one }) => ({
+  user: one(users, { fields: [wheelSpins.userId], references: [users.id] }),
+  prize: one(wheelPrizes, { fields: [wheelSpins.prizeId], references: [wheelPrizes.id] }),
+  stream: one(streams, { fields: [wheelSpins.streamId], references: [streams.id] }),
+}));
+
+export type WheelSpin = typeof wheelSpins.$inferSelect;
+
+// 1-on-1 Call Requests table
+export const callRequests = pgTable("call_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  callerId: varchar("caller_id").notNull().references(() => users.id),
+  receiverId: varchar("receiver_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("pending"),
+  coinCost: integer("coin_cost").notNull(),
+  duration: integer("duration"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const callRequestsRelations = relations(callRequests, ({ one }) => ({
+  caller: one(users, { fields: [callRequests.callerId], references: [users.id] }),
+  receiver: one(users, { fields: [callRequests.receiverId], references: [users.id] }),
+}));
+
+export const insertCallRequestSchema = createInsertSchema(callRequests).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCallRequest = z.infer<typeof insertCallRequestSchema>;
+export type CallRequest = typeof callRequests.$inferSelect;

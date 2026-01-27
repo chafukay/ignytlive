@@ -1,11 +1,30 @@
 import Layout from "@/components/layout";
-import { Settings, User, Wallet, Award, ChevronRight, LogOut } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import BadgesDisplay from "@/components/badges-display";
+import { useState } from "react";
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [dndEnabled, setDndEnabled] = useState(user?.dndEnabled || false);
+
+  const dndMutation = useMutation({
+    mutationFn: (enabled: boolean) => api.toggleDND(user!.id, enabled),
+    onSuccess: (updatedUser) => {
+      setDndEnabled(updatedUser.dndEnabled);
+      setUser(updatedUser);
+      toast({ title: updatedUser.dndEnabled ? "Do Not Disturb enabled" : "Do Not Disturb disabled" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update status", variant: "destructive" });
+    },
+  });
 
   const handleLogout = () => {
     logout();
@@ -60,9 +79,12 @@ export default function Profile() {
             />
           </div>
           <div className="flex-1">
-            <h2 className="text-2xl font-bold text-white mb-1" data-testid="text-username">
-              {user.username}
-            </h2>
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-2xl font-bold text-white" data-testid="text-username">
+                {user.username}
+              </h2>
+              <BadgesDisplay userId={user.id} size="md" />
+            </div>
             <p className="text-white/60 text-sm mb-3">
               ID: {user.id.slice(0, 8)} • Lv. {user.level}
             </p>
@@ -157,6 +179,28 @@ export default function Profile() {
               <ChevronRight className="w-5 h-5 text-white/30" />
             </div>
           ))}
+
+          <div 
+            onClick={() => dndMutation.mutate(!dndEnabled)}
+            className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-colors ${
+              dndEnabled ? "bg-purple-500/20" : "bg-white/5 hover:bg-white/10"
+            }`}
+            data-testid="menu-dnd"
+          >
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              dndEnabled ? "bg-purple-500/30 text-purple-400" : "bg-white/5 text-gray-400"
+            }`}>
+              <Moon className="w-5 h-5" />
+            </div>
+            <span className="flex-1 text-white font-medium">Do Not Disturb</span>
+            <div className={`w-12 h-6 rounded-full p-1 transition-colors ${
+              dndEnabled ? "bg-purple-500" : "bg-white/20"
+            }`}>
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                dndEnabled ? "translate-x-6" : "translate-x-0"
+              }`} />
+            </div>
+          </div>
           
           <div 
             onClick={handleLogout}

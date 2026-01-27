@@ -1,4 +1,4 @@
-import type { User, Stream, Short, Gift, GiftTransaction, Message } from "@shared/schema";
+import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest } from "@shared/schema";
 
 const API_BASE = "";
 
@@ -162,5 +162,100 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/leaderboard/${period}`);
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User[]>;
+  },
+
+  // Badges
+  async getBadges() {
+    const res = await fetch(`${API_BASE}/api/badges`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Badge[]>;
+  },
+
+  async getUserBadges(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/badges`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<(UserBadge & { badge: Badge })[]>;
+  },
+
+  // Wishlist
+  async getWishlist(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/wishlist`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<WishlistItem[]>;
+  },
+
+  async createWishlistItem(data: { userId: string; name: string; description?: string; targetAmount: number; imageUrl?: string }) {
+    const res = await fetch(`${API_BASE}/api/wishlist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<WishlistItem>;
+  },
+
+  async contributeToWishlist(itemId: string, amount: number) {
+    const res = await fetch(`${API_BASE}/api/wishlist/${itemId}/contribute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<WishlistItem>;
+  },
+
+  // Wheel
+  async getWheelPrizes() {
+    const res = await fetch(`${API_BASE}/api/wheel/prizes`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<WheelPrize[]>;
+  },
+
+  async spinWheel(userId: string, streamId?: string) {
+    const res = await fetch(`${API_BASE}/api/wheel/spin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, streamId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<WheelSpin & { prize: WheelPrize }>;
+  },
+
+  // DND
+  async toggleDND(userId: string, enabled: boolean) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/dnd`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<User>;
+  },
+
+  // 1-on-1 Calls
+  async requestCall(data: { callerId: string; receiverId: string; coinCost: number }) {
+    const res = await fetch(`${API_BASE}/api/calls`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<CallRequest>;
+  },
+
+  async updateCall(callId: string, updates: Partial<CallRequest>) {
+    const res = await fetch(`${API_BASE}/api/calls/${callId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<CallRequest>;
+  },
+
+  async getUserCalls(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/calls`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<CallRequest[]>;
   },
 };

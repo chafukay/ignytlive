@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, gifts } from "@shared/schema";
+import { users, gifts, badges, wheelPrizes } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function seedDatabase() {
@@ -75,6 +75,33 @@ export async function seedDatabase() {
 
   await db.insert(users).values(demoUsers);
   console.log("✓ Seeded demo users");
+
+  // Seed badges
+  const defaultBadges = [
+    { name: 'VIP', icon: '👑', description: 'VIP member', type: 'vip', requirement: 1 },
+    { name: 'Super VIP', icon: '💎', description: 'Super VIP member', type: 'vip', requirement: 3 },
+    { name: 'Top Gifter', icon: '🎁', description: 'Sent 1000+ gifts', type: 'gifting', requirement: 1000 },
+    { name: 'Rising Star', icon: '⭐', description: '1000+ followers', type: 'followers', requirement: 1000 },
+    { name: 'Superstar', icon: '🌟', description: '10000+ followers', type: 'followers', requirement: 10000 },
+    { name: 'Streamer Pro', icon: '🎬', description: '100+ hours streamed', type: 'streaming', requirement: 100 },
+    { name: 'Newcomer', icon: '🆕', description: 'New to the platform', type: 'welcome', requirement: 0 },
+    { name: 'Verified', icon: '✅', description: 'Verified account', type: 'verified', requirement: 0 },
+  ];
+  await db.insert(badges).values(defaultBadges);
+  console.log("✓ Seeded badges");
+
+  // Seed wheel prizes
+  const defaultWheelPrizes = [
+    { name: '10 Coins', emoji: '🪙', coinValue: 10, probability: 30, color: '#FFD700' },
+    { name: '50 Coins', emoji: '💰', coinValue: 50, probability: 25, color: '#FFA500' },
+    { name: '100 Coins', emoji: '💎', coinValue: 100, probability: 20, color: '#00CED1' },
+    { name: '250 Coins', emoji: '🏆', coinValue: 250, probability: 12, color: '#9400D3' },
+    { name: '500 Coins', emoji: '🎉', coinValue: 500, probability: 8, color: '#FF1493' },
+    { name: '1000 Coins', emoji: '🚀', coinValue: 1000, probability: 4, color: '#00FF00' },
+    { name: 'Jackpot!', emoji: '👑', coinValue: 5000, probability: 1, color: '#FF0000' },
+  ];
+  await db.insert(wheelPrizes).values(defaultWheelPrizes);
+  console.log("✓ Seeded wheel prizes");
 
   console.log("🎉 Database seeding complete!");
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { X, Heart, Gift, Send, Share2, Swords } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Star, Video } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +8,10 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createStreamWebSocket } from "@/lib/websocket";
 import PKBattleView from "@/components/pk-battle-view";
+import SpinWheel from "@/components/spin-wheel";
+import WishlistPanel from "@/components/wishlist-panel";
+import BadgesDisplay from "@/components/badges-display";
+import CallButton from "@/components/call-button";
 import { useToast } from "@/hooks/use-toast";
 import type { Gift as GiftType } from "@shared/schema";
 
@@ -30,6 +34,8 @@ export default function LiveRoom() {
   const [inputValue, setInputValue] = useState("");
   const [likes, setLikes] = useState(0);
   const [showGiftMenu, setShowGiftMenu] = useState(false);
+  const [showSpinWheel, setShowSpinWheel] = useState(false);
+  const [showWishlist, setShowWishlist] = useState(false);
   const [isPKMode, setIsPKMode] = useState(false);
   const [pkScore, setPkScore] = useState(15000);
   const [viewerCount, setViewerCount] = useState(0);
@@ -254,9 +260,12 @@ export default function LiveRoom() {
             />
           </div>
           <div className="flex flex-col">
-            <h3 className="text-xs font-bold text-white" data-testid="text-streamer-name">
-              {displayUser.username}
-            </h3>
+            <div className="flex items-center gap-1">
+              <h3 className="text-xs font-bold text-white" data-testid="text-streamer-name">
+                {displayUser.username}
+              </h3>
+              {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" />}
+            </div>
             <span className="text-[10px] text-white/80" data-testid="text-viewer-count">
               {viewerCount} viewers
             </span>
@@ -345,7 +354,19 @@ export default function LiveRoom() {
             </button>
           </form>
 
-          <button className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all">
+          <button 
+            onClick={() => setShowSpinWheel(true)}
+            className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
+            data-testid="button-spin-wheel"
+          >
+            <Star className="w-5 h-5 text-white" />
+          </button>
+
+          <button 
+            onClick={() => setShowWishlist(true)}
+            className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all"
+            data-testid="button-wishlist"
+          >
             <Share2 className="w-5 h-5 text-white" />
           </button>
 
@@ -356,6 +377,10 @@ export default function LiveRoom() {
           >
             <Gift className="w-5 h-5 text-white" />
           </button>
+
+          {streamerUser && user && streamerUser.id !== user.id && (
+            <CallButton receiverId={streamerUser.id} receiverName={streamerUser.username} coinCost={100} />
+          )}
 
           <button 
             onClick={handleLike}
@@ -409,6 +434,20 @@ export default function LiveRoom() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <SpinWheel 
+        isOpen={showSpinWheel} 
+        onClose={() => setShowSpinWheel(false)} 
+        streamId={streamId}
+      />
+
+      {streamerUser && (
+        <WishlistPanel 
+          isOpen={showWishlist} 
+          onClose={() => setShowWishlist(false)} 
+          streamerId={streamerUser.id}
+        />
+      )}
     </div>
   );
 }

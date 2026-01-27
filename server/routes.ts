@@ -284,5 +284,92 @@ export async function registerRoutes(
     res.json(topStreamers);
   });
 
+  // Badge routes
+  app.get("/api/badges", async (req, res) => {
+    const allBadges = await storage.getBadges();
+    res.json(allBadges);
+  });
+
+  app.get("/api/users/:id/badges", async (req, res) => {
+    const userBadgesList = await storage.getUserBadges(req.params.id);
+    res.json(userBadgesList);
+  });
+
+  // Wishlist routes
+  app.get("/api/users/:id/wishlist", async (req, res) => {
+    const wishlist = await storage.getWishlistItems(req.params.id);
+    res.json(wishlist);
+  });
+
+  app.post("/api/wishlist", async (req, res) => {
+    try {
+      const item = await storage.createWishlistItem(req.body);
+      res.json(item);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create wishlist item" });
+    }
+  });
+
+  app.post("/api/wishlist/:id/contribute", async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const item = await storage.contributeToWishlist(req.params.id, amount);
+      res.json(item);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to contribute" });
+    }
+  });
+
+  // Wheel routes
+  app.get("/api/wheel/prizes", async (req, res) => {
+    const prizes = await storage.getWheelPrizes();
+    res.json(prizes);
+  });
+
+  app.post("/api/wheel/spin", async (req, res) => {
+    try {
+      const { userId, streamId } = req.body;
+      const result = await storage.spinWheel(userId, streamId);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Spin failed" });
+    }
+  });
+
+  // DND toggle route
+  app.patch("/api/users/:id/dnd", async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      const user = await storage.updateUser(req.params.id, { dndEnabled: enabled });
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update DND status" });
+    }
+  });
+
+  // 1-on-1 call routes
+  app.post("/api/calls", async (req, res) => {
+    try {
+      const call = await storage.createCallRequest(req.body);
+      res.json(call);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create call request" });
+    }
+  });
+
+  app.patch("/api/calls/:id", async (req, res) => {
+    try {
+      const call = await storage.updateCallRequest(req.params.id, req.body);
+      res.json(call);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update call" });
+    }
+  });
+
+  app.get("/api/users/:id/calls", async (req, res) => {
+    const calls = await storage.getUserCallRequests(req.params.id);
+    res.json(calls);
+  });
+
   return httpServer;
 }

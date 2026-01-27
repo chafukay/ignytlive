@@ -5,6 +5,7 @@ interface AuthContextType {
   user: User | null;
   login: (user: User) => void;
   logout: () => void;
+  setUser: (user: User) => void;
   isAuthenticated: boolean;
 }
 
@@ -26,8 +27,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("user");
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, setUser: updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

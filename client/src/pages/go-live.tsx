@@ -1,4 +1,4 @@
-import { Settings, Camera, X } from "lucide-react";
+import { Settings, Camera, X, Lock, Crown, Users } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -10,6 +10,8 @@ export default function GoLive() {
   const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Chat");
+  const [accessType, setAccessType] = useState<"public" | "private" | "vip">("public");
+  const [minVipTier, setMinVipTier] = useState(1);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
 
@@ -30,6 +32,9 @@ export default function GoLive() {
         userId: user.id,
         title: title.trim(),
         category,
+        isPrivate: accessType !== "public",
+        accessType,
+        minVipTier: accessType === "vip" ? minVipTier : undefined,
       });
       
       toast({ title: "You're now live!" });
@@ -102,6 +107,71 @@ export default function GoLive() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Access Type Selection */}
+          <div className="mb-6">
+            <p className="text-white/50 text-sm text-center mb-3">Stream Access</p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setAccessType("public")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  accessType === "public"
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+                data-testid="button-access-public"
+              >
+                <Users className="w-4 h-4" />
+                Public
+              </button>
+              <button
+                onClick={() => setAccessType("private")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  accessType === "private"
+                    ? 'bg-primary text-white'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+                data-testid="button-access-private"
+              >
+                <Lock className="w-4 h-4" />
+                Private
+              </button>
+              <button
+                onClick={() => setAccessType("vip")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  accessType === "vip"
+                    ? 'bg-yellow-500 text-white'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+                data-testid="button-access-vip"
+              >
+                <Crown className="w-4 h-4" />
+                VIP Only
+              </button>
+            </div>
+            
+            {accessType === "vip" && (
+              <div className="mt-4 flex justify-center items-center gap-3">
+                <span className="text-white/50 text-sm">Min VIP Tier:</span>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((tier) => (
+                    <button
+                      key={tier}
+                      onClick={() => setMinVipTier(tier)}
+                      className={`w-8 h-8 rounded-full text-sm font-bold transition-all ${
+                        minVipTier === tier
+                          ? 'bg-yellow-500 text-white'
+                          : 'bg-white/10 text-white/70 hover:bg-white/20'
+                      }`}
+                      data-testid={`button-vip-tier-${tier}`}
+                    >
+                      {tier}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="flex justify-center gap-4 mb-8">
