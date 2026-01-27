@@ -46,7 +46,7 @@ export default function Home() {
         <div className="flex justify-between items-center mb-4 pt-2">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              <span className="text-white">IGNYT</span><span className="text-pink-500">LIVE</span>
+              <span className="text-white">Ignyt</span><span className="text-pink-500">LIVE</span>
             </h1>
           </div>
           <div className="flex gap-2 items-center">
