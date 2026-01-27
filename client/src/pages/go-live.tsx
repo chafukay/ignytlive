@@ -1,19 +1,36 @@
-import { Settings, Camera, X, Lock, Crown, Users } from "lucide-react";
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function GoLive() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const groupId = params.get("groupId");
+  
   const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Chat");
-  const [accessType, setAccessType] = useState<"public" | "private" | "vip">("public");
+  const [accessType, setAccessType] = useState<"public" | "private" | "vip" | "group">(groupId ? "group" : "public");
   const [minVipTier, setMinVipTier] = useState(1);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
+
+  const { data: group } = useQuery({
+    queryKey: ["group", groupId],
+    queryFn: () => api.getGroup(groupId!),
+    enabled: !!groupId,
+  });
+
+  useEffect(() => {
+    if (groupId) {
+      setAccessType("group");
+    }
+  }, [groupId]);
 
   const handleGoLive = async () => {
     if (!user) {
@@ -35,6 +52,7 @@ export default function GoLive() {
         isPrivate: accessType !== "public",
         accessType,
         minVipTier: accessType === "vip" ? minVipTier : undefined,
+        groupId: accessType === "group" && groupId ? groupId : undefined,
       });
       
       toast({ title: "You're now live!" });
@@ -109,46 +127,63 @@ export default function GoLive() {
             </div>
           </div>
 
+          {groupId && group && (
+            <div className="mb-4 p-3 bg-violet-600/20 rounded-xl border border-violet-500/30 text-center">
+              <p className="text-violet-300 text-sm">Streaming to group:</p>
+              <p className="text-white font-bold">{group.name}</p>
+            </div>
+          )}
+
           {/* Access Type Selection */}
           <div className="mb-6">
             <p className="text-white/50 text-sm text-center mb-3">Stream Access</p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => setAccessType("public")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  accessType === "public"
-                    ? 'bg-green-500 text-white'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-                data-testid="button-access-public"
-              >
-                <Users className="w-4 h-4" />
-                Public
-              </button>
-              <button
-                onClick={() => setAccessType("private")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  accessType === "private"
-                    ? 'bg-primary text-white'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-                data-testid="button-access-private"
-              >
-                <Lock className="w-4 h-4" />
-                Private
-              </button>
-              <button
-                onClick={() => setAccessType("vip")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  accessType === "vip"
-                    ? 'bg-yellow-500 text-white'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-                data-testid="button-access-vip"
-              >
-                <Crown className="w-4 h-4" />
-                VIP Only
-              </button>
+            <div className="flex flex-wrap justify-center gap-3">
+              {!groupId && (
+                <>
+                  <button
+                    onClick={() => setAccessType("public")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      accessType === "public"
+                        ? 'bg-green-500 text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                    data-testid="button-access-public"
+                  >
+                    <UsersIcon className="w-4 h-4" />
+                    Public
+                  </button>
+                  <button
+                    onClick={() => setAccessType("private")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      accessType === "private"
+                        ? 'bg-primary text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                    data-testid="button-access-private"
+                  >
+                    <Lock className="w-4 h-4" />
+                    Private
+                  </button>
+                  <button
+                    onClick={() => setAccessType("vip")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      accessType === "vip"
+                        ? 'bg-yellow-500 text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                    data-testid="button-access-vip"
+                  >
+                    <Crown className="w-4 h-4" />
+                    VIP Only
+                  </button>
+                </>
+              )}
+              {groupId && (
+                <div className="px-4 py-2 rounded-full text-sm font-medium bg-violet-500 text-white flex items-center gap-2">
+                  <UsersIcon className="w-4 h-4" />
+                  Group Only
+                </div>
+              )}
             </div>
             
             {accessType === "vip" && (

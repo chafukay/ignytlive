@@ -56,7 +56,16 @@ export const api = {
     return res.json() as Promise<Stream>;
   },
 
-  async createStream(data: { userId: string; title: string; description?: string; category?: string }) {
+  async createStream(data: { 
+    userId: string; 
+    title: string; 
+    description?: string; 
+    category?: string;
+    isPrivate?: boolean;
+    accessType?: string;
+    minVipTier?: number;
+    groupId?: string;
+  }) {
     const res = await fetch(`${API_BASE}/api/streams`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

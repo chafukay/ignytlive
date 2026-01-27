@@ -108,7 +108,7 @@ export async function registerRoutes(
 
   app.post("/api/streams", async (req, res) => {
     try {
-      const { userId, title, description, category, thumbnail, tags } = req.body;
+      const { userId, title, description, category, thumbnail, tags, isPrivate, accessType, minVipTier, groupId } = req.body;
       
       if (!userId || !title) {
         return res.status(400).json({ error: "userId and title are required" });
@@ -121,6 +121,10 @@ export async function registerRoutes(
         category: category || null,
         thumbnail: thumbnail || null,
         tags: tags || null,
+        isPrivate: isPrivate || false,
+        accessType: accessType || "public",
+        minVipTier: minVipTier || 0,
+        groupId: groupId || null,
         streamKey: `stream_${Date.now()}_${Math.random().toString(36).substring(2)}`,
         isLive: true,
         startedAt: new Date(),
