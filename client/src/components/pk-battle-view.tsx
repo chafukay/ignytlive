@@ -1,8 +1,26 @@
-import { Streamer, MOCK_PK_OPPONENT } from "@/lib/mock-data";
 import { Swords, Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function PKBattleView({ streamer, currentScore }: { streamer: Streamer, currentScore: number }) {
+interface PKUser {
+  username: string;
+  avatar?: string | null;
+}
+
+interface PKOpponent {
+  username: string;
+  avatar: string;
+  score: number;
+  winStreak: number;
+}
+
+const MOCK_PK_OPPONENT: PKOpponent = {
+  username: "StarGamer",
+  avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=StarGamer",
+  score: 12500,
+  winStreak: 3,
+};
+
+export default function PKBattleView({ streamer, currentScore }: { streamer: PKUser, currentScore: number }) {
   const opponent = MOCK_PK_OPPONENT;
   const totalScore = currentScore + opponent.score;
   const myPercentage = (currentScore / totalScore) * 100;
@@ -49,9 +67,12 @@ export default function PKBattleView({ streamer, currentScore }: { streamer: Str
       <div className="flex-1 flex relative">
         {/* My Stream */}
         <div className="flex-1 relative border-r-2 border-white/10">
-           <img src={streamer.avatar} className="w-full h-full object-cover" />
+           <img 
+             src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`} 
+             className="w-full h-full object-cover" 
+           />
            <div className="absolute bottom-4 left-4 bg-black/40 px-2 py-1 rounded text-white text-xs">
-             <span className="text-cyan-400 font-bold">You</span>
+             <span className="text-cyan-400 font-bold">{streamer.username}</span>
            </div>
         </div>
         

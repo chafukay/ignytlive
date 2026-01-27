@@ -1,13 +1,18 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { MOCK_STREAMERS, MOCK_COMMENTS } from "@/lib/mock-data";
-import { X, Heart, Gift, Send, Share2, Swords, Trophy } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { createStreamWebSocket } from "@/lib/websocket";
 import PKBattleView from "@/components/pk-battle-view";
+import { useToast } from "@/hooks/use-toast";
+import type { Gift as GiftType } from "@shared/schema";
 
 interface Comment {
-  id: number;
+  id: string;
   user: string;
   text: string;
   color?: string;
@@ -18,29 +23,105 @@ interface Comment {
 export default function LiveRoom() {
   const [, params] = useRoute("/live/:id");
   const [, setLocation] = useLocation();
-  const streamer = MOCK_STREAMERS.find(s => s.id === params?.id) || MOCK_STREAMERS[0];
+  const { user } = useAuth();
+  const streamId = params?.id;
   
-  const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [likes, setLikes] = useState(0);
   const [showGiftMenu, setShowGiftMenu] = useState(false);
   const [isPKMode, setIsPKMode] = useState(false);
   const [pkScore, setPkScore] = useState(15000);
+  const [viewerCount, setViewerCount] = useState(0);
+  const [isSendingGift, setIsSendingGift] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const { toast } = useToast();
 
-  // Simulate incoming comments
+  const { data: stream, isLoading: streamLoading } = useQuery({
+    queryKey: ['stream', streamId],
+    queryFn: () => api.getStream(streamId!),
+    enabled: !!streamId,
+  });
+
+  const { data: streamerUser } = useQuery({
+    queryKey: ['user', stream?.userId],
+    queryFn: () => api.getUser(stream!.userId),
+    enabled: !!stream?.userId,
+  });
+
+  const { data: gifts } = useQuery({
+    queryKey: ['gifts'],
+    queryFn: () => api.getGifts(),
+  });
+
+  // WebSocket connection for real-time updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      const randomComment = MOCK_COMMENTS[Math.floor(Math.random() * MOCK_COMMENTS.length)];
-      setComments(prev => [...prev.slice(-20), { ...randomComment, id: Date.now() }]);
+    if (!streamId) return;
+    
+    let reconnectTimeout: NodeJS.Timeout;
+    let ws: WebSocket;
+    
+    const connect = () => {
+      ws = createStreamWebSocket(streamId);
+      wsRef.current = ws;
       
-      // Simulate PK Score updates
-      if (isPKMode) {
-        setPkScore(prev => prev + Math.floor(Math.random() * 100));
-      }
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [isPKMode]);
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          
+          if (message.type === 'comment') {
+            setComments(prev => [...prev.slice(-30), {
+              id: message.data.id || Date.now().toString(),
+              user: message.data.username || 'User',
+              text: message.data.content,
+              isGift: message.data.isGift,
+            }]);
+          } else if (message.type === 'gift') {
+            setComments(prev => [...prev.slice(-30), {
+              id: Date.now().toString(),
+              user: message.data.senderName || 'User',
+              text: `sent a gift!`,
+              isGift: true,
+              gift: message.data.giftEmoji,
+            }]);
+          } else if (message.type === 'viewer_count') {
+            setViewerCount(message.data.count);
+          }
+        } catch (e) {
+          console.error('Failed to parse WebSocket message:', e);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+      
+      ws.onclose = () => {
+        // Attempt reconnection after 3 seconds
+        reconnectTimeout = setTimeout(connect, 3000);
+      };
+    };
+    
+    connect();
+    
+    return () => {
+      clearTimeout(reconnectTimeout);
+      ws?.close();
+    };
+  }, [streamId]);
+
+  // Update viewer count from stream data
+  useEffect(() => {
+    if (stream) {
+      setViewerCount(stream.viewersCount);
+      setIsPKMode(stream.isPKBattle);
+    }
+  }, [stream]);
 
   // Auto scroll chat
   useEffect(() => {
@@ -49,29 +130,115 @@ export default function LiveRoom() {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
-    setComments(prev => [...prev, { id: Date.now(), user: 'Me', text: inputValue, color: 'text-white' }]);
+    if (!inputValue.trim() || !user) return;
+    
+    const newComment = {
+      id: Date.now().toString(),
+      user: user.username,
+      text: inputValue,
+      color: 'text-white'
+    };
+    
+    setComments(prev => [...prev, newComment]);
+    
+    // Send via WebSocket
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'comment',
+        data: { content: inputValue, username: user.username }
+      }));
+    }
+    
     setInputValue("");
+  };
+
+  const handleSendGift = async (gift: GiftType) => {
+    if (!user || !streamerUser || !streamId) {
+      toast({ title: "Please log in to send gifts", variant: "destructive" });
+      return;
+    }
+    
+    if ((user.coins || 0) < gift.coinCost) {
+      toast({ title: "Not enough coins", description: "Top up to send this gift!", variant: "destructive" });
+      return;
+    }
+    
+    setIsSendingGift(true);
+    try {
+      await api.sendGift({
+        giftId: gift.id,
+        senderId: user.id,
+        receiverId: streamerUser.id,
+        streamId: streamId,
+        quantity: 1,
+        totalCoins: gift.coinCost,
+      });
+      
+      setComments(prev => [...prev, {
+        id: Date.now().toString(),
+        user: user.username,
+        text: `sent ${gift.emoji} ${gift.name}!`,
+        isGift: true,
+        gift: gift.emoji,
+      }]);
+      
+      toast({ title: `Sent ${gift.emoji} ${gift.name}!` });
+      setShowGiftMenu(false);
+    } catch (error) {
+      toast({ title: "Failed to send gift", description: "Please try again", variant: "destructive" });
+    } finally {
+      setIsSendingGift(false);
+    }
   };
 
   const handleLike = () => {
     setLikes(prev => prev + 1);
-    // Add floating heart animation logic here (simplified for now)
+  };
+
+  if (streamLoading) {
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+        <div className="text-white">Loading stream...</div>
+      </div>
+    );
+  }
+
+  if (!stream && !streamLoading) {
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
+        <div className="text-white/50 text-center">
+          <p className="text-lg mb-4">Stream not found</p>
+          <button 
+            onClick={() => setLocation("/")}
+            className="bg-primary text-white px-6 py-2 rounded-full"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const displayUser = streamerUser || { 
+    username: 'Streamer', 
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
+    level: 1
   };
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Background Video / PK View */}
       {isPKMode ? (
-        <PKBattleView streamer={streamer} currentScore={pkScore} />
+        <PKBattleView streamer={displayUser} currentScore={pkScore} />
       ) : (
         <div className="absolute inset-0 z-0">
-            <img 
-            src={streamer.avatar} 
+          <img 
+            src={stream?.thumbnail || displayUser.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=' + streamId} 
             alt="Stream" 
             className="w-full h-full object-cover opacity-80"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
+            data-testid="img-stream-background"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
         </div>
       )}
 
@@ -80,30 +247,42 @@ export default function LiveRoom() {
         {/* Streamer Profile */}
         <div className="glass rounded-full p-1 pr-4 flex items-center gap-2">
           <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary">
-            <img src={streamer.avatar} className="w-full h-full object-cover" />
+            <img 
+              src={displayUser.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + displayUser.username} 
+              className="w-full h-full object-cover" 
+              data-testid="img-streamer-avatar"
+            />
           </div>
           <div className="flex flex-col">
-            <h3 className="text-xs font-bold text-white">{streamer.username}</h3>
-            <span className="text-[10px] text-white/80">{streamer.viewers} viewers</span>
+            <h3 className="text-xs font-bold text-white" data-testid="text-streamer-name">
+              {displayUser.username}
+            </h3>
+            <span className="text-[10px] text-white/80" data-testid="text-viewer-count">
+              {viewerCount} viewers
+            </span>
           </div>
-          <button className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full ml-1 hover:bg-primary/90 transition-colors">
+          <button 
+            className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full ml-1 hover:bg-primary/90 transition-colors"
+            data-testid="button-follow"
+          >
             Follow
           </button>
         </div>
 
         {/* Viewer List & Close */}
         <div className="flex items-center gap-3">
-            {/* PK Toggle Button (Demo Feature) */}
-            <button 
-                onClick={() => setIsPKMode(!isPKMode)}
-                className={cn(
-                    "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors",
-                    isPKMode ? "bg-red-600 text-white animate-pulse" : "bg-white/10 text-white hover:bg-white/20"
-                )}
-            >
-                <Swords className="w-3 h-3" />
-                {isPKMode ? "PK LIVE" : "PK Mode"}
-            </button>
+          {/* PK Toggle Button */}
+          <button 
+            onClick={() => setIsPKMode(!isPKMode)}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors",
+              isPKMode ? "bg-red-600 text-white animate-pulse" : "bg-white/10 text-white hover:bg-white/20"
+            )}
+            data-testid="button-pk-mode"
+          >
+            <Swords className="w-3 h-3" />
+            {isPKMode ? "PK LIVE" : "PK Mode"}
+          </button>
 
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
@@ -115,16 +294,15 @@ export default function LiveRoom() {
           <button 
             onClick={() => setLocation("/")}
             className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
+            data-testid="button-close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Main Content Area (Empty for video visibility) */}
-      <div className="flex-1" onClick={handleLike}>
-        {/* Floating Likes Overlay would go here */}
-      </div>
+      {/* Main Content Area */}
+      <div className="flex-1" onClick={handleLike} />
 
       {/* Bottom Interface */}
       <div className="relative z-10 p-4 pb-6">
@@ -138,6 +316,7 @@ export default function LiveRoom() {
                   msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/20"
                 )}>
                   <span className="font-bold text-white/90 mr-2 opacity-75">{msg.user}:</span>
+                  {msg.gift && <span className="mr-1">{msg.gift}</span>}
                   <span className={msg.color || "text-white"}>{msg.text}</span>
                 </div>
               </div>
@@ -155,8 +334,13 @@ export default function LiveRoom() {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Say something..."
               className="w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-full py-2.5 pl-4 pr-10 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
+              data-testid="input-chat"
             />
-            <button type="submit" className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors">
+            <button 
+              type="submit" 
+              className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors"
+              data-testid="button-send"
+            >
               <Send className="w-4 h-4 text-white" />
             </button>
           </form>
@@ -168,6 +352,7 @@ export default function LiveRoom() {
           <button 
             onClick={() => setShowGiftMenu(!showGiftMenu)}
             className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-orange-500/30"
+            data-testid="button-gift"
           >
             <Gift className="w-5 h-5 text-white" />
           </button>
@@ -175,13 +360,14 @@ export default function LiveRoom() {
           <button 
             onClick={handleLike}
             className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-pink-500/20 active:scale-95 transition-all"
+            data-testid="button-like"
           >
             <Heart className="w-5 h-5 text-pink-500 fill-pink-500" />
           </button>
         </div>
       </div>
 
-      {/* Gift Sheet (Simple Overlay) */}
+      {/* Gift Sheet */}
       <AnimatePresence>
         {showGiftMenu && (
           <motion.div 
@@ -192,16 +378,34 @@ export default function LiveRoom() {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-white">Send Gift</h3>
-              <button onClick={() => setShowGiftMenu(false)}><X className="w-5 h-5 text-white/50" /></button>
+              <button onClick={() => setShowGiftMenu(false)} data-testid="button-close-gifts">
+                <X className="w-5 h-5 text-white/50" />
+              </button>
             </div>
             <div className="grid grid-cols-4 gap-4">
-              {['🌹', '🍫', '💎', '🚀', '🏎️', '🏰', '🦄', '👑'].map((emoji, i) => (
-                <button key={i} className="flex flex-col items-center gap-1 p-2 hover:bg-white/5 rounded-xl transition-colors">
-                  <span className="text-3xl">{emoji}</span>
-                  <span className="text-[10px] text-yellow-500 font-bold">{10 * (i + 1)} coins</span>
+              {gifts?.map((gift) => (
+                <button 
+                  key={gift.id} 
+                  onClick={() => handleSendGift(gift)}
+                  disabled={isSendingGift}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-2 rounded-xl transition-colors",
+                    isSendingGift ? "opacity-50 cursor-not-allowed" : "hover:bg-white/5"
+                  )}
+                  data-testid={`button-gift-${gift.id}`}
+                >
+                  <span className="text-3xl">{gift.emoji}</span>
+                  <span className="text-[10px] text-white/70">{gift.name}</span>
+                  <span className="text-[10px] text-yellow-500 font-bold">{gift.coinCost} coins</span>
                 </button>
               ))}
             </div>
+            {user && (
+              <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center">
+                <span className="text-white/50 text-sm">Your balance:</span>
+                <span className="text-yellow-500 font-bold">{user.coins?.toLocaleString() || 0} coins</span>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
