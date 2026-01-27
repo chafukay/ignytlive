@@ -106,10 +106,20 @@ export async function registerRoutes(
 
   app.post("/api/streams", async (req, res) => {
     try {
-      const streamData = insertStreamSchema.parse(req.body);
+      const { userId, title, description, category, thumbnail, tags } = req.body;
+      
+      if (!userId || !title) {
+        return res.status(400).json({ error: "userId and title are required" });
+      }
+      
       const stream = await storage.createStream({
-        ...streamData,
-        streamKey: `stream_${Date.now()}_${Math.random().toString(36)}`,
+        userId,
+        title,
+        description: description || null,
+        category: category || null,
+        thumbnail: thumbnail || null,
+        tags: tags || null,
+        streamKey: `stream_${Date.now()}_${Math.random().toString(36).substring(2)}`,
         isLive: true,
         startedAt: new Date(),
       });
