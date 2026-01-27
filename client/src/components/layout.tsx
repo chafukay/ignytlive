@@ -12,7 +12,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
     { icon: Users, label: "Following", path: "/following" },
     { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Coins, label: "Coins", path: "/coins" },
-    { icon: MessageCircle, label: "Chats", path: "/chat", badge: 99 },
+    { icon: MessageCircle, label: "Chats", path: "/chat" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
 
@@ -55,14 +55,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
                   "flex flex-col items-center gap-0.5 cursor-pointer transition-colors p-1.5 rounded-lg hover:bg-white/5 w-14 relative",
                   isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 )}>
-                  <div className="relative">
-                    <Icon className={cn("w-6 h-6", isActive && "fill-current")} />
-                    {item.badge && (
-                      <span className="absolute -top-2 -right-3 bg-pink-500 text-white text-[9px] font-bold px-1 rounded-full min-w-[16px] text-center">
-                        {item.badge > 99 ? "99+" : item.badge}
-                      </span>
-                    )}
-                  </div>
+                  <Icon className={cn("w-6 h-6", isActive && "fill-current")} />
                   <span className="text-[9px] font-medium md:hidden">{item.label}</span>
                 </div>
               </Link>
