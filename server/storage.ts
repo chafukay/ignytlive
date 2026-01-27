@@ -15,6 +15,10 @@ import {
   callRequests,
   streamGoals,
   joinRequests,
+  groups,
+  groupMembers,
+  groupMessages,
+  mediaUnlocks,
   type User,
   type InsertUser,
   type Stream,
@@ -45,6 +49,14 @@ import {
   type InsertStreamGoal,
   type JoinRequest,
   type InsertJoinRequest,
+  type Group,
+  type InsertGroup,
+  type GroupMember,
+  type InsertGroupMember,
+  type GroupMessage,
+  type InsertGroupMessage,
+  type MediaUnlock,
+  type InsertMediaUnlock,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -127,6 +139,27 @@ export interface IStorage {
   getJoinRequests(streamId: string): Promise<(JoinRequest & { user: User })[]>;
   createJoinRequest(request: InsertJoinRequest): Promise<JoinRequest>;
   updateJoinRequest(id: string, status: string): Promise<JoinRequest | undefined>;
+  
+  // Group operations
+  createGroup(group: InsertGroup): Promise<Group>;
+  getGroup(id: string): Promise<Group | undefined>;
+  getUserGroups(userId: string): Promise<(Group & { memberCount: number })[]>;
+  updateGroup(id: string, updates: Partial<Group>): Promise<Group | undefined>;
+  deleteGroup(id: string): Promise<boolean>;
+  
+  // Group Member operations
+  addGroupMember(member: InsertGroupMember): Promise<GroupMember>;
+  removeGroupMember(groupId: string, userId: string): Promise<boolean>;
+  getGroupMembers(groupId: string): Promise<(GroupMember & { user: User })[]>;
+  isGroupMember(groupId: string, userId: string): Promise<boolean>;
+  
+  // Group Message operations
+  createGroupMessage(message: InsertGroupMessage): Promise<GroupMessage>;
+  getGroupMessages(groupId: string, limit?: number): Promise<(GroupMessage & { sender: User })[]>;
+  
+  // Media Unlock operations
+  unlockMedia(unlock: InsertMediaUnlock): Promise<MediaUnlock>;
+  hasUnlockedMedia(userId: string, messageId: string, messageType: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -654,6 +687,132 @@ export class DatabaseStorage implements IStorage {
       .where(eq(joinRequests.id, id))
       .returning();
     return request;
+  }
+  
+  // Group operations
+  async createGroup(group: InsertGroup): Promise<Group> {
+    const [newGroup] = await db.insert(groups).values(group).returning();
+    await db.insert(groupMembers).values({
+      groupId: newGroup.id,
+      userId: group.ownerId,
+      role: "owner",
+    });
+    return newGroup;
+  }
+  
+  async getGroup(id: string): Promise<Group | undefined> {
+    const [group] = await db.select().from(groups).where(eq(groups.id, id));
+    return group || undefined;
+  }
+  
+  async getUserGroups(userId: string): Promise<(Group & { memberCount: number })[]> {
+    const memberGroups = await db
+      .select()
+      .from(groupMembers)
+      .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+      .where(eq(groupMembers.userId, userId))
+      .orderBy(desc(groups.createdAt));
+    
+    const groupsWithCounts = await Promise.all(
+      memberGroups.map(async (r) => {
+        const countResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(groupMembers)
+          .where(eq(groupMembers.groupId, r.groups.id));
+        return {
+          ...r.groups,
+          memberCount: Number(countResult[0]?.count) || 0,
+        };
+      })
+    );
+    
+    return groupsWithCounts;
+  }
+  
+  async updateGroup(id: string, updates: Partial<Group>): Promise<Group | undefined> {
+    const [group] = await db
+      .update(groups)
+      .set(updates)
+      .where(eq(groups.id, id))
+      .returning();
+    return group || undefined;
+  }
+  
+  async deleteGroup(id: string): Promise<boolean> {
+    await db.delete(groupMessages).where(eq(groupMessages.groupId, id));
+    await db.delete(groupMembers).where(eq(groupMembers.groupId, id));
+    const result = await db.delete(groups).where(eq(groups.id, id));
+    return true;
+  }
+  
+  // Group Member operations
+  async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
+    const [newMember] = await db.insert(groupMembers).values(member).returning();
+    return newMember;
+  }
+  
+  async removeGroupMember(groupId: string, userId: string): Promise<boolean> {
+    await db
+      .delete(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    return true;
+  }
+  
+  async getGroupMembers(groupId: string): Promise<(GroupMember & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(groupMembers)
+      .innerJoin(users, eq(groupMembers.userId, users.id))
+      .where(eq(groupMembers.groupId, groupId))
+      .orderBy(groupMembers.joinedAt);
+    
+    return results.map(r => ({ ...r.group_members, user: r.users }));
+  }
+  
+  async isGroupMember(groupId: string, userId: string): Promise<boolean> {
+    const [member] = await db
+      .select()
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    return !!member;
+  }
+  
+  // Group Message operations
+  async createGroupMessage(message: InsertGroupMessage): Promise<GroupMessage> {
+    const [newMessage] = await db.insert(groupMessages).values(message).returning();
+    return newMessage;
+  }
+  
+  async getGroupMessages(groupId: string, limit: number = 100): Promise<(GroupMessage & { sender: User })[]> {
+    const results = await db
+      .select()
+      .from(groupMessages)
+      .innerJoin(users, eq(groupMessages.senderId, users.id))
+      .where(eq(groupMessages.groupId, groupId))
+      .orderBy(desc(groupMessages.createdAt))
+      .limit(limit);
+    
+    return results.map(r => ({ ...r.group_messages, sender: r.users })).reverse();
+  }
+  
+  // Media Unlock operations
+  async unlockMedia(unlock: InsertMediaUnlock): Promise<MediaUnlock> {
+    const [newUnlock] = await db.insert(mediaUnlocks).values(unlock).returning();
+    return newUnlock;
+  }
+  
+  async hasUnlockedMedia(userId: string, messageId: string, messageType: string): Promise<boolean> {
+    const [unlock] = await db
+      .select()
+      .from(mediaUnlocks)
+      .where(
+        and(
+          eq(mediaUnlocks.userId, userId),
+          eq(mediaUnlocks.messageId, messageId),
+          eq(mediaUnlocks.messageType, messageType)
+        )
+      );
+    return !!unlock;
   }
 }
 
