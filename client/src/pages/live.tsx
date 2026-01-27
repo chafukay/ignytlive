@@ -288,7 +288,7 @@ export default function LiveRoom() {
               <h3 className="text-xs font-bold text-white" data-testid="text-streamer-name">
                 {displayUser.username}
               </h3>
-              {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" />}
+              {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" allowGifting={true} />}
             </div>
             <span className="text-[10px] text-white/80" data-testid="text-viewer-count">
               {viewerCount} viewers

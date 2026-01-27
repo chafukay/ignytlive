@@ -297,6 +297,19 @@ export async function registerRoutes(
     res.json(userBadgesList);
   });
 
+  app.post("/api/users/:id/badges", async (req, res) => {
+    try {
+      const { badgeId } = req.body;
+      if (!badgeId) {
+        return res.status(400).json({ error: "Badge ID is required" });
+      }
+      const userBadge = await storage.awardBadge(req.params.id, badgeId);
+      res.json(userBadge);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to award badge" });
+    }
+  });
+
   // Wishlist routes
   app.get("/api/users/:id/wishlist", async (req, res) => {
     const wishlist = await storage.getWishlistItems(req.params.id);

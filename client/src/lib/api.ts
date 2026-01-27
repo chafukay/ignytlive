@@ -177,6 +177,16 @@ export const api = {
     return res.json() as Promise<(UserBadge & { badge: Badge })[]>;
   },
 
+  async awardBadge(userId: string, badgeId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/badges`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ badgeId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<UserBadge>;
+  },
+
   // Wishlist
   async getWishlist(userId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/wishlist`);

@@ -271,6 +271,7 @@ export const badges = pgTable("badges", {
   description: text("description"),
   type: text("type").notNull(),
   requirement: integer("requirement"),
+  coinCost: integer("coin_cost").notNull().default(500),
   isActive: boolean("is_active").notNull().default(true),
 });
 
