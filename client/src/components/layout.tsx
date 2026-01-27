@@ -1,18 +1,28 @@
 import { Link, useLocation } from "wouter";
-import { Home, Compass, Plus, MessageCircle, User, Trophy, Clapperboard } from "lucide-react";
+import { Home, Compass, Plus, MessageCircle, User, Trophy, Clapperboard, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children, hideNav = false }: { children: React.ReactNode; hideNav?: boolean }) {
   const [location] = useLocation();
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
     { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Plus, label: "Go Live", path: "/go-live", isPrimary: true },
-    { icon: MessageCircle, label: "Messages", path: "/chat" },
+    { icon: Users, label: "Groups", path: "/groups" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
+
+  if (hideNav) {
+    return (
+      <div className="min-h-screen bg-background text-foreground overflow-hidden">
+        <main className="h-screen w-full overflow-y-auto no-scrollbar">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 md:pb-0 md:pl-20 overflow-hidden">

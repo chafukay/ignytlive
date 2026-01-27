@@ -14,6 +14,7 @@ import Conversation from "@/pages/conversation";
 import Profile from "@/pages/profile";
 import Leaderboard from "@/pages/leaderboard";
 import Shorts from "@/pages/shorts";
+import Groups from "@/pages/groups";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/chat" component={Chat} />
       <Route path="/chat/:userId" component={Conversation} />
       <Route path="/shorts" component={Shorts} />
+      <Route path="/groups" component={Groups} />
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/profile" component={Profile} />
       <Route path="/live/:id" component={LiveRoom} />

@@ -1,4 +1,4 @@
-import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest } from "@shared/schema";
+import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest, Group, GroupMember, GroupMessage, MediaUnlock } from "@shared/schema";
 
 const API_BASE = "";
 
@@ -321,5 +321,107 @@ export const api = {
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<JoinRequest>;
+  },
+
+  // Groups
+  async createGroup(name: string, ownerId: string, description?: string, isPrivate = true) {
+    const res = await fetch(`${API_BASE}/api/groups`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, ownerId, description, isPrivate }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Group>;
+  },
+
+  async getGroup(id: string) {
+    const res = await fetch(`${API_BASE}/api/groups/${id}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Group>;
+  },
+
+  async getUserGroups(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/groups`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Array<Group & { memberCount: number }>>;
+  },
+
+  async updateGroup(id: string, updates: Partial<Group>) {
+    const res = await fetch(`${API_BASE}/api/groups/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Group>;
+  },
+
+  async deleteGroup(id: string) {
+    const res = await fetch(`${API_BASE}/api/groups/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  // Group Members
+  async getGroupMembers(groupId: string) {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Array<GroupMember & { user: User }>>;
+  },
+
+  async addGroupMember(groupId: string, userId: string, role = "member") {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, role }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<GroupMember>;
+  },
+
+  async removeGroupMember(groupId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members/${userId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async checkGroupMembership(groupId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members/${userId}/check`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ isMember: boolean }>;
+  },
+
+  // Group Messages
+  async getGroupMessages(groupId: string) {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/messages`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Array<GroupMessage & { sender: User }>>;
+  },
+
+  async sendGroupMessage(groupId: string, senderId: string, content?: string, mediaUrl?: string, mediaType?: string, isPrivateMedia = false, unlockCost = 0) {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ senderId, content, mediaUrl, mediaType, isPrivateMedia, unlockCost }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<GroupMessage>;
+  },
+
+  // Media Unlock
+  async unlockMedia(userId: string, messageId: string, messageType: string, coinsPaid: number) {
+    const res = await fetch(`${API_BASE}/api/media/unlock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, messageId, messageType, coinsPaid }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<MediaUnlock>;
+  },
+
+  async checkMediaUnlock(userId: string, messageId: string, messageType: string) {
+    const res = await fetch(`${API_BASE}/api/media/unlock/check?userId=${userId}&messageId=${messageId}&messageType=${messageType}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ unlocked: boolean }>;
   },
 };
