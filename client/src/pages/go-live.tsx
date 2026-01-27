@@ -1,5 +1,5 @@
-import { Settings, Camera, X, Lock, Crown, Users as UsersIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
@@ -19,6 +19,12 @@ export default function GoLive() {
   const [minVipTier, setMinVipTier] = useState(1);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [isCameraLoading, setIsCameraLoading] = useState(true);
 
   const { data: group } = useQuery({
     queryKey: ["group", groupId],
@@ -31,6 +37,56 @@ export default function GoLive() {
       setAccessType("group");
     }
   }, [groupId]);
+
+  const startCamera = async () => {
+    setIsCameraLoading(true);
+    setCameraError(null);
+    
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: true
+      });
+      
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      if (error.name === "NotAllowedError") {
+        setCameraError("Camera access denied. Please allow camera access in your browser settings.");
+      } else if (error.name === "NotFoundError") {
+        setCameraError("No camera found on this device.");
+      } else {
+        setCameraError("Unable to access camera. Please check permissions.");
+      }
+    } finally {
+      setIsCameraLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    startCamera();
+    
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [facingMode]);
+
+  const flipCamera = () => {
+    setFacingMode(prev => prev === "user" ? "environment" : "user");
+  };
 
   const handleGoLive = async () => {
     if (!user) {
@@ -67,13 +123,36 @@ export default function GoLive() {
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Camera Preview (Simulated) */}
+      {/* Camera Preview */}
       <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black">
-        <div className="flex items-center justify-center h-full">
-          <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center animate-pulse">
-            <Camera className="w-12 h-12 text-white/20" />
+        {isCameraLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center animate-pulse">
+              <Camera className="w-12 h-12 text-white/20" />
+            </div>
           </div>
-        </div>
+        ) : cameraError ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 p-6">
+            <div className="w-24 h-24 rounded-full bg-red-500/20 border-2 border-red-500/30 flex items-center justify-center">
+              <VideoOff className="w-10 h-10 text-red-400" />
+            </div>
+            <p className="text-white/70 text-center max-w-xs">{cameraError}</p>
+            <button 
+              onClick={startCamera}
+              className="px-6 py-2 bg-primary rounded-full text-white font-medium"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : (
+          <video 
+            ref={videoRef}
+            autoPlay 
+            playsInline 
+            muted 
+            className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+          />
+        )}
       </div>
 
       {/* Controls Overlay */}
@@ -212,9 +291,17 @@ export default function GoLive() {
           <div className="flex justify-center gap-4 mb-8">
             {['Beauty', 'Effects', 'Flip', 'Share'].map(action => (
               <div key={action} className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
-                  <div className="w-6 h-6 bg-white/50 rounded-sm" />
-                </div>
+                <button 
+                  onClick={action === 'Flip' ? flipCamera : undefined}
+                  className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+                  data-testid={`button-action-${action.toLowerCase()}`}
+                >
+                  {action === 'Flip' ? (
+                    <RefreshCw className="w-6 h-6 text-white/70" />
+                  ) : (
+                    <div className="w-6 h-6 bg-white/50 rounded-sm" />
+                  )}
+                </button>
                 <span className="text-xs text-white/70">{action}</span>
               </div>
             ))}
