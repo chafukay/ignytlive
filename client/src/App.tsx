@@ -1,9 +1,9 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "./lib/auth-context";
+import { AuthProvider, useAuth } from "./lib/auth-context";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import LiveRoom from "@/pages/live";
@@ -31,34 +31,44 @@ import Privacy from "@/pages/privacy";
 import Help from "@/pages/help";
 import About from "@/pages/about";
 
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAuth();
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
+  return <Component />;
+}
+
 function Router() {
+  const { user } = useAuth();
+  
   return (
     <Switch>
-      <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/notifications" component={Notifications} />
-      <Route path="/following" component={Following} />
-      <Route path="/explore" component={Explore} />
-      <Route path="/coins" component={Coins} />
-      <Route path="/go-live" component={GoLive} />
-      <Route path="/chat" component={Chat} />
-      <Route path="/chat/:userId" component={Conversation} />
-      <Route path="/shorts" component={Shorts} />
-      <Route path="/groups" component={Groups} />
-      <Route path="/leaderboard" component={Leaderboard} />
-      <Route path="/profile" component={Profile} />
+      <Route path="/">{user ? <Home /> : <Redirect to="/login" />}</Route>
+      <Route path="/admin">{() => <ProtectedRoute component={Admin} />}</Route>
+      <Route path="/notifications">{() => <ProtectedRoute component={Notifications} />}</Route>
+      <Route path="/following">{() => <ProtectedRoute component={Following} />}</Route>
+      <Route path="/explore">{() => <ProtectedRoute component={Explore} />}</Route>
+      <Route path="/coins">{() => <ProtectedRoute component={Coins} />}</Route>
+      <Route path="/go-live">{() => <ProtectedRoute component={GoLive} />}</Route>
+      <Route path="/chat">{() => <ProtectedRoute component={Chat} />}</Route>
+      <Route path="/chat/:userId">{() => <ProtectedRoute component={Conversation} />}</Route>
+      <Route path="/shorts">{() => <ProtectedRoute component={Shorts} />}</Route>
+      <Route path="/groups">{() => <ProtectedRoute component={Groups} />}</Route>
+      <Route path="/leaderboard">{() => <ProtectedRoute component={Leaderboard} />}</Route>
+      <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
       <Route path="/live/:id" component={LiveRoom} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/store" component={Store} />
-      <Route path="/user-level" component={UserLevel} />
-      <Route path="/top-gifters" component={TopGifters} />
-      <Route path="/item-bag" component={ItemBag} />
-      <Route path="/edit-profile" component={EditProfile} />
-      <Route path="/privacy" component={Privacy} />
-      <Route path="/help" component={Help} />
-      <Route path="/about" component={About} />
+      <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
+      <Route path="/store">{() => <ProtectedRoute component={Store} />}</Route>
+      <Route path="/user-level">{() => <ProtectedRoute component={UserLevel} />}</Route>
+      <Route path="/top-gifters">{() => <ProtectedRoute component={TopGifters} />}</Route>
+      <Route path="/item-bag">{() => <ProtectedRoute component={ItemBag} />}</Route>
+      <Route path="/edit-profile">{() => <ProtectedRoute component={EditProfile} />}</Route>
+      <Route path="/privacy">{() => <ProtectedRoute component={Privacy} />}</Route>
+      <Route path="/help">{() => <ProtectedRoute component={Help} />}</Route>
+      <Route path="/about">{() => <ProtectedRoute component={About} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );
