@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,7 @@ export default function LiveRoom() {
   const [showSpinWheel, setShowSpinWheel] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isPKMode, setIsPKMode] = useState(false);
   const [pkScore, setPkScore] = useState(15000);
   const [viewerCount, setViewerCount] = useState(0);
@@ -338,6 +339,13 @@ export default function LiveRoom() {
               </div>
             ))}
           </div>
+          <button 
+            onClick={() => setIsMuted(!isMuted)}
+            className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
+            data-testid="button-mute"
+          >
+            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+          </button>
           <button 
             onClick={() => setLocation("/")}
             className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
