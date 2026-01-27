@@ -1,7 +1,7 @@
 import Layout from "@/components/layout";
-import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Bell } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Trophy, Clapperboard, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -139,6 +139,28 @@ export default function Profile() {
           <div className="absolute right-0 bottom-0 opacity-10">
             <Wallet className="w-32 h-32 text-white" />
           </div>
+        </div>
+
+        {/* Quick Access */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <Link href="/shorts">
+            <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-shorts">
+              <Clapperboard className="w-6 h-6 text-pink-400 mx-auto mb-2" />
+              <span className="text-white text-sm font-medium">Shorts</span>
+            </div>
+          </Link>
+          <Link href="/leaderboard">
+            <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-leaderboard">
+              <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
+              <span className="text-white text-sm font-medium">Leaderboard</span>
+            </div>
+          </Link>
+          <Link href="/groups">
+            <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-groups">
+              <Users className="w-6 h-6 text-blue-400 mx-auto mb-2" />
+              <span className="text-white text-sm font-medium">Groups</span>
+            </div>
+          </Link>
         </div>
 
         {/* VIP Status */}
