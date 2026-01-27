@@ -36,6 +36,7 @@ export default function LiveRoom() {
   const [showGiftMenu, setShowGiftMenu] = useState(false);
   const [showSpinWheel, setShowSpinWheel] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
   const [isPKMode, setIsPKMode] = useState(false);
   const [pkScore, setPkScore] = useState(15000);
   const [viewerCount, setViewerCount] = useState(0);
@@ -376,105 +377,122 @@ export default function LiveRoom() {
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1" onClick={handleLike} />
+      {/* Main Content Area - Tap to toggle overlay */}
+      <div 
+        className="flex-1" 
+        onClick={() => setShowOverlay(!showOverlay)}
+        data-testid="area-stream-tap"
+      />
 
-      {/* Quick Gift Bar */}
-      <div className="relative z-10 px-4 pb-2">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
-          {gifts?.slice(0, 7).map((gift) => (
-            <button
-              key={gift.id}
-              onClick={() => handleSendGift(gift)}
-              disabled={isSendingGift}
-              className="flex flex-col items-center min-w-[50px] hover:scale-110 transition-transform disabled:opacity-50"
-              data-testid={`quick-gift-${gift.id}`}
-            >
-              <span className="text-2xl">{gift.emoji}</span>
-              <span className="text-[9px] text-yellow-400 font-bold">{gift.coinCost}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Overlay Elements - Hidden when tapped */}
+      <AnimatePresence>
+        {showOverlay && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="relative z-10"
+          >
+            {/* Quick Gift Bar */}
+            <div className="px-4 pb-2">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                {gifts?.slice(0, 7).map((gift) => (
+                  <button
+                    key={gift.id}
+                    onClick={() => handleSendGift(gift)}
+                    disabled={isSendingGift}
+                    className="flex flex-col items-center min-w-[50px] hover:scale-110 transition-transform disabled:opacity-50"
+                    data-testid={`quick-gift-${gift.id}`}
+                  >
+                    <span className="text-2xl">{gift.emoji}</span>
+                    <span className="text-[9px] text-yellow-400 font-bold">{gift.coinCost}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-      {/* Bottom Interface */}
-      <div className="relative z-10 p-4 pt-0 pb-6">
-        {/* Chat Area */}
-        <div className="h-32 overflow-y-auto no-scrollbar mb-4 mask-image-gradient">
-          <div className="flex flex-col gap-2 justify-end min-h-full">
-            {comments.map((msg) => (
-              <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">
-                <div className={cn(
-                  "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[80%]",
-                  msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/20"
-                )}>
-                  <span className="font-bold text-white/90 mr-2 opacity-75">{msg.user}:</span>
-                  {msg.gift && <span className="mr-1">{msg.gift}</span>}
-                  <span className={msg.color || "text-white"}>{msg.text}</span>
+            {/* Bottom Interface */}
+            <div className="p-4 pt-0 pb-6">
+              {/* Chat Area */}
+              <div className="h-32 overflow-y-auto no-scrollbar mb-4 mask-image-gradient">
+                <div className="flex flex-col gap-2 justify-end min-h-full">
+                  {comments.map((msg) => (
+                    <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">
+                      <div className={cn(
+                        "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[80%]",
+                        msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/20"
+                      )}>
+                        <span className="font-bold text-white/90 mr-2 opacity-75">{msg.user}:</span>
+                        {msg.gift && <span className="mr-1">{msg.gift}</span>}
+                        <span className={msg.color || "text-white"}>{msg.text}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={chatEndRef} />
                 </div>
               </div>
-            ))}
-            <div ref={chatEndRef} />
-          </div>
-        </div>
 
-        {/* Actions Bar */}
-        <div className="flex items-center gap-3">
-          <form onSubmit={handleSend} className="flex-1 relative">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Say something..."
-              className="w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-full py-2.5 pl-4 pr-10 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
-              data-testid="input-chat"
-            />
-            <button 
-              type="submit" 
-              className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors"
-              data-testid="button-send"
-            >
-              <Send className="w-4 h-4 text-white" />
-            </button>
-          </form>
+              {/* Actions Bar */}
+              <div className="flex items-center gap-3">
+                <form onSubmit={handleSend} className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder="Say something..."
+                    className="w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-full py-2.5 pl-4 pr-10 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
+                    data-testid="input-chat"
+                  />
+                  <button 
+                    type="submit" 
+                    className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors"
+                    data-testid="button-send"
+                  >
+                    <Send className="w-4 h-4 text-white" />
+                  </button>
+                </form>
 
-          <button 
-            onClick={() => setShowSpinWheel(true)}
-            className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
-            data-testid="button-spin-wheel"
-          >
-            <Star className="w-5 h-5 text-white" />
-          </button>
+                <button 
+                  onClick={() => setShowSpinWheel(true)}
+                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
+                  data-testid="button-spin-wheel"
+                >
+                  <Star className="w-5 h-5 text-white" />
+                </button>
 
-          <button 
-            onClick={() => setShowWishlist(true)}
-            className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all"
-            data-testid="button-wishlist"
-          >
-            <Share2 className="w-5 h-5 text-white" />
-          </button>
+                <button 
+                  onClick={() => setShowWishlist(true)}
+                  className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all"
+                  data-testid="button-wishlist"
+                >
+                  <Share2 className="w-5 h-5 text-white" />
+                </button>
 
-          <button 
-            onClick={() => setShowGiftMenu(!showGiftMenu)}
-            className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-orange-500/30"
-            data-testid="button-gift"
-          >
-            <Gift className="w-5 h-5 text-white" />
-          </button>
+                <button 
+                  onClick={() => setShowGiftMenu(!showGiftMenu)}
+                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-orange-500/30"
+                  data-testid="button-gift"
+                >
+                  <Gift className="w-5 h-5 text-white" />
+                </button>
 
-          {streamerUser && user && streamerUser.id !== user.id && (
-            <CallButton receiverId={streamerUser.id} receiverName={streamerUser.username} coinCost={100} />
-          )}
+                {streamerUser && user && streamerUser.id !== user.id && (
+                  <CallButton receiverId={streamerUser.id} receiverName={streamerUser.username} coinCost={100} />
+                )}
 
-          <button 
-            onClick={handleLike}
-            className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-pink-500/20 active:scale-95 transition-all"
-            data-testid="button-like"
-          >
-            <Heart className="w-5 h-5 text-pink-500 fill-pink-500" />
-          </button>
-        </div>
-      </div>
+                <button 
+                  onClick={handleLike}
+                  className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-pink-500/20 active:scale-95 transition-all"
+                  data-testid="button-like"
+                >
+                  <Heart className="w-5 h-5 text-pink-500 fill-pink-500" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Gift Sheet */}
       <AnimatePresence>
