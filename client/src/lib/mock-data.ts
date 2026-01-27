@@ -93,3 +93,24 @@ export const MOCK_COMMENTS = [
   { id: 4, user: 'StreamFan', text: 'Hello from Brazil! 🇧🇷', color: 'text-white' },
   { id: 5, user: 'RichUser', text: 'Sent a Super Car 🏎️', isGift: true, gift: 'Super Car' },
 ];
+
+export const MOCK_LEADERBOARD = {
+  daily: [
+    { id: '1', username: 'NeonQueen', avatar: img1, score: 154000, level: 45 },
+    { id: '4', username: 'GamerX_Pro', avatar: img4, score: 120500, level: 88 },
+    { id: '3', username: 'BellaVita', avatar: img3, score: 98000, level: 50 },
+  ],
+  weekly: [
+    { id: '4', username: 'GamerX_Pro', avatar: img4, score: 850000, level: 88 },
+    { id: '1', username: 'NeonQueen', avatar: img1, score: 720000, level: 45 },
+    { id: '2', username: 'TechTalks_Dave', avatar: img2, score: 500000, level: 32 },
+  ]
+};
+
+export const MOCK_PK_OPPONENT = {
+  id: '99',
+  username: 'Rival_King',
+  avatar: img4,
+  score: 4500,
+  winStreak: 5
+};

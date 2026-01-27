@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Compass, Plus, MessageCircle, User } from "lucide-react";
+import { Home, Compass, Plus, MessageCircle, User, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -10,6 +10,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { icon: Home, label: "Home", path: "/" },
     { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Plus, label: "Go Live", path: "/go-live", isPrimary: true },
+    { icon: Trophy, label: "Rank", path: "/leaderboard" },
     { icon: MessageCircle, label: "Chat", path: "/chat" },
     { icon: User, label: "Profile", path: "/profile" },
   ];

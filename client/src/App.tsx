@@ -10,6 +10,7 @@ import Explore from "@/pages/explore";
 import GoLive from "@/pages/go-live";
 import Chat from "@/pages/chat";
 import Profile from "@/pages/profile";
+import Leaderboard from "@/pages/leaderboard";
 
 function Router() {
   return (
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/explore" component={Explore} />
       <Route path="/go-live" component={GoLive} />
       <Route path="/chat" component={Chat} />
+      <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/profile" component={Profile} />
       <Route path="/live/:id" component={LiveRoom} />
       <Route component={NotFound} />

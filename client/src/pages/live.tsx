@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { MOCK_STREAMERS, MOCK_COMMENTS } from "@/lib/mock-data";
-import { X, Heart, Gift, Send, Share2, UserPlus, Star } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Trophy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import PKBattleView from "@/components/pk-battle-view";
 
 interface Comment {
   id: number;
@@ -23,6 +24,8 @@ export default function LiveRoom() {
   const [inputValue, setInputValue] = useState("");
   const [likes, setLikes] = useState(0);
   const [showGiftMenu, setShowGiftMenu] = useState(false);
+  const [isPKMode, setIsPKMode] = useState(false);
+  const [pkScore, setPkScore] = useState(15000);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Simulate incoming comments
@@ -30,9 +33,14 @@ export default function LiveRoom() {
     const interval = setInterval(() => {
       const randomComment = MOCK_COMMENTS[Math.floor(Math.random() * MOCK_COMMENTS.length)];
       setComments(prev => [...prev.slice(-20), { ...randomComment, id: Date.now() }]);
+      
+      // Simulate PK Score updates
+      if (isPKMode) {
+        setPkScore(prev => prev + Math.floor(Math.random() * 100));
+      }
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isPKMode]);
 
   // Auto scroll chat
   useEffect(() => {
@@ -53,15 +61,19 @@ export default function LiveRoom() {
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Background Video (Simulated with Image) */}
-      <div className="absolute inset-0 z-0">
-        <img 
-          src={streamer.avatar} 
-          alt="Stream" 
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
-      </div>
+      {/* Background Video / PK View */}
+      {isPKMode ? (
+        <PKBattleView streamer={streamer} currentScore={pkScore} />
+      ) : (
+        <div className="absolute inset-0 z-0">
+            <img 
+            src={streamer.avatar} 
+            alt="Stream" 
+            className="w-full h-full object-cover opacity-80"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
+        </div>
+      )}
 
       {/* Header */}
       <div className="relative z-10 p-4 pt-6 flex justify-between items-start">
@@ -81,6 +93,18 @@ export default function LiveRoom() {
 
         {/* Viewer List & Close */}
         <div className="flex items-center gap-3">
+            {/* PK Toggle Button (Demo Feature) */}
+            <button 
+                onClick={() => setIsPKMode(!isPKMode)}
+                className={cn(
+                    "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors",
+                    isPKMode ? "bg-red-600 text-white animate-pulse" : "bg-white/10 text-white hover:bg-white/20"
+                )}
+            >
+                <Swords className="w-3 h-3" />
+                {isPKMode ? "PK LIVE" : "PK Mode"}
+            </button>
+
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
               <div key={i} className="w-8 h-8 rounded-full border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden">
