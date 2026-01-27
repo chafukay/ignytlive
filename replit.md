@@ -1,8 +1,8 @@
-# VibeStream - Live Social Video Platform
+# FUEGO Live - Live Social Video Platform
 
 ## Overview
 
-VibeStream is a real-time live streaming and social video platform built with a modern full-stack architecture. The application enables users to broadcast live streams, watch content from other creators, send virtual gifts, participate in live chat, view short-form video content, and compete in PK (Player vs Player) battles. The platform features a mobile-first design with a TikTok-inspired interface.
+FUEGO Live is a real-time live streaming and social video platform built with a modern full-stack architecture. The application enables users to broadcast live streams, watch content from other creators, send virtual gifts, participate in live chat, view short-form video content, and compete in PK (Player vs Player) battles. The platform features a mobile-first design with a TikTok-inspired interface.
 
 ## User Preferences
 
