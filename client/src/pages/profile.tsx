@@ -141,6 +141,22 @@ export default function Profile() {
           </div>
         </div>
 
+        {/* Go Live Button */}
+        <Link href="/go-live">
+          <div className="bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl p-4 mb-6 flex items-center justify-between cursor-pointer hover:scale-[1.02] transition-transform" data-testid="link-golive">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <Clapperboard className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-white font-bold">Go Live</p>
+                <p className="text-white/70 text-sm">Start streaming now</p>
+              </div>
+            </div>
+            <ChevronRight className="w-6 h-6 text-white" />
+          </div>
+        </Link>
+
         {/* Quick Access */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <Link href="/shorts">

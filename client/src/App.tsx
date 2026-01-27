@@ -15,12 +15,16 @@ import Profile from "@/pages/profile";
 import Leaderboard from "@/pages/leaderboard";
 import Shorts from "@/pages/shorts";
 import Groups from "@/pages/groups";
+import Following from "@/pages/following";
+import Coins from "@/pages/coins";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/following" component={Following} />
       <Route path="/explore" component={Explore} />
+      <Route path="/coins" component={Coins} />
       <Route path="/go-live" component={GoLive} />
       <Route path="/chat" component={Chat} />
       <Route path="/chat/:userId" component={Conversation} />

@@ -379,10 +379,28 @@ export default function LiveRoom() {
       {/* Main Content Area */}
       <div className="flex-1" onClick={handleLike} />
 
+      {/* Quick Gift Bar */}
+      <div className="relative z-10 px-4 pb-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+          {gifts?.slice(0, 7).map((gift) => (
+            <button
+              key={gift.id}
+              onClick={() => handleSendGift(gift)}
+              disabled={isSendingGift}
+              className="flex flex-col items-center min-w-[50px] hover:scale-110 transition-transform disabled:opacity-50"
+              data-testid={`quick-gift-${gift.id}`}
+            >
+              <span className="text-2xl">{gift.emoji}</span>
+              <span className="text-[9px] text-yellow-400 font-bold">{gift.coinCost}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Bottom Interface */}
-      <div className="relative z-10 p-4 pb-6">
+      <div className="relative z-10 p-4 pt-0 pb-6">
         {/* Chat Area */}
-        <div className="h-48 overflow-y-auto no-scrollbar mb-4 mask-image-gradient">
+        <div className="h-32 overflow-y-auto no-scrollbar mb-4 mask-image-gradient">
           <div className="flex flex-col gap-2 justify-end min-h-full">
             {comments.map((msg) => (
               <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">

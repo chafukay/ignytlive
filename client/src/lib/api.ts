@@ -167,7 +167,7 @@ export const api = {
   },
 
   // Leaderboard
-  async getLeaderboard(period: "daily" | "weekly") {
+  async getLeaderboard(period: "daily" | "weekly" | "alltime") {
     const res = await fetch(`${API_BASE}/api/leaderboard/${period}`);
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User[]>;

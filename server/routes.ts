@@ -285,7 +285,7 @@ export async function registerRoutes(
 
   // Leaderboard routes
   app.get("/api/leaderboard/:period", async (req, res) => {
-    const period = req.params.period as 'daily' | 'weekly';
+    const period = req.params.period as 'daily' | 'weekly' | 'alltime';
     const topStreamers = await storage.getTopStreamers(period);
     res.json(topStreamers);
   });

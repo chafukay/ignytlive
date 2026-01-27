@@ -1,7 +1,7 @@
 import Layout from "@/components/layout";
-import { MessageCircle, MoreHorizontal, Search } from "lucide-react";
+import { MessageCircle, MoreHorizontal, Pin, Mail } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -15,103 +15,169 @@ export default function Chat() {
     enabled: !!user?.id,
   });
 
+  const { data: liveStreams } = useQuery({
+    queryKey: ['liveStreams'],
+    queryFn: () => api.getLiveStreams(),
+  });
+
   const formatTime = (date: Date | string) => {
     const now = new Date();
     const messageDate = typeof date === 'string' ? new Date(date) : date;
     const diff = now.getTime() - messageDate.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor(diff / (1000 * 60));
     
     if (isNaN(diff)) return '';
+    if (days > 30) {
+      const month = messageDate.toLocaleString('default', { month: 'short' });
+      const day = messageDate.getDate();
+      return `${month} ${day}`;
+    }
     if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
+    return 'Today';
   };
 
   return (
     <Layout>
-      <div className="p-4 max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-display font-bold text-white">Messages</h1>
-          <MoreHorizontal className="text-white/50 cursor-pointer" />
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <img 
+              src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=User"} 
+              alt="Profile"
+              className="w-10 h-10 rounded-full"
+            />
+            <div className="flex items-center gap-1 bg-yellow-500/20 px-3 py-1.5 rounded-full">
+              <span className="text-yellow-400">💰</span>
+              <span className="text-yellow-400 text-sm font-bold">{user?.coins?.toLocaleString() || 0}</span>
+            </div>
+          </div>
+          <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+            <Mail className="w-5 h-5 text-white" />
+          </button>
         </div>
 
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="Search messages" 
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 transition-all"
-            data-testid="input-search"
-          />
-        </div>
-
-        {!user ? (
-          <div className="text-center py-12 text-white/50">
-            <p>Please log in to see your messages</p>
-          </div>
-        ) : isLoading ? (
-          <div className="space-y-2">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 animate-pulse">
-                <div className="w-14 h-14 rounded-full bg-white/10" />
-                <div className="flex-1">
-                  <div className="h-4 w-24 bg-white/10 rounded mb-2" />
-                  <div className="h-3 w-48 bg-white/10 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : chats && chats.length > 0 ? (
-          <div className="space-y-1">
-            {chats.map(({ user: chatUser, lastMessage }) => (
-              <div 
-                key={chatUser.id} 
-                onClick={() => setLocation(`/chat/${chatUser.id}`)}
-                className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 cursor-pointer transition-colors"
-                data-testid={`chat-${chatUser.id}`}
-              >
-                <div className="relative">
-                  <img 
-                    src={chatUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chatUser.username}`} 
-                    className="w-14 h-14 rounded-full object-cover" 
-                    data-testid={`img-chat-avatar-${chatUser.id}`}
-                  />
-                  {chatUser.isLive && (
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-background rounded-full" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-bold text-white">{chatUser.username}</h3>
-                    <span className="text-xs text-white/40">{formatTime(lastMessage.createdAt)}</span>
+        {/* Live Streamers Row */}
+        {liveStreams && liveStreams.length > 0 && (
+          <div className="p-4 border-b border-white/10">
+            <div className="flex gap-4 overflow-x-auto no-scrollbar">
+              {liveStreams.slice(0, 8).map((stream) => (
+                <Link key={stream.id} href={`/live/${stream.id}`}>
+                  <div className="flex flex-col items-center min-w-[60px] cursor-pointer">
+                    <div className="relative">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 p-0.5">
+                        <img 
+                          src={stream.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.title}`}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      </div>
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-[9px] font-bold px-1.5 rounded-sm">
+                        LIVE
+                      </span>
+                    </div>
+                    <span className="text-white text-[10px] mt-2 truncate w-14 text-center">
+                      {stream.user?.username?.slice(0, 8) || 'User'}
+                    </span>
                   </div>
-                  <p className="text-white/60 text-sm truncate">{lastMessage.content}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-white/50">
-            <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No messages yet</p>
-            <p className="text-sm mt-1">Start a conversation!</p>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* System Message */}
-        <div className="mt-4 flex items-center gap-4 p-3 rounded-2xl bg-primary/10 border border-primary/20">
-          <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
-            <MessageCircle className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <div className="flex justify-between items-center mb-1">
-              <h3 className="font-bold text-white">Team Ignyt</h3>
-              <span className="text-xs text-white/40">1d ago</span>
+        {/* Promo Banner */}
+        <div className="mx-4 mt-4 bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">💎</div>
+            <div>
+              <p className="text-white font-bold">GET 100% BONUS</p>
+              <p className="text-white/80 text-sm">WITH CRYPTO!</p>
             </div>
-            <p className="text-white/60 text-sm truncate">Welcome to Ignyt Live! Here are some tips...</p>
+          </div>
+          <Link href="/coins">
+            <button className="bg-white text-black font-bold px-4 py-2 rounded-full text-sm">
+              Grab Now
+            </button>
+          </Link>
+        </div>
+
+        {/* Messages List */}
+        <div className="p-4">
+          {!user ? (
+            <div className="text-center py-12 text-white/50">
+              <p>Please log in to see your messages</p>
+            </div>
+          ) : isLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 animate-pulse">
+                  <div className="w-14 h-14 rounded-full bg-white/10" />
+                  <div className="flex-1">
+                    <div className="h-4 w-24 bg-white/10 rounded mb-2" />
+                    <div className="h-3 w-48 bg-white/10 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : chats && chats.length > 0 ? (
+            <div className="space-y-1">
+              {chats.map(({ user: chatUser, lastMessage }) => (
+                <div 
+                  key={chatUser.id} 
+                  onClick={() => setLocation(`/chat/${chatUser.id}`)}
+                  className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 cursor-pointer transition-colors"
+                  data-testid={`chat-${chatUser.id}`}
+                >
+                  <div className="relative">
+                    <img 
+                      src={chatUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chatUser.username}`} 
+                      className="w-14 h-14 rounded-full object-cover" 
+                    />
+                    {chatUser.isLive && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-[8px] font-bold px-1 rounded-sm">
+                        LIVE
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="font-bold text-white">{chatUser.username}</h3>
+                      {chatUser.vipTier && chatUser.vipTier > 0 && (
+                        <span className="text-yellow-400">✓</span>
+                      )}
+                    </div>
+                    <p className="text-white/50 text-sm truncate">{lastMessage.content}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-xs text-white/30">{formatTime(lastMessage.createdAt)}</span>
+                    <Pin className="w-4 h-4 text-white/20" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-white/50">
+              <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No messages yet</p>
+              <p className="text-sm mt-1">Start a conversation!</p>
+            </div>
+          )}
+
+          {/* System Message */}
+          <div className="mt-4 flex items-center gap-4 p-3 rounded-2xl bg-primary/10 border border-primary/20">
+            <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
+              <MessageCircle className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h3 className="font-bold text-white">Ignyt Member</h3>
+              </div>
+              <p className="text-white/50 text-sm truncate">You saved a video</p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-white/30">March 15</span>
+              <Pin className="w-4 h-4 text-white/20" />
+            </div>
           </div>
         </div>
       </div>

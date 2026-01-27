@@ -1,16 +1,14 @@
 import Layout from "@/components/layout";
-import { Search, Flame, Calendar } from "lucide-react";
 import StreamCard from "@/components/stream-card";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useState } from "react";
+import { Search, Flame, Calendar } from "lucide-react";
 import { Link } from "wouter";
 
-export default function Explore() {
+export default function Following() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'new' | 'nearby' | 'popular'>('new');
-  
+
   const { data: liveStreams, isLoading } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
@@ -27,12 +25,11 @@ export default function Explore() {
               alt="Profile"
               className="w-10 h-10 rounded-full"
             />
-            <div className="flex items-center gap-1 bg-yellow-500/20 px-3 py-1.5 rounded-full">
-              <span className="text-yellow-400">💰</span>
+            <div className="flex items-center gap-1 bg-yellow-500/20 px-3 py-1 rounded-full">
               <span className="text-yellow-400 text-sm font-bold">{user?.coins?.toLocaleString() || 0}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10">
               <Search className="w-5 h-5 text-white" />
             </button>
@@ -56,37 +53,9 @@ export default function Explore() {
               <p className="text-white/80 text-sm">WITH CRYPTO!</p>
             </div>
           </div>
-          <Link href="/coins">
-            <button className="bg-white text-black font-bold px-4 py-2 rounded-full text-sm hover:scale-105 transition-transform">
-              Grab Now
-            </button>
-          </Link>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-6 mb-6 border-b border-white/10 pb-3">
-          {[
-            { id: 'new', label: 'New', icon: '⭐' },
-            { id: 'nearby', label: 'Nearby', icon: '' },
-            { id: 'popular', label: 'Popular', icon: '' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-1.5 pb-2 font-medium transition-colors relative ${
-                activeTab === tab.id
-                  ? 'text-white'
-                  : 'text-white/50 hover:text-white/70'
-              }`}
-              data-testid={`button-tab-${tab.id}`}
-            >
-              {tab.icon && <span>{tab.icon}</span>}
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-              )}
-            </button>
-          ))}
+          <button className="bg-white text-black font-bold px-4 py-2 rounded-full text-sm hover:scale-105 transition-transform">
+            Grab Now
+          </button>
         </div>
 
         {/* Stream Grid */}
@@ -104,7 +73,8 @@ export default function Explore() {
               ))
             ) : (
               <div className="col-span-full text-center py-12 text-white/50">
-                <p>No streams available</p>
+                <p className="text-lg">No live streams from people you follow</p>
+                <p className="text-sm mt-2">Explore to find new streamers!</p>
               </div>
             )}
           </div>

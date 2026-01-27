@@ -106,7 +106,7 @@ export interface IStorage {
   getStreamComments(streamId: string, limit?: number): Promise<(StreamComment & { user: User })[]>;
   
   // Leaderboard operations
-  getTopStreamers(period: 'daily' | 'weekly'): Promise<User[]>;
+  getTopStreamers(period: 'daily' | 'weekly' | 'alltime'): Promise<User[]>;
   
   // Badge operations
   getBadges(): Promise<Badge[]>;
@@ -493,8 +493,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Leaderboard operations
-  async getTopStreamers(period: 'daily' | 'weekly'): Promise<User[]> {
-    // This is simplified - in production you'd filter by time period
+  async getTopStreamers(period: 'daily' | 'weekly' | 'alltime'): Promise<User[]> {
+    // For alltime, we return more users and order by diamonds
+    if (period === 'alltime') {
+      return await db
+        .select()
+        .from(users)
+        .orderBy(desc(users.diamonds))
+        .limit(20);
+    }
+    // Daily/weekly returns by total likes
     return await db
       .select()
       .from(users)

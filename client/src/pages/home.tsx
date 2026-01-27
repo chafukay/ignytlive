@@ -2,8 +2,9 @@ import Layout from "@/components/layout";
 import StreamCard from "@/components/stream-card";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Search, Bell, Flame } from "lucide-react";
+import { Search, Flame, Calendar } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { Link } from "wouter";
 
 export default function Home() {
   const { user, login } = useAuth();
@@ -13,7 +14,6 @@ export default function Home() {
     queryFn: () => api.getLiveStreams(),
   });
 
-  // Auto-login demo user for testing
   if (!user) {
     api.login('NeonQueen', 'demo123')
       .then(({ user }) => login(user))
@@ -24,37 +24,55 @@ export default function Home() {
     <Layout>
       <div className="p-4 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6 pt-2">
-          <h1 className="text-2xl md:text-3xl text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary font-black tracking-tight">
-            Ignyt Live
-          </h1>
-          <div className="flex gap-3">
+        <div className="flex justify-between items-center mb-4 pt-2">
+          <div className="flex items-center gap-3">
+            <img 
+              src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=User"} 
+              alt="Profile"
+              className="w-10 h-10 rounded-full"
+              data-testid="img-avatar"
+            />
+            <div className="flex items-center gap-1 bg-yellow-500/20 px-3 py-1.5 rounded-full">
+              <span className="text-yellow-400">💰</span>
+              <span className="text-yellow-400 text-sm font-bold">{user?.coins?.toLocaleString() || 0}</span>
+            </div>
+          </div>
+          <div className="flex gap-2">
             <button 
               data-testid="button-search"
-              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10"
             >
               <Search className="w-5 h-5 text-white" />
             </button>
-            <button 
-              data-testid="button-notifications"
-              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors relative"
-            >
-              <Bell className="w-5 h-5 text-white" />
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background" />
+            <Link href="/leaderboard">
+              <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10">
+                <Flame className="w-5 h-5 text-orange-400" />
+              </button>
+            </Link>
+            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10">
+              <Calendar className="w-5 h-5 text-white" />
             </button>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-accent p-[2px]">
-              <img 
-                src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
-                alt="Me" 
-                className="w-full h-full rounded-full bg-background"
-                data-testid="img-avatar"
-              />
-            </div>
           </div>
         </div>
 
+        {/* Promo Banner */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">💎</div>
+            <div>
+              <p className="text-white font-bold">GET 100% BONUS</p>
+              <p className="text-white/80 text-sm">WITH CRYPTO!</p>
+            </div>
+          </div>
+          <Link href="/coins">
+            <button className="bg-white text-black font-bold px-4 py-2 rounded-full text-sm hover:scale-105 transition-transform">
+              Grab Now
+            </button>
+          </Link>
+        </div>
+
         {/* Categories */}
-        <div className="flex gap-3 overflow-x-auto no-scrollbar mb-8 pb-2">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar mb-6 pb-2">
           {['Trending', 'Nearby', 'New Star', 'Party', 'Gaming', 'Music', 'Chat'].map((cat, i) => (
             <button 
               key={cat}
@@ -70,12 +88,8 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Featured Section (Hot) */}
+        {/* Stream Grid */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-5 h-5 text-orange-500 fill-orange-500 animate-pulse" />
-            <h2 className="text-xl text-white">Hot Live</h2>
-          </div>
           
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
