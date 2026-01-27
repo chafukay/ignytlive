@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +45,11 @@ export default function LiveRoom() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const { toast } = useToast();
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
   const { data: stream, isLoading: streamLoading } = useQuery({
     queryKey: ['stream', streamId],
@@ -155,6 +160,60 @@ export default function LiveRoom() {
     }
   }, [stream]);
 
+  // Check if current user is the broadcaster
+  const isBroadcaster = user && stream && user.id === stream.userId;
+
+  // Start camera for broadcaster
+  const startBroadcasterCamera = async () => {
+    if (!isBroadcaster) return;
+    
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+    
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: true
+      });
+      
+      setCameraStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      setCameraError(null);
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      if (error.name === "NotAllowedError") {
+        setCameraError("Camera access denied");
+      } else if (error.name === "NotFoundError") {
+        setCameraError("No camera found");
+      } else {
+        setCameraError("Unable to access camera");
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isBroadcaster) {
+      startBroadcasterCamera();
+    }
+    
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isBroadcaster, facingMode]);
+
+  const flipCamera = () => {
+    setFacingMode(prev => prev === "user" ? "environment" : "user");
+  };
+
   // Auto scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -264,13 +323,46 @@ export default function LiveRoom() {
         <PKBattleView streamer={displayUser} currentScore={pkScore} />
       ) : (
         <div className="absolute inset-0 z-0">
-          <img 
-            src={stream?.thumbnail || displayUser.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=' + streamId} 
-            alt="Stream" 
-            className="w-full h-full object-cover opacity-80"
-            data-testid="img-stream-background"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
+          {isBroadcaster ? (
+            <>
+              {cameraError ? (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                  <VideoOff className="w-16 h-16 text-red-400 mb-4" />
+                  <p className="text-white/70">{cameraError}</p>
+                  <button 
+                    onClick={startBroadcasterCamera}
+                    className="mt-4 px-6 py-2 bg-primary rounded-full text-white"
+                  >
+                    Retry Camera
+                  </button>
+                </div>
+              ) : (
+                <video 
+                  ref={videoRef}
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+                  data-testid="video-broadcaster"
+                />
+              )}
+              <button
+                onClick={flipCamera}
+                className="absolute top-24 right-4 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
+                data-testid="button-flip-camera"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+            </>
+          ) : (
+            <img 
+              src={stream?.thumbnail || displayUser.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=' + streamId} 
+              alt="Stream" 
+              className="w-full h-full object-cover opacity-80"
+              data-testid="img-stream-background"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90 pointer-events-none" />
         </div>
       )}
 
