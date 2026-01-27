@@ -1,9 +1,25 @@
 import Layout from "@/components/layout";
 import StreamCard from "@/components/stream-card";
-import { MOCK_STREAMERS } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Search, Bell, Flame } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
+  const { user, login } = useAuth();
+  
+  const { data: liveStreams, isLoading } = useQuery({
+    queryKey: ['liveStreams'],
+    queryFn: () => api.getLiveStreams(),
+  });
+
+  // Auto-login demo user for testing
+  if (!user) {
+    api.login('NeonQueen', 'demo123')
+      .then(({ user }) => login(user))
+      .catch(() => {});
+  }
+
   return (
     <Layout>
       <div className="p-4 max-w-7xl mx-auto">
@@ -13,18 +29,25 @@ export default function Home() {
             VibeStream
           </h1>
           <div className="flex gap-3">
-            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+            <button 
+              data-testid="button-search"
+              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+            >
               <Search className="w-5 h-5 text-white" />
             </button>
-            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors relative">
+            <button 
+              data-testid="button-notifications"
+              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors relative"
+            >
               <Bell className="w-5 h-5 text-white" />
               <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background" />
             </button>
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-accent p-[2px]">
               <img 
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
+                src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
                 alt="Me" 
                 className="w-full h-full rounded-full bg-background"
+                data-testid="img-avatar"
               />
             </div>
           </div>
@@ -35,6 +58,7 @@ export default function Home() {
           {['Trending', 'Nearby', 'New Star', 'Party', 'Gaming', 'Music', 'Chat'].map((cat, i) => (
             <button 
               key={cat}
+              data-testid={`button-category-${cat.toLowerCase()}`}
               className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all ${
                 i === 0 
                   ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-105' 
@@ -53,15 +77,29 @@ export default function Home() {
             <h2 className="text-xl text-white">Hot Live</h2>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {MOCK_STREAMERS.map((streamer) => (
-              <StreamCard key={streamer.id} streamer={streamer} />
-            ))}
-            {/* Duplicate for fullness */}
-            {MOCK_STREAMERS.slice(0, 4).map((streamer) => (
-              <StreamCard key={`${streamer.id}-dup`} streamer={{...streamer, id: `${streamer.id}-dup`}} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {[...Array(10)].map((_, i) => (
+                <div 
+                  key={i}
+                  className="aspect-[3/4] rounded-2xl bg-white/5 animate-pulse"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {liveStreams && liveStreams.length > 0 ? (
+                liveStreams.map((stream) => (
+                  <StreamCard key={stream.id} stream={stream} />
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12 text-white/50">
+                  <p className="text-lg">No live streams at the moment</p>
+                  <p className="text-sm mt-2">Check back soon!</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </Layout>
