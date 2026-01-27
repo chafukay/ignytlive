@@ -10,7 +10,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
     { icon: Home, label: "Home", path: "/" },
     { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Plus, label: "Go Live", path: "/go-live", isPrimary: true },
-    { icon: Users, label: "Groups", path: "/groups" },
+    { icon: MessageCircle, label: "Messages", path: "/chat" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
 
