@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createStreamWebSocket } from "@/lib/websocket";
+import { isAgoraConfigured, joinAsHost, joinAsAudience, leaveChannel, switchCamera, toggleMute } from "@/lib/agora";
+import type { IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import PKBattleView from "@/components/pk-battle-view";
 import SpinWheel from "@/components/spin-wheel";
 import WishlistPanel from "@/components/wishlist-panel";
@@ -47,9 +49,14 @@ export default function LiveRoom() {
   const { toast } = useToast();
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLDivElement>(null);
+  const localVideoRef = useRef<HTMLDivElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [agoraConnected, setAgoraConnected] = useState(false);
+  const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
+  const [agoraError, setAgoraError] = useState<string | null>(null);
 
   const { data: stream, isLoading: streamLoading } = useQuery({
     queryKey: ['stream', streamId],
@@ -163,8 +170,78 @@ export default function LiveRoom() {
   // Check if current user is the broadcaster
   const isBroadcaster = user && stream && user.id === stream.userId;
 
-  // Start camera for broadcaster
-  const startBroadcasterCamera = async () => {
+  // Agora connection for real-time streaming
+  useEffect(() => {
+    if (!streamId || !stream) return;
+    
+    const channelName = `stream_${streamId}`;
+    
+    if (isAgoraConfigured()) {
+      if (isBroadcaster) {
+        // Broadcaster: join as host and publish
+        const startBroadcast = async () => {
+          try {
+            await joinAsHost(channelName, localVideoRef.current);
+            setAgoraConnected(true);
+            setAgoraError(null);
+            console.log("Broadcasting via Agora");
+          } catch (error: any) {
+            console.error("Agora broadcast error:", error);
+            setAgoraError(error.message || "Failed to start broadcast");
+            startFallbackCamera();
+          }
+        };
+        startBroadcast();
+      } else {
+        // Viewer: join as audience and subscribe
+        const startViewing = async () => {
+          try {
+            await joinAsAudience(
+              channelName,
+              (user: IAgoraRTCRemoteUser, mediaType) => {
+                console.log("Remote user published:", user.uid, mediaType);
+                if (mediaType === "video" && remoteVideoRef.current) {
+                  user.videoTrack?.play(remoteVideoRef.current);
+                  setHasRemoteVideo(true);
+                }
+                if (mediaType === "audio") {
+                  user.audioTrack?.play();
+                }
+              },
+              (user: IAgoraRTCRemoteUser, mediaType) => {
+                console.log("Remote user unpublished:", user.uid, mediaType);
+                if (mediaType === "video") {
+                  setHasRemoteVideo(false);
+                }
+              }
+            );
+            setAgoraConnected(true);
+            setAgoraError(null);
+            console.log("Viewing via Agora");
+          } catch (error: any) {
+            console.error("Agora view error:", error);
+            setAgoraError(error.message || "Failed to connect to stream");
+          }
+        };
+        startViewing();
+      }
+    } else {
+      // Fallback to local camera for broadcaster if Agora not configured
+      if (isBroadcaster) {
+        startFallbackCamera();
+      }
+    }
+    
+    return () => {
+      leaveChannel().catch(console.error);
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [streamId, stream, isBroadcaster]);
+
+  // Fallback camera for when Agora isn't configured
+  const startFallbackCamera = async () => {
     if (!isBroadcaster) return;
     
     if (cameraStream) {
@@ -198,20 +275,13 @@ export default function LiveRoom() {
     }
   };
 
-  useEffect(() => {
-    if (isBroadcaster) {
-      startBroadcasterCamera();
+  const flipCamera = async () => {
+    if (isAgoraConfigured() && agoraConnected) {
+      await switchCamera();
+    } else {
+      setFacingMode(prev => prev === "user" ? "environment" : "user");
+      startFallbackCamera();
     }
-    
-    return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [isBroadcaster, facingMode]);
-
-  const flipCamera = () => {
-    setFacingMode(prev => prev === "user" ? "environment" : "user");
   };
 
   // Auto scroll chat
@@ -368,17 +438,23 @@ export default function LiveRoom() {
         <div className="absolute inset-0 z-0">
           {isBroadcaster ? (
             <>
-              {cameraError ? (
+              {cameraError || agoraError ? (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-black">
                   <VideoOff className="w-16 h-16 text-red-400 mb-4" />
-                  <p className="text-white/70">{cameraError}</p>
+                  <p className="text-white/70">{cameraError || agoraError}</p>
                   <button 
-                    onClick={startBroadcasterCamera}
+                    onClick={startFallbackCamera}
                     className="mt-4 px-6 py-2 bg-primary rounded-full text-white"
                   >
                     Retry Camera
                   </button>
                 </div>
+              ) : isAgoraConfigured() && agoraConnected ? (
+                <div 
+                  ref={localVideoRef}
+                  className="w-full h-full"
+                  data-testid="video-broadcaster-agora"
+                />
               ) : (
                 <video 
                   ref={videoRef}
@@ -398,12 +474,43 @@ export default function LiveRoom() {
               </button>
             </>
           ) : (
-            <img 
-              src={stream?.thumbnail || displayUser.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=' + streamId} 
-              alt="Stream" 
-              className="w-full h-full object-cover opacity-80"
-              data-testid="img-stream-background"
-            />
+            <>
+              {isAgoraConfigured() && hasRemoteVideo ? (
+                <div 
+                  ref={remoteVideoRef}
+                  className="w-full h-full"
+                  data-testid="video-viewer-agora"
+                />
+              ) : (
+                <div className="w-full h-full relative">
+                  <img 
+                    src={stream?.thumbnail || displayUser.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=' + streamId} 
+                    alt="Stream" 
+                    className="w-full h-full object-cover opacity-80"
+                    data-testid="img-stream-background"
+                  />
+                  {isAgoraConfigured() && agoraConnected && !hasRemoteVideo && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      <div className="text-center">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-white/70">Waiting for broadcaster...</p>
+                      </div>
+                    </div>
+                  )}
+                  {!isAgoraConfigured() && (
+                    <div className="absolute bottom-24 left-0 right-0 flex justify-center">
+                      <div className="glass px-4 py-2 rounded-full text-sm text-white/70">
+                        Live streaming not configured
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div 
+                ref={remoteVideoRef}
+                className={`absolute inset-0 ${hasRemoteVideo ? '' : 'hidden'}`}
+              />
+            </>
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90 pointer-events-none" />
         </div>
