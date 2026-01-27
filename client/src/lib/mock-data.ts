@@ -114,3 +114,36 @@ export const MOCK_PK_OPPONENT = {
   score: 4500,
   winStreak: 5
 };
+
+export const MOCK_SHORTS = [
+  {
+    id: '1',
+    video: img1, // Using image as placeholder for video
+    user: { username: 'NeonQueen', avatar: img1 },
+    description: 'When the beat drops just right! 🎵🔥 #dance #vibes',
+    likes: '125K',
+    comments: '1.2K',
+    shares: '5.5K',
+    song: 'Original Sound - NeonQueen'
+  },
+  {
+    id: '2',
+    video: img3,
+    user: { username: 'BellaVita', avatar: img3 },
+    description: 'Bali sunsets are different... 🌅✨ #travel #bali',
+    likes: '89K',
+    comments: '850',
+    shares: '2.1K',
+    song: 'Summer Vibes - Chill Mix'
+  },
+  {
+    id: '3',
+    video: img5,
+    user: { username: 'ChefMario', avatar: img5 },
+    description: 'Secret pasta sauce recipe reveal! 🍝🤫 #cooking #foodie',
+    likes: '45K',
+    comments: '2.3K',
+    shares: '12K',
+    song: 'Italian Dinner Jazz'
+  }
+];
