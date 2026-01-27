@@ -471,5 +471,182 @@ export async function registerRoutes(
     }
   });
 
+  // Group routes
+  const createGroupSchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    avatar: z.string().optional(),
+    ownerId: z.string().min(1),
+    isPrivate: z.boolean().optional(),
+  });
+
+  app.post("/api/groups", async (req, res) => {
+    try {
+      const data = createGroupSchema.parse(req.body);
+      const group = await storage.createGroup(data);
+      res.json(group);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create group" });
+    }
+  });
+
+  app.get("/api/groups/:id", async (req, res) => {
+    try {
+      const group = await storage.getGroup(req.params.id);
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+      res.json(group);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch group" });
+    }
+  });
+
+  app.get("/api/users/:id/groups", async (req, res) => {
+    try {
+      const userGroups = await storage.getUserGroups(req.params.id);
+      res.json(userGroups);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user groups" });
+    }
+  });
+
+  app.patch("/api/groups/:id", async (req, res) => {
+    try {
+      const group = await storage.updateGroup(req.params.id, req.body);
+      res.json(group);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update group" });
+    }
+  });
+
+  app.delete("/api/groups/:id", async (req, res) => {
+    try {
+      await storage.deleteGroup(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to delete group" });
+    }
+  });
+
+  // Group member routes
+  const addMemberSchema = z.object({
+    userId: z.string().min(1),
+    role: z.string().optional(),
+  });
+
+  app.get("/api/groups/:id/members", async (req, res) => {
+    try {
+      const members = await storage.getGroupMembers(req.params.id);
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch group members" });
+    }
+  });
+
+  app.post("/api/groups/:id/members", async (req, res) => {
+    try {
+      const { userId, role } = addMemberSchema.parse(req.body);
+      const member = await storage.addGroupMember({
+        groupId: req.params.id,
+        userId,
+        role: role || "member",
+      });
+      res.json(member);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to add member" });
+    }
+  });
+
+  app.delete("/api/groups/:groupId/members/:userId", async (req, res) => {
+    try {
+      await storage.removeGroupMember(req.params.groupId, req.params.userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to remove member" });
+    }
+  });
+
+  app.get("/api/groups/:groupId/members/:userId/check", async (req, res) => {
+    try {
+      const isMember = await storage.isGroupMember(req.params.groupId, req.params.userId);
+      res.json({ isMember });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check membership" });
+    }
+  });
+
+  // Group message routes
+  const groupMessageSchema = z.object({
+    senderId: z.string().min(1),
+    content: z.string().optional(),
+    mediaUrl: z.string().optional(),
+    mediaType: z.string().optional(),
+    isPrivateMedia: z.boolean().optional(),
+    unlockCost: z.number().optional(),
+  });
+
+  app.get("/api/groups/:id/messages", async (req, res) => {
+    try {
+      const messages = await storage.getGroupMessages(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/groups/:id/messages", async (req, res) => {
+    try {
+      const data = groupMessageSchema.parse(req.body);
+      const message = await storage.createGroupMessage({
+        groupId: req.params.id,
+        ...data,
+      });
+      res.json(message);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to send message" });
+    }
+  });
+
+  // Media unlock routes
+  const unlockMediaSchema = z.object({
+    userId: z.string().min(1),
+    messageId: z.string().min(1),
+    messageType: z.string().min(1),
+    coinsPaid: z.number().min(1),
+  });
+
+  app.post("/api/media/unlock", async (req, res) => {
+    try {
+      const data = unlockMediaSchema.parse(req.body);
+      const user = await storage.getUser(data.userId);
+      if (!user || user.coins < data.coinsPaid) {
+        return res.status(400).json({ error: "Insufficient coins" });
+      }
+      await storage.updateUser(data.userId, { coins: user.coins - data.coinsPaid });
+      const unlock = await storage.unlockMedia(data);
+      res.json(unlock);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to unlock media" });
+    }
+  });
+
+  app.get("/api/media/unlock/check", async (req, res) => {
+    try {
+      const { userId, messageId, messageType } = req.query;
+      if (!userId || !messageId || !messageType) {
+        return res.status(400).json({ error: "Missing parameters" });
+      }
+      const hasUnlocked = await storage.hasUnlockedMedia(
+        userId as string,
+        messageId as string,
+        messageType as string
+      );
+      res.json({ unlocked: hasUnlocked });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check unlock status" });
+    }
+  });
+
   return httpServer;
 }
