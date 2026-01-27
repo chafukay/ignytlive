@@ -52,6 +52,7 @@ export const streams = pgTable("streams", {
   isPrivate: boolean("is_private").notNull().default(false),
   accessType: text("access_type").notNull().default("public"),
   minVipTier: integer("min_vip_tier").notNull().default(0),
+  groupId: varchar("group_id"),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -419,3 +420,92 @@ export const insertJoinRequestSchema = createInsertSchema(joinRequests).omit({
 });
 export type InsertJoinRequest = z.infer<typeof insertJoinRequestSchema>;
 export type JoinRequest = typeof joinRequests.$inferSelect;
+
+// Groups table
+export const groups = pgTable("groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  avatar: text("avatar"),
+  ownerId: varchar("owner_id").notNull().references(() => users.id),
+  isPrivate: boolean("is_private").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const groupsRelations = relations(groups, ({ one, many }) => ({
+  owner: one(users, { fields: [groups.ownerId], references: [users.id] }),
+}));
+
+export const insertGroupSchema = createInsertSchema(groups).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertGroup = z.infer<typeof insertGroupSchema>;
+export type Group = typeof groups.$inferSelect;
+
+// Group Members table
+export const groupMembers = pgTable("group_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => groups.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("member"),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
+export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
+  group: one(groups, { fields: [groupMembers.groupId], references: [groups.id] }),
+  user: one(users, { fields: [groupMembers.userId], references: [users.id] }),
+}));
+
+export const insertGroupMemberSchema = createInsertSchema(groupMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+export type InsertGroupMember = z.infer<typeof insertGroupMemberSchema>;
+export type GroupMember = typeof groupMembers.$inferSelect;
+
+// Group Messages table with private media support
+export const groupMessages = pgTable("group_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => groups.id),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  content: text("content"),
+  mediaUrl: text("media_url"),
+  mediaType: text("media_type"),
+  isPrivateMedia: boolean("is_private_media").notNull().default(false),
+  unlockCost: integer("unlock_cost").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
+  group: one(groups, { fields: [groupMessages.groupId], references: [groups.id] }),
+  sender: one(users, { fields: [groupMessages.senderId], references: [users.id] }),
+}));
+
+export const insertGroupMessageSchema = createInsertSchema(groupMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertGroupMessage = z.infer<typeof insertGroupMessageSchema>;
+export type GroupMessage = typeof groupMessages.$inferSelect;
+
+// Media Unlocks table - tracks who has paid to unlock private media
+export const mediaUnlocks = pgTable("media_unlocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  messageId: varchar("message_id").notNull(),
+  messageType: text("message_type").notNull(),
+  coinsPaid: integer("coins_paid").notNull(),
+  unlockedAt: timestamp("unlocked_at").notNull().defaultNow(),
+});
+
+export const mediaUnlocksRelations = relations(mediaUnlocks, ({ one }) => ({
+  user: one(users, { fields: [mediaUnlocks.userId], references: [users.id] }),
+}));
+
+export const insertMediaUnlockSchema = createInsertSchema(mediaUnlocks).omit({
+  id: true,
+  unlockedAt: true,
+});
+export type InsertMediaUnlock = z.infer<typeof insertMediaUnlockSchema>;
+export type MediaUnlock = typeof mediaUnlocks.$inferSelect;
