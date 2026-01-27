@@ -9,7 +9,9 @@ import {
   insertFollowSchema,
   insertGiftTransactionSchema,
   insertMessageSchema,
-  insertStreamCommentSchema 
+  insertStreamCommentSchema,
+  insertStreamGoalSchema,
+  insertJoinRequestSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -369,6 +371,91 @@ export async function registerRoutes(
   app.get("/api/users/:id/calls", async (req, res) => {
     const calls = await storage.getUserCallRequests(req.params.id);
     res.json(calls);
+  });
+
+  // Stream Goals routes
+  app.get("/api/streams/:id/goals", async (req, res) => {
+    try {
+      const goals = await storage.getStreamGoals(req.params.id);
+      res.json(goals);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stream goals" });
+    }
+  });
+
+  const createStreamGoalSchema = z.object({
+    title: z.string().min(1),
+    targetCoins: z.number().positive(),
+    rewardDescription: z.string().optional(),
+  });
+
+  app.post("/api/streams/:id/goals", async (req, res) => {
+    try {
+      const validated = createStreamGoalSchema.parse(req.body);
+      const goal = await storage.createStreamGoal({
+        streamId: req.params.id,
+        ...validated,
+      });
+      res.json(goal);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create stream goal" });
+    }
+  });
+
+  const contributeSchema = z.object({
+    amount: z.number().positive(),
+  });
+
+  app.patch("/api/goals/:id/contribute", async (req, res) => {
+    try {
+      const { amount } = contributeSchema.parse(req.body);
+      const goal = await storage.contributeToGoal(req.params.id, amount);
+      res.json(goal);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to contribute to goal" });
+    }
+  });
+
+  // Join Video Request routes
+  app.get("/api/streams/:id/join-requests", async (req, res) => {
+    try {
+      const requests = await storage.getJoinRequests(req.params.id);
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch join requests" });
+    }
+  });
+
+  const joinRequestSchema = z.object({
+    userId: z.string().min(1),
+  });
+
+  app.post("/api/streams/:id/join-requests", async (req, res) => {
+    try {
+      const { userId } = joinRequestSchema.parse(req.body);
+      const request = await storage.createJoinRequest({
+        streamId: req.params.id,
+        userId,
+        status: "pending",
+      });
+      res.json(request);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create join request" });
+    }
+  });
+
+  const updateJoinRequestSchema = z.object({
+    status: z.enum(["pending", "accepted", "rejected"]),
+  });
+
+  app.patch("/api/join-requests/:id", async (req, res) => {
+    try {
+      const { status } = updateJoinRequestSchema.parse(req.body);
+      const request = await storage.updateJoinRequest(req.params.id, status);
+      res.json(request);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update join request" });
+    }
   });
 
   return httpServer;

@@ -13,6 +13,8 @@ import {
   wheelPrizes,
   wheelSpins,
   callRequests,
+  streamGoals,
+  joinRequests,
   type User,
   type InsertUser,
   type Stream,
@@ -39,6 +41,10 @@ import {
   type WheelSpin,
   type CallRequest,
   type InsertCallRequest,
+  type StreamGoal,
+  type InsertStreamGoal,
+  type JoinRequest,
+  type InsertJoinRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -110,6 +116,17 @@ export interface IStorage {
   createCallRequest(call: InsertCallRequest): Promise<CallRequest>;
   updateCallRequest(id: string, updates: Partial<CallRequest>): Promise<CallRequest | undefined>;
   getUserCallRequests(userId: string): Promise<CallRequest[]>;
+  
+  // Stream Goal operations
+  getStreamGoals(streamId: string): Promise<StreamGoal[]>;
+  createStreamGoal(goal: InsertStreamGoal): Promise<StreamGoal>;
+  updateStreamGoal(id: string, updates: Partial<StreamGoal>): Promise<StreamGoal | undefined>;
+  contributeToGoal(goalId: string, amount: number): Promise<StreamGoal | undefined>;
+  
+  // Join Request operations
+  getJoinRequests(streamId: string): Promise<(JoinRequest & { user: User })[]>;
+  createJoinRequest(request: InsertJoinRequest): Promise<JoinRequest>;
+  updateJoinRequest(id: string, status: string): Promise<JoinRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -568,6 +585,75 @@ export class DatabaseStorage implements IStorage {
       .from(callRequests)
       .where(or(eq(callRequests.callerId, userId), eq(callRequests.receiverId, userId)))
       .orderBy(desc(callRequests.createdAt));
+  }
+  
+  // Stream Goal operations
+  async getStreamGoals(streamId: string): Promise<StreamGoal[]> {
+    return await db
+      .select()
+      .from(streamGoals)
+      .where(eq(streamGoals.streamId, streamId))
+      .orderBy(streamGoals.createdAt);
+  }
+  
+  async createStreamGoal(goal: InsertStreamGoal): Promise<StreamGoal> {
+    const [newGoal] = await db.insert(streamGoals).values(goal).returning();
+    return newGoal;
+  }
+  
+  async updateStreamGoal(id: string, updates: Partial<StreamGoal>): Promise<StreamGoal | undefined> {
+    const [goal] = await db
+      .update(streamGoals)
+      .set(updates)
+      .where(eq(streamGoals.id, id))
+      .returning();
+    return goal;
+  }
+  
+  async contributeToGoal(goalId: string, amount: number): Promise<StreamGoal | undefined> {
+    const [goal] = await db
+      .update(streamGoals)
+      .set({
+        currentCoins: sql`${streamGoals.currentCoins} + ${amount}`,
+      })
+      .where(eq(streamGoals.id, goalId))
+      .returning();
+    
+    if (goal && goal.currentCoins >= goal.targetCoins) {
+      await db
+        .update(streamGoals)
+        .set({ isCompleted: true })
+        .where(eq(streamGoals.id, goalId));
+      return { ...goal, isCompleted: true };
+    }
+    
+    return goal;
+  }
+  
+  // Join Request operations
+  async getJoinRequests(streamId: string): Promise<(JoinRequest & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(joinRequests)
+      .innerJoin(users, eq(joinRequests.userId, users.id))
+      .where(eq(joinRequests.streamId, streamId))
+      .orderBy(desc(joinRequests.createdAt));
+    
+    return results.map(r => ({ ...r.join_requests, user: r.users }));
+  }
+  
+  async createJoinRequest(request: InsertJoinRequest): Promise<JoinRequest> {
+    const [newRequest] = await db.insert(joinRequests).values(request).returning();
+    return newRequest;
+  }
+  
+  async updateJoinRequest(id: string, status: string): Promise<JoinRequest | undefined> {
+    const [request] = await db
+      .update(joinRequests)
+      .set({ status })
+      .where(eq(joinRequests.id, id))
+      .returning();
+    return request;
   }
 }
 

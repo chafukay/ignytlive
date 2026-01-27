@@ -374,3 +374,47 @@ export const insertCallRequestSchema = createInsertSchema(callRequests).omit({
 });
 export type InsertCallRequest = z.infer<typeof insertCallRequestSchema>;
 export type CallRequest = typeof callRequests.$inferSelect;
+
+// Stream Goals table
+export const streamGoals = pgTable("stream_goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").notNull().references(() => streams.id),
+  title: text("title").notNull(),
+  targetCoins: integer("target_coins").notNull(),
+  currentCoins: integer("current_coins").notNull().default(0),
+  rewardDescription: text("reward_description"),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const streamGoalsRelations = relations(streamGoals, ({ one }) => ({
+  stream: one(streams, { fields: [streamGoals.streamId], references: [streams.id] }),
+}));
+
+export const insertStreamGoalSchema = createInsertSchema(streamGoals).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertStreamGoal = z.infer<typeof insertStreamGoalSchema>;
+export type StreamGoal = typeof streamGoals.$inferSelect;
+
+// Join Video Requests table
+export const joinRequests = pgTable("join_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").notNull().references(() => streams.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const joinRequestsRelations = relations(joinRequests, ({ one }) => ({
+  stream: one(streams, { fields: [joinRequests.streamId], references: [streams.id] }),
+  user: one(users, { fields: [joinRequests.userId], references: [users.id] }),
+}));
+
+export const insertJoinRequestSchema = createInsertSchema(joinRequests).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertJoinRequest = z.infer<typeof insertJoinRequestSchema>;
+export type JoinRequest = typeof joinRequests.$inferSelect;

@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { X, Heart, Gift, Send, Share2, Swords, Star, Video } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createStreamWebSocket } from "@/lib/websocket";
@@ -13,7 +13,7 @@ import WishlistPanel from "@/components/wishlist-panel";
 import BadgesDisplay from "@/components/badges-display";
 import CallButton from "@/components/call-button";
 import { useToast } from "@/hooks/use-toast";
-import type { Gift as GiftType } from "@shared/schema";
+import type { Gift as GiftType, StreamGoal } from "@shared/schema";
 
 interface Comment {
   id: string;
@@ -59,6 +59,30 @@ export default function LiveRoom() {
   const { data: gifts } = useQuery({
     queryKey: ['gifts'],
     queryFn: () => api.getGifts(),
+  });
+
+  const { data: streamGoals } = useQuery({
+    queryKey: ['streamGoals', streamId],
+    queryFn: () => api.getStreamGoals(streamId!),
+    enabled: !!streamId,
+    refetchInterval: 5000,
+  });
+
+  const queryClient = useQueryClient();
+
+  const joinVideoMutation = useMutation({
+    mutationFn: () => {
+      if (!streamId || !user) {
+        throw new Error("Not authenticated or stream not found");
+      }
+      return api.requestJoinVideo(streamId, user.id);
+    },
+    onSuccess: () => {
+      toast({ title: "Join request sent!", description: "Waiting for streamer approval" });
+    },
+    onError: () => {
+      toast({ title: "Failed to send join request", variant: "destructive" });
+    },
   });
 
   // WebSocket connection for real-time updates
@@ -280,6 +304,19 @@ export default function LiveRoom() {
 
         {/* Viewer List & Close */}
         <div className="flex items-center gap-3">
+          {/* Join Video Button */}
+          {user && streamerUser && user.id !== streamerUser.id && (
+            <button 
+              onClick={() => joinVideoMutation.mutate()}
+              disabled={joinVideoMutation.isPending}
+              className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              data-testid="button-join-video"
+            >
+              <UserPlus className="w-3 h-3" />
+              Join
+            </button>
+          )}
+
           {/* PK Toggle Button */}
           <button 
             onClick={() => setIsPKMode(!isPKMode)}
@@ -309,6 +346,35 @@ export default function LiveRoom() {
           </button>
         </div>
       </div>
+
+      {/* Coin Goals */}
+      {streamGoals && streamGoals.length > 0 && (
+        <div className="relative z-10 px-4 space-y-2">
+          {streamGoals.filter(g => !g.isCompleted).slice(0, 2).map((goal) => (
+            <div key={goal.id} className="glass rounded-xl p-3" data-testid={`goal-${goal.id}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-yellow-400" />
+                  <span className="text-white text-sm font-medium">{goal.title}</span>
+                </div>
+                <span className="text-yellow-400 text-xs font-bold">
+                  {goal.currentCoins.toLocaleString()} / {goal.targetCoins.toLocaleString()}
+                </span>
+              </div>
+              <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (goal.currentCoins / goal.targetCoins) * 100)}%` }}
+                  className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full"
+                />
+              </div>
+              {goal.rewardDescription && (
+                <p className="text-white/50 text-xs mt-1">{goal.rewardDescription}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1" onClick={handleLike} />

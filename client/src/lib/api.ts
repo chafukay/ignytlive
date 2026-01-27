@@ -1,4 +1,4 @@
-import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest } from "@shared/schema";
+import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest } from "@shared/schema";
 
 const API_BASE = "";
 
@@ -257,5 +257,59 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/users/${userId}/calls`);
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<CallRequest[]>;
+  },
+
+  // Stream Goals
+  async getStreamGoals(streamId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/goals`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<StreamGoal[]>;
+  },
+
+  async createStreamGoal(streamId: string, data: { title: string; targetCoins: number; rewardDescription?: string }) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/goals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<StreamGoal>;
+  },
+
+  async contributeToGoal(goalId: string, amount: number) {
+    const res = await fetch(`${API_BASE}/api/goals/${goalId}/contribute`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<StreamGoal>;
+  },
+
+  // Join Video Requests
+  async getJoinRequests(streamId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/join-requests`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Array<JoinRequest & { user: User }>>;
+  },
+
+  async requestJoinVideo(streamId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/join-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<JoinRequest>;
+  },
+
+  async updateJoinRequest(requestId: string, status: string) {
+    const res = await fetch(`${API_BASE}/api/join-requests/${requestId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<JoinRequest>;
   },
 };
