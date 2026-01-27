@@ -1,11 +1,13 @@
 import Layout from "@/components/layout";
 import { MessageCircle, MoreHorizontal, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
 export default function Chat() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   const { data: chats, isLoading } = useQuery({
     queryKey: ['chats', user?.id],
@@ -67,6 +69,7 @@ export default function Chat() {
             {chats.map(({ user: chatUser, lastMessage }) => (
               <div 
                 key={chatUser.id} 
+                onClick={() => setLocation(`/chat/${chatUser.id}`)}
                 className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 cursor-pointer transition-colors"
                 data-testid={`chat-${chatUser.id}`}
               >

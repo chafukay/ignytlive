@@ -10,6 +10,7 @@ import LiveRoom from "@/pages/live";
 import Explore from "@/pages/explore";
 import GoLive from "@/pages/go-live";
 import Chat from "@/pages/chat";
+import Conversation from "@/pages/conversation";
 import Profile from "@/pages/profile";
 import Leaderboard from "@/pages/leaderboard";
 import Shorts from "@/pages/shorts";
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/explore" component={Explore} />
       <Route path="/go-live" component={GoLive} />
       <Route path="/chat" component={Chat} />
+      <Route path="/chat/:userId" component={Conversation} />
       <Route path="/shorts" component={Shorts} />
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/profile" component={Profile} />
