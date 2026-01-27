@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Users, Compass, Coins, MessageCircle, User, Video } from "lucide-react";
+import { Home, Clapperboard, Compass, Coins, MessageCircle, User, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
@@ -8,8 +8,8 @@ export default function Layout({ children, hideNav = false }: { children: React.
   const { user } = useAuth();
 
   const navItems = [
-    { icon: Home, label: "For You", path: "/" },
-    { icon: Users, label: "Following", path: "/following" },
+    { icon: Home, label: "Live", path: "/" },
+    { icon: Clapperboard, label: "Shorts", path: "/shorts" },
     { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Coins, label: "Coins", path: "/coins" },
     { icon: MessageCircle, label: "Chats", path: "/chat" },

@@ -219,6 +219,49 @@ export default function LiveRoom() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [comments]);
 
+  // Simulate bot chat activity for demo streams
+  useEffect(() => {
+    if (!stream || !streamerUser || isBroadcaster) return;
+    
+    const botMessages = [
+      "🔥🔥🔥",
+      "Love this stream!",
+      "Amazing content!",
+      "You're so talented!",
+      "❤️❤️❤️",
+      "First time here, following!",
+      "Best streamer ever!",
+      "Can you say hi to me?",
+      "Where are you from?",
+      "Love from Brazil! 🇧🇷",
+      "Hello from India! 🇮🇳",
+      "Keep it up! 💪",
+      "This is so cool!",
+      "👏👏👏",
+      "You're amazing!",
+      "Sending love! 💖",
+      "Been watching for hours!",
+      "Can't stop watching!",
+      "This stream is lit! 🔥",
+    ];
+    
+    const botNames = ["Emily_Star", "GameFan2024", "Luna_Moon", "SkyWatcher", "NightOwl99", "CoolVibes", "StreamLover", "HappyFan", "MusicKing", "DanceQueen"];
+    
+    const interval = setInterval(() => {
+      const randomMsg = botMessages[Math.floor(Math.random() * botMessages.length)];
+      const randomName = botNames[Math.floor(Math.random() * botNames.length)];
+      
+      setComments(prev => [...prev.slice(-25), {
+        id: Date.now().toString(),
+        user: randomName,
+        text: randomMsg,
+        color: 'text-white'
+      }]);
+    }, 3000 + Math.random() * 4000);
+    
+    return () => clearInterval(interval);
+  }, [stream, streamerUser, isBroadcaster]);
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || !user) return;
