@@ -839,5 +839,292 @@ export async function registerRoutes(
     }
   });
 
+  // Private Call routes
+  const privateCallRequestSchema = z.object({
+    viewerId: z.string().min(1),
+    hostId: z.string().min(1),
+  });
+
+  // Request a private call
+  app.post("/api/private-calls/request", async (req, res) => {
+    try {
+      const { viewerId, hostId } = privateCallRequestSchema.parse(req.body);
+      
+      // Get host to check availability and get rates
+      const host = await storage.getUser(hostId);
+      if (!host) {
+        return res.status(404).json({ error: "Host not found" });
+      }
+      if (!host.availableForPrivateCall) {
+        return res.status(400).json({ error: "Host is not available for private calls" });
+      }
+      
+      // Get viewer to check balance
+      const viewer = await storage.getUser(viewerId);
+      if (!viewer) {
+        return res.status(404).json({ error: "Viewer not found" });
+      }
+      
+      // Check if viewer has enough coins
+      const minRequired = host.privateCallBillingMode === "per_session" 
+        ? host.privateCallSessionPrice 
+        : host.privateCallRate; // At least 1 minute worth
+      
+      if (viewer.coins < minRequired) {
+        return res.status(400).json({ error: "Insufficient coins", required: minRequired });
+      }
+      
+      // Check if viewer already has an active/pending call
+      const existingCall = await storage.getActivePrivateCall(viewerId);
+      if (existingCall) {
+        return res.status(400).json({ error: "You already have an active call" });
+      }
+      
+      // Create the call request
+      const agoraChannel = `private_${Date.now()}_${viewerId}_${hostId}`;
+      const call = await storage.createPrivateCall({
+        viewerId,
+        hostId,
+        status: "pending",
+        billingMode: host.privateCallBillingMode,
+        ratePerMinute: host.privateCallRate,
+        sessionPrice: host.privateCallSessionPrice,
+        agoraChannel,
+      });
+      
+      res.json(call);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to request private call" });
+    }
+  });
+
+  // Accept a private call - only host can accept
+  app.post("/api/private-calls/:id/accept", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const call = await storage.getPrivateCall(req.params.id);
+      if (!call) {
+        return res.status(404).json({ error: "Call not found" });
+      }
+      
+      // Authorization check: only host can accept
+      if (userId !== call.hostId) {
+        return res.status(403).json({ error: "Only the host can accept this call" });
+      }
+      
+      if (call.status !== "pending") {
+        return res.status(400).json({ error: "Call is not pending" });
+      }
+      
+      // For per-session billing, charge immediately
+      if (call.billingMode === "per_session") {
+        const viewer = await storage.getUser(call.viewerId);
+        const host = await storage.getUser(call.hostId);
+        if (!viewer || viewer.coins < call.sessionPrice) {
+          await storage.updatePrivateCall(req.params.id, { status: "cancelled", endReason: "insufficient_funds" });
+          return res.status(400).json({ error: "Viewer has insufficient coins" });
+        }
+        
+        // Charge viewer and credit host
+        await storage.updateUser(call.viewerId, { coins: viewer.coins - call.sessionPrice });
+        await storage.updateUser(call.hostId, { earnings: (host?.earnings || 0) + call.sessionPrice });
+      }
+      
+      const updatedCall = await storage.updatePrivateCall(req.params.id, {
+        status: "active",
+        startedAt: new Date(),
+        totalCharged: call.billingMode === "per_session" ? call.sessionPrice : 0,
+      });
+      
+      res.json(updatedCall);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to accept call" });
+    }
+  });
+
+  // Decline a private call - only host can decline
+  app.post("/api/private-calls/:id/decline", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const call = await storage.getPrivateCall(req.params.id);
+      if (!call) {
+        return res.status(404).json({ error: "Call not found" });
+      }
+      
+      // Authorization check: only host can decline
+      if (userId !== call.hostId) {
+        return res.status(403).json({ error: "Only the host can decline this call" });
+      }
+      
+      if (call.status !== "pending") {
+        return res.status(400).json({ error: "Call is not pending" });
+      }
+      
+      const updatedCall = await storage.updatePrivateCall(req.params.id, {
+        status: "declined",
+        endedAt: new Date(),
+        endReason: "host_ended",
+      });
+      
+      res.json(updatedCall);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to decline call" });
+    }
+  });
+
+  // End a private call - either party can end
+  app.post("/api/private-calls/:id/end", async (req, res) => {
+    try {
+      const { endReason, userId } = req.body;
+      const call = await storage.getPrivateCall(req.params.id);
+      if (!call) {
+        return res.status(404).json({ error: "Call not found" });
+      }
+      
+      // Authorization check: only viewer or host can end
+      if (userId !== call.viewerId && userId !== call.hostId) {
+        return res.status(403).json({ error: "Only call participants can end this call" });
+      }
+      
+      if (call.status !== "active" && call.status !== "pending") {
+        return res.status(400).json({ error: "Call cannot be ended" });
+      }
+      
+      // Calculate duration
+      const startTime = call.startedAt ? new Date(call.startedAt).getTime() : Date.now();
+      const durationSeconds = call.startedAt ? Math.floor((Date.now() - startTime) / 1000) : 0;
+      
+      const actualEndReason = endReason || (userId === call.hostId ? "host_ended" : "viewer_ended");
+      
+      const updatedCall = await storage.updatePrivateCall(req.params.id, {
+        status: "ended",
+        endedAt: new Date(),
+        durationSeconds,
+        endReason: actualEndReason,
+      });
+      
+      res.json(updatedCall);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to end call" });
+    }
+  });
+
+  // Bill per minute (called by viewer client every minute during active call)
+  app.post("/api/private-calls/:id/bill-minute", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const call = await storage.getPrivateCall(req.params.id);
+      if (!call) {
+        return res.status(404).json({ error: "Call not found" });
+      }
+      
+      // Authorization check: only viewer can trigger billing (prevents malicious billing)
+      if (userId !== call.viewerId) {
+        return res.status(403).json({ error: "Only the viewer can trigger billing" });
+      }
+      
+      if (call.status !== "active" || call.billingMode !== "per_minute") {
+        return res.status(400).json({ error: "Invalid call state for billing" });
+      }
+      
+      const viewer = await storage.getUser(call.viewerId);
+      const host = await storage.getUser(call.hostId);
+      
+      if (!viewer || viewer.coins < call.ratePerMinute) {
+        // End call due to insufficient funds
+        const startTime = call.startedAt ? new Date(call.startedAt).getTime() : Date.now();
+        const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
+        
+        await storage.updatePrivateCall(req.params.id, {
+          status: "ended",
+          endedAt: new Date(),
+          durationSeconds,
+          endReason: "insufficient_funds",
+        });
+        
+        return res.status(400).json({ error: "Insufficient funds - call ended", callEnded: true });
+      }
+      
+      // Charge viewer and credit host
+      await storage.updateUser(call.viewerId, { coins: viewer.coins - call.ratePerMinute });
+      await storage.updateUser(call.hostId, { earnings: (host?.earnings || 0) + call.ratePerMinute });
+      
+      const updatedCall = await storage.updatePrivateCall(req.params.id, {
+        totalCharged: call.totalCharged + call.ratePerMinute,
+      });
+      
+      res.json({ success: true, totalCharged: updatedCall?.totalCharged, remainingCoins: viewer.coins - call.ratePerMinute });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to bill minute" });
+    }
+  });
+
+  // Get pending calls for a host
+  app.get("/api/private-calls/pending/:hostId", async (req, res) => {
+    try {
+      const calls = await storage.getPendingPrivateCalls(req.params.hostId);
+      res.json(calls);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending calls" });
+    }
+  });
+
+  // Get call history for a user
+  app.get("/api/private-calls/history/:userId", async (req, res) => {
+    try {
+      const calls = await storage.getUserPrivateCalls(req.params.userId);
+      res.json(calls);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch call history" });
+    }
+  });
+
+  // Get active call for a user
+  app.get("/api/private-calls/active/:userId", async (req, res) => {
+    try {
+      const call = await storage.getActivePrivateCall(req.params.userId);
+      res.json(call || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active call" });
+    }
+  });
+
+  // Get single call details
+  app.get("/api/private-calls/:id", async (req, res) => {
+    try {
+      const call = await storage.getPrivateCall(req.params.id);
+      if (!call) {
+        return res.status(404).json({ error: "Call not found" });
+      }
+      res.json(call);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch call" });
+    }
+  });
+
+  // Update host private call settings - only user can update their own settings
+  app.patch("/api/users/:id/private-call-settings", async (req, res) => {
+    try {
+      const { availableForPrivateCall, privateCallRate, privateCallBillingMode, privateCallSessionPrice, userId } = req.body;
+      
+      // Authorization check: only user can update their own settings
+      if (userId !== req.params.id) {
+        return res.status(403).json({ error: "You can only update your own settings" });
+      }
+      
+      const updates: any = {};
+      
+      if (availableForPrivateCall !== undefined) updates.availableForPrivateCall = availableForPrivateCall;
+      if (privateCallRate !== undefined) updates.privateCallRate = privateCallRate;
+      if (privateCallBillingMode !== undefined) updates.privateCallBillingMode = privateCallBillingMode;
+      if (privateCallSessionPrice !== undefined) updates.privateCallSessionPrice = privateCallSessionPrice;
+      
+      const user = await storage.updateUser(req.params.id, updates);
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update settings" });
+    }
+  });
+
   return httpServer;
 }

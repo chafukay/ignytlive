@@ -1,14 +1,53 @@
 import Layout from "@/components/layout";
-import { ChevronRight, User, Bell, Lock, Eye, Globe, Moon, HelpCircle, Info, LogOut } from "lucide-react";
+import { ChevronRight, User, Bell, Lock, Eye, Globe, Moon, HelpCircle, Info, LogOut, Video, Coins } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState(true);
   const [privateAccount, setPrivateAccount] = useState(false);
+  
+  const [availableForPrivateCall, setAvailableForPrivateCall] = useState(user?.availableForPrivateCall || false);
+  const [privateCallRate, setPrivateCallRate] = useState(user?.privateCallRate || 50);
+  const [billingMode, setBillingMode] = useState(user?.privateCallBillingMode || "per_minute");
+  const [sessionPrice, setSessionPrice] = useState(user?.privateCallSessionPrice || 500);
+  const [showCallSettings, setShowCallSettings] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setAvailableForPrivateCall(user.availableForPrivateCall || false);
+      setPrivateCallRate(user.privateCallRate || 50);
+      setBillingMode(user.privateCallBillingMode || "per_minute");
+      setSessionPrice(user.privateCallSessionPrice || 500);
+    }
+  }, [user]);
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: () => api.updatePrivateCallSettings(user!.id, {
+      availableForPrivateCall,
+      privateCallRate,
+      privateCallBillingMode: billingMode,
+      privateCallSessionPrice: sessionPrice,
+    }),
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      toast({ title: "Settings saved", description: "Your private call settings have been updated" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save settings", variant: "destructive" });
+    },
+  });
 
   const handleLogout = () => {
     logout();
@@ -77,6 +116,87 @@ export default function Settings() {
               )}
             </div>
           ))}
+
+          <div 
+            onClick={() => setShowCallSettings(!showCallSettings)}
+            className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5"
+          >
+            <Video className="w-5 h-5 text-pink-400" />
+            <span className="flex-1 text-white">Private Call Settings</span>
+            <ChevronRight className={`w-5 h-5 text-white/30 transition-transform ${showCallSettings ? 'rotate-90' : ''}`} />
+          </div>
+
+          {showCallSettings && (
+            <div className="bg-white/5 p-4 space-y-4">
+              <div 
+                onClick={() => setAvailableForPrivateCall(!availableForPrivateCall)}
+                className="flex items-center gap-4 cursor-pointer"
+              >
+                <span className="flex-1 text-white">Available for Private Calls</span>
+                <div className={`w-12 h-6 rounded-full p-1 transition-colors ${availableForPrivateCall ? "bg-pink-500" : "bg-white/20"}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${availableForPrivateCall ? "translate-x-6" : "translate-x-0"}`} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Billing Mode</label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={billingMode === "per_minute" ? "default" : "outline"}
+                    size="sm"
+                    className={billingMode === "per_minute" ? "bg-pink-500" : ""}
+                    onClick={() => setBillingMode("per_minute")}
+                  >
+                    Per Minute
+                  </Button>
+                  <Button
+                    variant={billingMode === "per_session" ? "default" : "outline"}
+                    size="sm"
+                    className={billingMode === "per_session" ? "bg-pink-500" : ""}
+                    onClick={() => setBillingMode("per_session")}
+                  >
+                    Per Session
+                  </Button>
+                </div>
+              </div>
+
+              {billingMode === "per_minute" ? (
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-400 flex items-center gap-1">
+                    <Coins className="w-4 h-4" /> Rate per Minute
+                  </label>
+                  <Input
+                    type="number"
+                    value={privateCallRate}
+                    onChange={(e) => setPrivateCallRate(Number(e.target.value))}
+                    className="bg-white/10 border-white/20 text-white"
+                    min={10}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-400 flex items-center gap-1">
+                    <Coins className="w-4 h-4" /> Session Price
+                  </label>
+                  <Input
+                    type="number"
+                    value={sessionPrice}
+                    onChange={(e) => setSessionPrice(Number(e.target.value))}
+                    className="bg-white/10 border-white/20 text-white"
+                    min={50}
+                  />
+                </div>
+              )}
+
+              <Button 
+                className="w-full bg-pink-500 hover:bg-pink-600"
+                onClick={() => updateSettingsMutation.mutate()}
+                disabled={updateSettingsMutation.isPending}
+              >
+                {updateSettingsMutation.isPending ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
+          )}
 
           <div 
             onClick={handleLogout}

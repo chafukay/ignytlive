@@ -1,0 +1,528 @@
+Got you. Here’s the next layer down: feature specs with user flows + edge cases + acceptance criteria so Replit can build IGNYTLOVE without guessing.
+
+18) Detailed User Flows (End-to-End)
+A) Viewer opens app → finds a live → chats → gifts
+
+Open app → Home feed loads live rooms
+
+Tap a room → join room
+
+Stream plays + chat loads
+
+Viewer sends chat message / reacts
+
+Viewer sends gift:
+
+Select gift → confirm → coins deducted → gift event shows for everyone
+
+Viewer follows host → follow count updates
+
+Viewer leaves room
+
+Acceptance criteria
+
+Home shows at least: room thumbnail, host name, viewers count, LIVE status
+
+Entering a room loads stream in < 2–4 seconds on decent network
+
+Chat message appears in room within 300–800ms typical
+
+Gift deducts coins exactly once (no double-charging on retries)
+
+B) Host goes live → moderates chat → ends stream
+
+Host taps “Go Live”
+
+Set title + category + language + (optional) tags
+
+Start stream → room is visible in discovery instantly
+
+Host can:
+
+pin message
+
+mute/kick/ban user
+
+assign moderator
+
+End live → stream stops → room removed from feed
+
+Acceptance criteria
+
+Host cannot start live if account is suspended
+
+Host sees viewer count and recent gifts
+
+Ending live saves a session summary record (duration, peak viewers, gifts total)
+
+C) Private call request → paid 1:1 video call (per-minute)
+
+Viewer taps “Private Call”
+
+App displays rate: X coins/min
+
+Viewer confirms request
+
+Host receives request modal: Accept / Decline
+
+If accepted:
+
+call connects
+
+billing starts when connection established
+
+Every minute:
+
+coins deducted
+
+host earnings ledger updated
+
+Warning triggers if viewer balance < 1 minute remaining
+
+Auto-end when insufficient funds
+
+Edge cases (must handle)
+
+Viewer disconnects temporarily → grace period (e.g., 15–30s) then end
+
+Host declines → no charge
+
+Call never connects → no charge
+
+Deduction retry protection (idempotency key per billing tick)
+
+Acceptance criteria
+
+Billing begins only after both users are connected
+
+Viewer sees ticking timer + current spent amount
+
+Auto-end occurs when balance < required rate for next tick
+
+D) Private call request → paid 1:1 video call (per-session)
+
+Viewer selects “Per Session”
+
+App shows fixed price: Y coins/session
+
+Viewer confirms
+
+Host accepts
+
+Deduct Y coins immediately when call connects (or pre-authorize/hold then capture on connect)
+
+Call runs until user ends OR session max time reached (if enabled)
+
+Edge cases
+
+If host accepts but never connects → release hold (refund)
+
+If viewer ends immediately after connect → still charged (policy decision, default yes)
+
+Acceptance criteria
+
+Only one charge per session call_id
+
+Transaction ledger shows reference to call_id
+
+19) Functional Requirements by Module (Replit-ready)
+19.1 Authentication
+
+Requirements
+
+Unique usernames
+
+Email/phone verification optional (recommended)
+
+Session token auth (JWT or server sessions)
+
+Non-functional
+
+Password hashing (bcrypt/argon2)
+
+Rate limiting login attempts
+
+19.2 Profiles
+
+Requirements
+
+Update avatar, display name, bio, tags
+
+Privacy: show/hide location
+
+Toggle “Available for private call”
+
+Acceptance criteria
+
+Profile loads with follower counts, live status, last seen (optional)
+
+Username immutable after set (optional)
+
+19.3 Discovery / Home Feed
+
+Requirements
+
+List live rooms with pagination
+
+“Following” tab filters to followed hosts only
+
+Search by username & title
+
+Ranking v1
+
+show rooms sorted by:
+
+followed hosts live
+
+trending (viewer count * engagement)
+
+newest
+
+Acceptance criteria
+
+Feed returns within 1s typical
+
+Pagination works with stable ordering
+
+19.4 Live Rooms
+
+Room state
+
+room_id, host_id, title, category, language, started_at
+
+status: live / ended
+
+viewer_count (realtime)
+
+Host actions
+
+start / end
+
+set moderators
+
+ban list
+
+Viewer actions
+
+join / leave
+
+follow / share
+
+Acceptance criteria
+
+If host ends live, all viewers are disconnected and see “Live ended”
+
+19.5 Chat System
+
+Requirements
+
+Realtime message events
+
+History fetch (last N messages)
+
+Moderation: delete message, mute user
+
+Constraints
+
+rate limit: e.g., 1 msg/sec, burst 3
+
+block banned/muted users
+
+Acceptance criteria
+
+Muted user cannot send chat
+
+Deleted message disappears for everyone (or shows “message removed”)
+
+19.6 Gifts + Coins
+
+Catalog
+
+Gift items stored server-side
+
+Each has coin_cost + animation_id
+
+Send gift rules
+
+Must have enough coins
+
+Atomic: deduct coins + broadcast gift event
+
+Record transaction and gift event
+
+Acceptance criteria
+
+Gift send returns success with new wallet balance
+
+Host earnings ledger increments by defined share %
+
+19.7 Wallet + Payments
+
+Wallet
+
+coins_balance
+
+earnings_balance (creator)
+
+ledger table tracks all transactions
+
+Transactions
+
+purchase_coins
+
+spend_gift
+
+spend_private_call
+
+earn_gift
+
+earn_private_call
+
+refunds
+
+Acceptance criteria
+
+Every balance change must have a ledger record
+
+Balances computed as sum of ledger (or ledger + cached balance with reconciliation)
+
+19.8 DMs
+
+Requirements
+
+1:1 threads
+
+send/receive text
+
+unread count
+
+Safety
+
+block user stops DMs
+
+report thread/user
+
+Acceptance criteria
+
+Message appears instantly in sender view
+
+Receiver gets push/in-app notification if enabled
+
+19.9 Moderation & Reporting
+
+Report types
+
+user
+
+live_room
+
+chat_message
+
+private_call
+
+Admin actions
+
+warn, suspend, ban
+
+reverse transaction (admin-only)
+
+review reports queue
+
+Acceptance criteria
+
+Report creates immutable record (auditable)
+
+Admin can change user status and it takes effect immediately
+
+20) Realtime Events (WebSocket / PubSub)
+
+These are the events Replit dev will implement to power “live” behavior.
+
+Live Room Events
+
+room:created
+
+room:ended
+
+room:user_joined
+
+room:user_left
+
+room:viewer_count
+
+room:chat_message
+
+room:chat_deleted
+
+room:gift_sent
+
+room:user_muted
+
+room:user_banned
+
+Private Call Events
+
+call:request_created
+
+call:request_accepted
+
+call:request_declined
+
+call:connected
+
+call:billing_tick
+
+call:warning_low_balance
+
+call:ended
+
+Acceptance criteria
+
+Events include idempotency_key and timestamp
+
+Clients can recover state by calling REST endpoints after reconnect
+
+21) Billing Logic (Critical Spec)
+Per-minute billing algorithm (recommended)
+
+Tick interval: 60 seconds (or 10 sec prorated for fairness)
+
+On call:connected:
+
+store billing_started_at
+
+Every tick:
+
+charge viewer
+
+credit host
+
+record ledger transactions
+
+Stop ticking when:
+
+call ended
+
+viewer insufficient funds
+
+disconnect > grace period
+
+Idempotency
+
+Each tick has tick_id = call_id + minute_index
+
+If server retries, it must not double-charge if tick_id already exists in ledger
+
+Refund policy (MVP simple)
+
+If call never connected: full refund / no charge
+
+If connected: no refunds except admin overrides
+
+22) Admin Panel (MVP Minimal)
+
+Screens
+
+Users list + search
+
+Reports queue
+
+Transactions ledger
+
+Live rooms history
+
+Creator payouts (later)
+
+Actions
+
+suspend/ban/unban
+
+view user profile & history
+
+view call logs
+
+manual refund
+
+23) MVP Data Model (tables + key fields)
+users
+
+id, username, email/phone, password_hash, status, created_at
+
+profiles
+
+user_id, display_name, avatar_url, bio, tags_json, location, private_call_available
+
+follows
+
+follower_id, following_id, created_at
+
+live_rooms
+
+id, host_id, title, category, language, status, started_at, ended_at
+
+chat_messages
+
+id, room_id, user_id, text, deleted_at, created_at
+
+gifts
+
+id, name, coin_cost, animation_key, active
+
+wallet_transactions (ledger)
+
+id, user_id, type, amount, currency=COINS, reference_type, reference_id, idempotency_key, created_at
+
+private_calls
+
+id, host_id, viewer_id, billing_mode, rate, session_price, status, started_at, ended_at, total_charged
+
+blocks
+
+blocker_id, blocked_id, created_at
+
+reports
+
+id, reporter_id, target_type, target_id, reason, details, status, created_at
+
+notifications
+
+id, user_id, type, payload_json, read_at, created_at
+
+24) What Replit Should Build First (Exact Sprint Plan)
+Sprint 1 (Foundation)
+
+Auth
+
+Profiles
+
+Live discovery feed (mock rooms first)
+
+Sprint 2 (Live core)
+
+Start live / join live
+
+Chat + likes
+
+Viewer count
+
+Sprint 3 (Monetization)
+
+Wallet + coin packs (sandbox)
+
+Gifts in live room + ledger
+
+Sprint 4 (Private calls)
+
+Request/accept flow
+
+RTC 1:1 video
+
+Billing per-minute + per-session
+
+Sprint 5 (Safety)
+
+Block/report
+
+Room moderation tools
+
+Admin panel minimal

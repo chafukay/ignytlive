@@ -15,12 +15,17 @@ export const users = pgTable("users", {
   level: integer("level").notNull().default(1),
   coins: integer("coins").notNull().default(0),
   diamonds: integer("diamonds").notNull().default(0),
+  earnings: integer("earnings").notNull().default(0), // Host earnings from gifts + calls
   followersCount: integer("followers_count").notNull().default(0),
   followingCount: integer("following_count").notNull().default(0),
   totalLikes: integer("total_likes").notNull().default(0),
   isLive: boolean("is_live").notNull().default(false),
   vipTier: integer("vip_tier").notNull().default(0),
   dndEnabled: boolean("dnd_enabled").notNull().default(false),
+  availableForPrivateCall: boolean("available_for_private_call").notNull().default(false),
+  privateCallRate: integer("private_call_rate").notNull().default(50), // coins per minute
+  privateCallBillingMode: text("private_call_billing_mode").notNull().default("per_minute"), // per_minute or per_session
+  privateCallSessionPrice: integer("private_call_session_price").notNull().default(500), // flat fee for per_session
   role: text("role").notNull().default("user"), // user, admin, superadmin
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
@@ -510,3 +515,37 @@ export const insertMediaUnlockSchema = createInsertSchema(mediaUnlocks).omit({
 });
 export type InsertMediaUnlock = z.infer<typeof insertMediaUnlockSchema>;
 export type MediaUnlock = typeof mediaUnlocks.$inferSelect;
+
+// Private Calls table - paid 1:1 video calls between viewer and host
+export const privateCalls = pgTable("private_calls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  viewerId: varchar("viewer_id").notNull().references(() => users.id),
+  hostId: varchar("host_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("pending"), // pending, accepted, declined, active, ended, cancelled
+  billingMode: text("billing_mode").notNull().default("per_minute"), // per_minute or per_session
+  ratePerMinute: integer("rate_per_minute").notNull().default(0),
+  sessionPrice: integer("session_price").notNull().default(0),
+  totalCharged: integer("total_charged").notNull().default(0),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  agoraChannel: text("agora_channel"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  endReason: text("end_reason"), // viewer_ended, host_ended, insufficient_funds, timeout, network_error
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  viewerIdIdx: index("private_calls_viewer_id_idx").on(table.viewerId),
+  hostIdIdx: index("private_calls_host_id_idx").on(table.hostId),
+  statusIdx: index("private_calls_status_idx").on(table.status),
+}));
+
+export const privateCallsRelations = relations(privateCalls, ({ one }) => ({
+  viewer: one(users, { fields: [privateCalls.viewerId], references: [users.id] }),
+  host: one(users, { fields: [privateCalls.hostId], references: [users.id] }),
+}));
+
+export const insertPrivateCallSchema = createInsertSchema(privateCalls).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPrivateCall = z.infer<typeof insertPrivateCallSchema>;
+export type PrivateCall = typeof privateCalls.$inferSelect;

@@ -30,6 +30,8 @@ import EditProfile from "@/pages/edit-profile";
 import Privacy from "@/pages/privacy";
 import Help from "@/pages/help";
 import About from "@/pages/about";
+import PrivateCall from "@/pages/private-call";
+import UserProfile from "@/pages/user-profile";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -60,6 +62,8 @@ function Router() {
       <Route path="/leaderboard">{() => <ProtectedRoute component={Leaderboard} />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
       <Route path="/live/:id" component={LiveRoom} />
+      <Route path="/private-call/:id">{() => <ProtectedRoute component={PrivateCall} />}</Route>
+      <Route path="/profile/:userId">{() => <ProtectedRoute component={UserProfile} />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
       <Route path="/store">{() => <ProtectedRoute component={Store} />}</Route>
       <Route path="/user-level">{() => <ProtectedRoute component={UserLevel} />}</Route>

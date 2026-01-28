@@ -510,4 +510,100 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ unlocked: boolean }>;
   },
+
+  // Private Calls
+  async requestPrivateCall(viewerId: string, hostId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ viewerId, hostId }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to request call");
+    }
+    return res.json();
+  },
+
+  async acceptPrivateCall(callId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/${callId}/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async declinePrivateCall(callId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/${callId}/decline`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async endPrivateCall(callId: string, userId: string, endReason?: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/${callId}/end`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endReason, userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async billPrivateCallMinute(callId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/${callId}/bill-minute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Billing failed");
+    }
+    return res.json();
+  },
+
+  async getPendingPrivateCalls(hostId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/pending/${hostId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getPrivateCallHistory(userId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/history/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getActivePrivateCall(userId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/active/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getPrivateCall(callId: string) {
+    const res = await fetch(`${API_BASE}/api/private-calls/${callId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async updatePrivateCallSettings(userId: string, settings: {
+    availableForPrivateCall?: boolean;
+    privateCallRate?: number;
+    privateCallBillingMode?: string;
+    privateCallSessionPrice?: number;
+  }) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/private-call-settings`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...settings, userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 };

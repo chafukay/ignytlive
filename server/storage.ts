@@ -19,6 +19,7 @@ import {
   groupMembers,
   groupMessages,
   mediaUnlocks,
+  privateCalls,
   type User,
   type InsertUser,
   type Stream,
@@ -57,6 +58,8 @@ import {
   type InsertGroupMessage,
   type MediaUnlock,
   type InsertMediaUnlock,
+  type PrivateCall,
+  type InsertPrivateCall,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -162,6 +165,14 @@ export interface IStorage {
   // Media Unlock operations
   unlockMedia(unlock: InsertMediaUnlock): Promise<MediaUnlock>;
   hasUnlockedMedia(userId: string, messageId: string, messageType: string): Promise<boolean>;
+  
+  // Private Call operations
+  createPrivateCall(call: InsertPrivateCall): Promise<PrivateCall>;
+  getPrivateCall(id: string): Promise<PrivateCall | undefined>;
+  updatePrivateCall(id: string, updates: Partial<PrivateCall>): Promise<PrivateCall | undefined>;
+  getUserPrivateCalls(userId: string): Promise<PrivateCall[]>;
+  getPendingPrivateCalls(hostId: string): Promise<(PrivateCall & { viewer: User })[]>;
+  getActivePrivateCall(userId: string): Promise<PrivateCall | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -835,6 +846,58 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return !!unlock;
+  }
+  
+  // Private Call operations
+  async createPrivateCall(call: InsertPrivateCall): Promise<PrivateCall> {
+    const [newCall] = await db.insert(privateCalls).values(call).returning();
+    return newCall;
+  }
+  
+  async getPrivateCall(id: string): Promise<PrivateCall | undefined> {
+    const [call] = await db.select().from(privateCalls).where(eq(privateCalls.id, id));
+    return call;
+  }
+  
+  async updatePrivateCall(id: string, updates: Partial<PrivateCall>): Promise<PrivateCall | undefined> {
+    const [updated] = await db
+      .update(privateCalls)
+      .set(updates)
+      .where(eq(privateCalls.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async getUserPrivateCalls(userId: string): Promise<PrivateCall[]> {
+    return await db
+      .select()
+      .from(privateCalls)
+      .where(or(eq(privateCalls.viewerId, userId), eq(privateCalls.hostId, userId)))
+      .orderBy(desc(privateCalls.createdAt));
+  }
+  
+  async getPendingPrivateCalls(hostId: string): Promise<(PrivateCall & { viewer: User })[]> {
+    const results = await db
+      .select()
+      .from(privateCalls)
+      .innerJoin(users, eq(privateCalls.viewerId, users.id))
+      .where(and(eq(privateCalls.hostId, hostId), eq(privateCalls.status, "pending")))
+      .orderBy(desc(privateCalls.createdAt));
+    
+    return results.map(r => ({ ...r.private_calls, viewer: r.users }));
+  }
+  
+  async getActivePrivateCall(userId: string): Promise<PrivateCall | undefined> {
+    const [call] = await db
+      .select()
+      .from(privateCalls)
+      .where(
+        and(
+          or(eq(privateCalls.viewerId, userId), eq(privateCalls.hostId, userId)),
+          eq(privateCalls.status, "active")
+        )
+      );
+    return call;
   }
 }
 
