@@ -243,10 +243,61 @@ export async function registerRoutes(
     res.json(comments);
   });
 
+  // Track last message time per user per stream for slow mode
+  const lastMessageTimes = new Map<string, Map<string, number>>();
+  
   app.post("/api/streams/:id/comments", async (req, res) => {
     try {
+      const { userId, text } = req.body;
+      const streamId = req.params.id;
+      
+      // Get stream to check slow mode and host
+      const stream = await storage.getStream(streamId);
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      // Check if user is banned from this stream
+      const isBanned = await storage.isUserBanned(streamId, userId);
+      if (isBanned) {
+        return res.status(403).json({ error: "You are banned from this stream" });
+      }
+      
+      // Check if user is muted (unless they're the host)
+      if (userId !== stream.userId) {
+        const isMuted = await storage.isUserMuted(streamId, userId);
+        if (isMuted) {
+          const mute = await storage.getActiveMute(streamId, userId);
+          const remainingSeconds = mute ? Math.ceil((new Date(mute.expiresAt).getTime() - Date.now()) / 1000) : 0;
+          return res.status(403).json({ error: `You are muted for ${remainingSeconds} more seconds` });
+        }
+      }
+      
+      // Check slow mode (unless user is host or moderator)
+      if (stream.slowModeSeconds > 0 && userId !== stream.userId) {
+        const isMod = await storage.isRoomModerator(streamId, userId);
+        if (!isMod) {
+          if (!lastMessageTimes.has(streamId)) {
+            lastMessageTimes.set(streamId, new Map());
+          }
+          const streamMessages = lastMessageTimes.get(streamId)!;
+          const lastTime = streamMessages.get(userId) || 0;
+          const now = Date.now();
+          const timeSinceLastMessage = (now - lastTime) / 1000;
+          
+          if (timeSinceLastMessage < stream.slowModeSeconds) {
+            const waitTime = Math.ceil(stream.slowModeSeconds - timeSinceLastMessage);
+            return res.status(429).json({ error: `Slow mode is enabled. Wait ${waitTime} seconds.` });
+          }
+          
+          streamMessages.set(userId, now);
+        }
+      }
+      
       const comment = await storage.createStreamComment({
-        streamId: req.params.id,
+        streamId,
+        userId,
+        text,
         ...req.body
       });
       
