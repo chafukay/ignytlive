@@ -606,4 +606,112 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
+
+  // ========== Moderation API ==========
+  
+  async addRoomModerator(streamId: string, userId: string, assignedBy: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, assignedBy }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async removeRoomModerator(streamId: string, userId: string, requesterId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators/${userId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requesterId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getRoomModerators(streamId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async banUser(streamId: string, userId: string, bannedBy: string, reason?: string, isPermanent = false, durationSeconds = 3600) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, bannedBy, reason, isPermanent, durationSeconds }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async unbanUser(streamId: string, userId: string, requesterId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans/${userId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requesterId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getRoomBans(streamId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async checkUserBanned(streamId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans/${userId}/check`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async muteUser(streamId: string, userId: string, mutedBy: string, reason?: string, durationSeconds = 300) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, mutedBy, reason, durationSeconds }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async unmuteUser(streamId: string, userId: string, requesterId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes/${userId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requesterId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getRoomMutes(streamId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async checkUserMuted(streamId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes/${userId}/check`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async updateStreamSettings(streamId: string, userId: string, settings: { slowModeSeconds?: number; pinnedMessageId?: string | null }) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/settings`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...settings, userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getModerationInfo(streamId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderation/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 };

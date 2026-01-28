@@ -1126,5 +1126,293 @@ export async function registerRoutes(
     }
   });
 
+  // ========== Moderation API Routes ==========
+  
+  // Add room moderator - host only
+  app.post("/api/streams/:streamId/moderators", async (req, res) => {
+    try {
+      const { userId, assignedBy } = req.body;
+      const stream = await storage.getStream(req.params.streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      // Only host can assign moderators
+      if (stream.userId !== assignedBy) {
+        return res.status(403).json({ error: "Only the host can assign moderators" });
+      }
+      
+      const moderator = await storage.addRoomModerator({
+        streamId: req.params.streamId,
+        userId,
+        assignedBy,
+      });
+      res.json(moderator);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to add moderator" });
+    }
+  });
+  
+  // Remove room moderator - host only
+  app.delete("/api/streams/:streamId/moderators/:userId", async (req, res) => {
+    try {
+      const { requesterId } = req.body;
+      const stream = await storage.getStream(req.params.streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      // Only host can remove moderators
+      if (stream.userId !== requesterId) {
+        return res.status(403).json({ error: "Only the host can remove moderators" });
+      }
+      
+      await storage.removeRoomModerator(req.params.streamId, req.params.userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to remove moderator" });
+    }
+  });
+  
+  // Get room moderators
+  app.get("/api/streams/:streamId/moderators", async (req, res) => {
+    try {
+      const moderators = await storage.getRoomModerators(req.params.streamId);
+      res.json(moderators);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch moderators" });
+    }
+  });
+  
+  // Check if user is moderator
+  app.get("/api/streams/:streamId/moderators/:userId/check", async (req, res) => {
+    try {
+      const isMod = await storage.isRoomModerator(req.params.streamId, req.params.userId);
+      res.json({ isModerator: isMod });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check moderator status" });
+    }
+  });
+  
+  // Ban user from room - host or moderator
+  app.post("/api/streams/:streamId/bans", async (req, res) => {
+    try {
+      const { userId, bannedBy, reason, isPermanent, durationSeconds } = req.body;
+      const stream = await storage.getStream(req.params.streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      // Check if requester is host or moderator
+      const isHost = stream.userId === bannedBy;
+      const isMod = await storage.isRoomModerator(req.params.streamId, bannedBy);
+      
+      if (!isHost && !isMod) {
+        return res.status(403).json({ error: "Only host or moderators can ban users" });
+      }
+      
+      // Can't ban the host
+      if (userId === stream.userId) {
+        return res.status(400).json({ error: "Cannot ban the host" });
+      }
+      
+      const expiresAt = isPermanent ? null : new Date(Date.now() + (durationSeconds || 3600) * 1000);
+      
+      const ban = await storage.createRoomBan({
+        streamId: req.params.streamId,
+        userId,
+        bannedBy,
+        reason,
+        isPermanent: isPermanent || false,
+        expiresAt,
+      });
+      res.json(ban);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to ban user" });
+    }
+  });
+  
+  // Unban user - host or moderator
+  app.delete("/api/streams/:streamId/bans/:userId", async (req, res) => {
+    try {
+      const { requesterId } = req.body;
+      const stream = await storage.getStream(req.params.streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      const isHost = stream.userId === requesterId;
+      const isMod = await storage.isRoomModerator(req.params.streamId, requesterId);
+      
+      if (!isHost && !isMod) {
+        return res.status(403).json({ error: "Only host or moderators can unban users" });
+      }
+      
+      await storage.removeRoomBan(req.params.streamId, req.params.userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to unban user" });
+    }
+  });
+  
+  // Get banned users
+  app.get("/api/streams/:streamId/bans", async (req, res) => {
+    try {
+      const bans = await storage.getRoomBans(req.params.streamId);
+      res.json(bans);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bans" });
+    }
+  });
+  
+  // Check if user is banned
+  app.get("/api/streams/:streamId/bans/:userId/check", async (req, res) => {
+    try {
+      const isBanned = await storage.isUserBanned(req.params.streamId, req.params.userId);
+      res.json({ isBanned });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check ban status" });
+    }
+  });
+  
+  // Mute user with duration - host or moderator
+  app.post("/api/streams/:streamId/mutes", async (req, res) => {
+    try {
+      const { userId, mutedBy, reason, durationSeconds } = req.body;
+      const stream = await storage.getStream(req.params.streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      const isHost = stream.userId === mutedBy;
+      const isMod = await storage.isRoomModerator(req.params.streamId, mutedBy);
+      
+      if (!isHost && !isMod) {
+        return res.status(403).json({ error: "Only host or moderators can mute users" });
+      }
+      
+      // Can't mute the host
+      if (userId === stream.userId) {
+        return res.status(400).json({ error: "Cannot mute the host" });
+      }
+      
+      const duration = durationSeconds || 300; // default 5 minutes
+      const expiresAt = new Date(Date.now() + duration * 1000);
+      
+      const mute = await storage.createRoomMute({
+        streamId: req.params.streamId,
+        userId,
+        mutedBy,
+        reason,
+        durationSeconds: duration,
+        expiresAt,
+      });
+      res.json(mute);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to mute user" });
+    }
+  });
+  
+  // Unmute user - host or moderator
+  app.delete("/api/streams/:streamId/mutes/:userId", async (req, res) => {
+    try {
+      const { requesterId } = req.body;
+      const stream = await storage.getStream(req.params.streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      const isHost = stream.userId === requesterId;
+      const isMod = await storage.isRoomModerator(req.params.streamId, requesterId);
+      
+      if (!isHost && !isMod) {
+        return res.status(403).json({ error: "Only host or moderators can unmute users" });
+      }
+      
+      await storage.removeRoomMute(req.params.streamId, req.params.userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to unmute user" });
+    }
+  });
+  
+  // Get muted users
+  app.get("/api/streams/:streamId/mutes", async (req, res) => {
+    try {
+      const mutes = await storage.getRoomMutes(req.params.streamId);
+      res.json(mutes);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch mutes" });
+    }
+  });
+  
+  // Check if user is muted and get mute details
+  app.get("/api/streams/:streamId/mutes/:userId/check", async (req, res) => {
+    try {
+      const mute = await storage.getActiveMute(req.params.streamId, req.params.userId);
+      res.json({ isMuted: !!mute, mute: mute || null });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check mute status" });
+    }
+  });
+  
+  // Update stream settings (slow mode, pinned message) - host only
+  app.patch("/api/streams/:streamId/settings", async (req, res) => {
+    try {
+      const { slowModeSeconds, pinnedMessageId, userId } = req.body;
+      const stream = await storage.getStream(req.params.streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      // Only host can update stream settings
+      if (stream.userId !== userId) {
+        return res.status(403).json({ error: "Only the host can update stream settings" });
+      }
+      
+      const updates: any = {};
+      if (slowModeSeconds !== undefined) updates.slowModeSeconds = slowModeSeconds;
+      if (pinnedMessageId !== undefined) updates.pinnedMessageId = pinnedMessageId;
+      
+      const updated = await storage.updateStream(req.params.streamId, updates);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update stream settings" });
+    }
+  });
+  
+  // Get moderation info for a user in a stream
+  app.get("/api/streams/:streamId/moderation/:userId", async (req, res) => {
+    try {
+      const stream = await storage.getStream(req.params.streamId);
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      const [isModerator, isBanned, mute] = await Promise.all([
+        storage.isRoomModerator(req.params.streamId, req.params.userId),
+        storage.isUserBanned(req.params.streamId, req.params.userId),
+        storage.getActiveMute(req.params.streamId, req.params.userId),
+      ]);
+      
+      res.json({
+        isHost: stream.userId === req.params.userId,
+        isModerator,
+        isBanned,
+        isMuted: !!mute,
+        muteExpiresAt: mute?.expiresAt || null,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch moderation info" });
+    }
+  });
+
   return httpServer;
 }
