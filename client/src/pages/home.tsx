@@ -26,6 +26,16 @@ export default function Home() {
     queryFn: () => api.getLiveStreams(),
   });
 
+  // Get all streamers sorted by live status
+  const { data: streamers } = useQuery({
+    queryKey: ['streamers'],
+    queryFn: () => api.getStreamers(),
+  });
+
+  // Separate live and offline streamers
+  const liveStreamers = streamers?.filter(s => s.isLive) || [];
+  const offlineStreamers = streamers?.filter(s => !s.isLive) || [];
+
   if (!user) {
     api.login('NeonQueen', 'demo123')
       .then(({ user }) => login(user))
@@ -125,6 +135,72 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Streamers Section - Live vs Offline */}
+        {streamers && streamers.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold text-white mb-4">Streamers</h2>
+            
+            {/* Live Streamers */}
+            {liveStreamers.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-white/70 text-sm font-medium">Live Now</span>
+                  <span className="text-white/50 text-xs">({liveStreamers.length})</span>
+                </div>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                  {liveStreamers.slice(0, 10).map((streamer) => (
+                    <Link key={streamer.id} href={`/profile/${streamer.id}`}>
+                      <div className="flex flex-col items-center gap-1 min-w-[70px]">
+                        <div className="relative">
+                          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-pink-500 p-0.5">
+                            <img 
+                              src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`}
+                              className="w-full h-full rounded-full object-cover"
+                              alt={streamer.username}
+                            />
+                          </div>
+                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                            LIVE
+                          </div>
+                        </div>
+                        <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Offline Streamers */}
+            {offlineStreamers.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full" />
+                  <span className="text-white/70 text-sm font-medium">Offline</span>
+                  <span className="text-white/50 text-xs">({offlineStreamers.length})</span>
+                </div>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                  {offlineStreamers.slice(0, 10).map((streamer) => (
+                    <Link key={streamer.id} href={`/profile/${streamer.id}`}>
+                      <div className="flex flex-col items-center gap-1 min-w-[70px] opacity-60 hover:opacity-100 transition-opacity">
+                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white/20">
+                          <img 
+                            src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`}
+                            className="w-full h-full rounded-full object-cover grayscale"
+                            alt={streamer.username}
+                          />
+                        </div>
+                        <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Layout>
   );

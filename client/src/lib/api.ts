@@ -31,6 +31,12 @@ export const api = {
     return res.json() as Promise<User>;
   },
 
+  async getStreamers() {
+    const res = await fetch(`${API_BASE}/api/streamers`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<User[]>;
+  },
+
   async getAllUsers(adminUserId?: string) {
     const headers: Record<string, string> = {};
     if (adminUserId) {
@@ -354,6 +360,17 @@ export const api = {
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<JoinRequest>;
+  },
+
+  // PK Battle
+  async togglePKBattle(streamId: string, isPKBattle: boolean, userId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/pk-battle`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isPKBattle, userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Stream>;
   },
 
   // Groups

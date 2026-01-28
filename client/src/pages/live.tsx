@@ -85,6 +85,19 @@ export default function LiveRoom() {
   });
 
   const queryClient = useQueryClient();
+  
+  // Check if current user is the broadcaster (computed early for query dependencies)
+  const isBroadcaster = !!(user && stream && user.id === stream.userId);
+
+  // Fetch join requests for broadcaster
+  const { data: joinRequests, refetch: refetchJoinRequests } = useQuery({
+    queryKey: ['joinRequests', streamId],
+    queryFn: () => api.getJoinRequests(streamId!),
+    enabled: !!streamId && isBroadcaster,
+    refetchInterval: 3000,
+  });
+
+  const pendingJoinRequests = joinRequests?.filter(r => r.status === 'pending') || [];
 
   const joinVideoMutation = useMutation({
     mutationFn: () => {
@@ -98,6 +111,44 @@ export default function LiveRoom() {
     },
     onError: () => {
       toast({ title: "Failed to send join request", variant: "destructive" });
+    },
+  });
+
+  // Mutation to handle join requests (for broadcaster)
+  const handleJoinRequestMutation = useMutation({
+    mutationFn: ({ requestId, status }: { requestId: string; status: string }) => {
+      return api.updateJoinRequest(requestId, status);
+    },
+    onSuccess: (_, variables) => {
+      toast({ 
+        title: variables.status === 'accepted' ? "Request accepted!" : "Request declined",
+        description: variables.status === 'accepted' ? "User can now join your stream" : undefined,
+      });
+      refetchJoinRequests();
+    },
+    onError: () => {
+      toast({ title: "Failed to update request", variant: "destructive" });
+    },
+  });
+
+  const [showJoinRequests, setShowJoinRequests] = useState(false);
+
+  // Mutation to toggle PK battle mode (for broadcaster)
+  const togglePKMutation = useMutation({
+    mutationFn: (newPKState: boolean) => {
+      if (!streamId || !user) throw new Error("No stream ID or user");
+      return api.togglePKBattle(streamId, newPKState, user.id);
+    },
+    onSuccess: (_, newPKState) => {
+      setIsPKMode(newPKState);
+      queryClient.invalidateQueries({ queryKey: ['stream', streamId] });
+      toast({ 
+        title: newPKState ? "PK Battle started!" : "PK Battle ended",
+        description: newPKState ? "You're now in battle mode - viewers can send gifts to boost your score!" : undefined,
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to toggle PK battle", variant: "destructive" });
     },
   });
 
@@ -121,6 +172,11 @@ export default function LiveRoom() {
           const message = JSON.parse(event.data);
           
           if (message.type === 'comment') {
+            // Skip if this comment is from the current user (we already added it locally)
+            const currentUsername = user?.username;
+            if (message.data.username === currentUsername) {
+              return; // Skip to avoid duplicates
+            }
             setComments(prev => [...prev.slice(-30), {
               id: message.data.id || Date.now().toString(),
               user: message.data.username || 'User',
@@ -137,6 +193,9 @@ export default function LiveRoom() {
             }]);
           } else if (message.type === 'viewer_count') {
             setViewerCount(message.data.count);
+          } else if (message.type === 'join_request') {
+            // Refresh join requests when a new one comes in
+            refetchJoinRequests();
           }
         } catch (e) {
           console.error('Failed to parse WebSocket message:', e);
@@ -168,9 +227,6 @@ export default function LiveRoom() {
       setIsPKMode(stream.isPKBattle);
     }
   }, [stream]);
-
-  // Check if current user is the broadcaster
-  const isBroadcaster = user && stream && user.id === stream.userId;
 
   // Agora connection for real-time streaming
   useEffect(() => {
@@ -579,17 +635,41 @@ export default function LiveRoom() {
               {viewerCount} viewers
             </span>
           </div>
-          <button 
-            className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full ml-1 hover:bg-primary/90 transition-colors"
-            data-testid="button-follow"
-          >
-            Follow
-          </button>
+          {!isBroadcaster && (
+            <button 
+              className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full ml-1 hover:bg-primary/90 transition-colors"
+              data-testid="button-follow"
+            >
+              Follow
+            </button>
+          )}
         </div>
 
         {/* Viewer List & Close */}
         <div className="flex items-center gap-3">
-          {/* Join Video Button */}
+          {/* Join Requests Button (for broadcaster only) */}
+          {isBroadcaster && (
+            <button 
+              onClick={() => setShowJoinRequests(!showJoinRequests)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors relative",
+                pendingJoinRequests.length > 0 
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white animate-pulse" 
+                  : "bg-white/10 text-white hover:bg-white/20"
+              )}
+              data-testid="button-join-requests"
+            >
+              <UserPlus className="w-3 h-3" />
+              Requests
+              {pendingJoinRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center">
+                  {pendingJoinRequests.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Join Video Button (for viewers only) */}
           {user && streamerUser && user.id !== streamerUser.id && (
             <button 
               onClick={() => joinVideoMutation.mutate()}
@@ -602,18 +682,22 @@ export default function LiveRoom() {
             </button>
           )}
 
-          {/* PK Toggle Button */}
-          <button 
-            onClick={() => setIsPKMode(!isPKMode)}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors",
-              isPKMode ? "bg-red-600 text-white animate-pulse" : "bg-white/10 text-white hover:bg-white/20"
-            )}
-            data-testid="button-pk-mode"
-          >
-            <Swords className="w-3 h-3" />
-            {isPKMode ? "PK LIVE" : "PK Mode"}
-          </button>
+          {/* PK Toggle Button (for broadcaster only) */}
+          {isBroadcaster && (
+            <button 
+              onClick={() => togglePKMutation.mutate(!isPKMode)}
+              disabled={togglePKMutation.isPending}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors",
+                isPKMode ? "bg-red-600 text-white animate-pulse" : "bg-white/10 text-white hover:bg-white/20",
+                togglePKMutation.isPending && "opacity-50"
+              )}
+              data-testid="button-pk-mode"
+            >
+              <Swords className="w-3 h-3" />
+              {togglePKMutation.isPending ? "..." : isPKMode ? "End PK" : "Start PK"}
+            </button>
+          )}
 
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
@@ -638,6 +722,66 @@ export default function LiveRoom() {
           </button>
         </div>
       </div>
+
+      {/* Join Requests Panel (for broadcaster) */}
+      <AnimatePresence>
+        {showJoinRequests && isBroadcaster && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="relative z-20 mx-4 mb-3"
+          >
+            <div className="glass rounded-xl p-3 max-h-48 overflow-y-auto">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-white font-bold text-sm">Join Requests</h4>
+                <button 
+                  onClick={() => setShowJoinRequests(false)}
+                  className="text-white/50 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {pendingJoinRequests.length === 0 ? (
+                <p className="text-white/50 text-sm text-center py-2">No pending requests</p>
+              ) : (
+                <div className="space-y-2">
+                  {pendingJoinRequests.map((request) => (
+                    <div key={request.id} className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={request.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.userId}`}
+                          className="w-8 h-8 rounded-full"
+                          alt="User avatar"
+                        />
+                        <span className="text-white text-sm font-medium">
+                          {request.user?.username || 'User'}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleJoinRequestMutation.mutate({ requestId: request.id, status: 'accepted' })}
+                          disabled={handleJoinRequestMutation.isPending}
+                          className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full hover:bg-green-600 transition-colors disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleJoinRequestMutation.mutate({ requestId: request.id, status: 'rejected' })}
+                          disabled={handleJoinRequestMutation.isPending}
+                          className="px-3 py-1 bg-red-500/50 text-white text-xs font-bold rounded-full hover:bg-red-500 transition-colors disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Coin Goals */}
       {streamGoals && streamGoals.length > 0 && (

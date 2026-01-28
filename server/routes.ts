@@ -127,6 +127,22 @@ export async function registerRoutes(
     res.json({ ...user, password: undefined });
   });
 
+  // Get all streamers sorted by live status (live users first)
+  app.get("/api/streamers", async (req, res) => {
+    try {
+      const users = await storage.getStreamers();
+      // Sort by isLive (live users first), then by followersCount
+      const sorted = users.sort((a, b) => {
+        if (a.isLive && !b.isLive) return -1;
+        if (!a.isLive && b.isLive) return 1;
+        return (b.followersCount || 0) - (a.followersCount || 0);
+      });
+      res.json(sorted.map(u => ({ ...u, password: undefined })));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch streamers" });
+    }
+  });
+
   // Stream routes
   app.get("/api/streams/live", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
@@ -568,6 +584,34 @@ export async function registerRoutes(
       res.json(request);
     } catch (error) {
       res.status(400).json({ error: "Failed to update join request" });
+    }
+  });
+
+  // PK Battle toggle
+  const pkBattleSchema = z.object({
+    isPKBattle: z.boolean(),
+    userId: z.string().min(1), // For authorization check
+  });
+
+  app.patch("/api/streams/:id/pk-battle", async (req, res) => {
+    try {
+      const { isPKBattle, userId } = pkBattleSchema.parse(req.body);
+      
+      // Get stream to verify ownership
+      const stream = await storage.getStream(req.params.id);
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      // Authorization: Only stream owner can toggle PK battle
+      if (stream.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to modify this stream" });
+      }
+      
+      const updatedStream = await storage.updateStream(req.params.id, { isPKBattle });
+      res.json(updatedStream);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update PK battle status" });
     }
   });
 

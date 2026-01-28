@@ -67,6 +67,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
+  getStreamers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   
@@ -182,6 +183,14 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getStreamers(): Promise<User[]> {
+    // Get all users who have ever streamed, sorted by live status and followers
+    return await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.isLive), desc(users.followersCount));
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
