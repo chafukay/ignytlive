@@ -25,6 +25,21 @@ export function getAgoraClient(): IAgoraRTCClient {
   return client;
 }
 
+async function getToken(channelName: string, role: "host" | "audience"): Promise<string> {
+  const response = await fetch("/api/agora/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channelName, uid: 0, role }),
+  });
+  
+  if (!response.ok) {
+    throw new Error("Failed to get Agora token");
+  }
+  
+  const data = await response.json();
+  return data.token;
+}
+
 export async function joinAsHost(
   channelName: string, 
   videoContainer: HTMLElement | string | null
@@ -35,8 +50,10 @@ export async function joinAsHost(
 
   const agoraClient = getAgoraClient();
   
+  const token = await getToken(channelName, "host");
+  
   await agoraClient.setClientRole("host");
-  await agoraClient.join(APP_ID, channelName, null, null);
+  await agoraClient.join(APP_ID, channelName, token, null);
 
   [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
     {},
@@ -68,8 +85,10 @@ export async function joinAsAudience(
 
   const agoraClient = getAgoraClient();
   
+  const token = await getToken(channelName, "audience");
+  
   await agoraClient.setClientRole("audience");
-  await agoraClient.join(APP_ID, channelName, null, null);
+  await agoraClient.join(APP_ID, channelName, token, null);
 
   agoraClient.on("user-published", async (user, mediaType) => {
     if (mediaType === "audio" || mediaType === "video") {

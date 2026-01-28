@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
+import * as AgoraToken from "agora-token";
 import { 
   insertUserSchema, 
   insertStreamSchema,
@@ -48,6 +49,41 @@ export async function registerRoutes(
           }
         });
       });
+    }
+  });
+
+  // Agora token generation endpoint
+  app.post("/api/agora/token", async (req, res) => {
+    try {
+      const { channelName, uid, role } = req.body;
+      
+      const appId = process.env.VITE_AGORA_APP_ID;
+      const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+      
+      if (!appId || !appCertificate) {
+        return res.status(500).json({ error: "Agora credentials not configured" });
+      }
+      
+      const expirationTimeInSeconds = 3600; // 1 hour
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+      
+      const agoraRole = role === "host" ? AgoraToken.RtcRole.PUBLISHER : AgoraToken.RtcRole.SUBSCRIBER;
+      
+      const token = AgoraToken.RtcTokenBuilder.buildTokenWithUid(
+        appId,
+        appCertificate,
+        channelName,
+        uid || 0,
+        agoraRole,
+        privilegeExpiredTs,
+        privilegeExpiredTs
+      );
+      
+      res.json({ token });
+    } catch (error) {
+      console.error("Error generating Agora token:", error);
+      res.status(500).json({ error: "Failed to generate token" });
     }
   });
 
