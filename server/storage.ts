@@ -20,6 +20,9 @@ import {
   groupMessages,
   mediaUnlocks,
   privateCalls,
+  roomModerators,
+  roomBans,
+  roomMutes,
   type User,
   type InsertUser,
   type Stream,
@@ -60,6 +63,12 @@ import {
   type InsertMediaUnlock,
   type PrivateCall,
   type InsertPrivateCall,
+  type RoomModerator,
+  type InsertRoomModerator,
+  type RoomBan,
+  type InsertRoomBan,
+  type RoomMute,
+  type InsertRoomMute,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -173,6 +182,23 @@ export interface IStorage {
   getUserPrivateCalls(userId: string): Promise<PrivateCall[]>;
   getPendingPrivateCalls(hostId: string): Promise<(PrivateCall & { viewer: User })[]>;
   getActivePrivateCall(userId: string): Promise<PrivateCall | undefined>;
+  
+  // Moderation operations
+  addRoomModerator(moderator: InsertRoomModerator): Promise<RoomModerator>;
+  removeRoomModerator(streamId: string, userId: string): Promise<boolean>;
+  getRoomModerators(streamId: string): Promise<(RoomModerator & { user: User })[]>;
+  isRoomModerator(streamId: string, userId: string): Promise<boolean>;
+  
+  createRoomBan(ban: InsertRoomBan): Promise<RoomBan>;
+  removeRoomBan(streamId: string, userId: string): Promise<boolean>;
+  getRoomBans(streamId: string): Promise<(RoomBan & { user: User })[]>;
+  isUserBanned(streamId: string, userId: string): Promise<boolean>;
+  
+  createRoomMute(mute: InsertRoomMute): Promise<RoomMute>;
+  removeRoomMute(streamId: string, userId: string): Promise<boolean>;
+  getRoomMutes(streamId: string): Promise<(RoomMute & { user: User })[]>;
+  isUserMuted(streamId: string, userId: string): Promise<boolean>;
+  getActiveMute(streamId: string, userId: string): Promise<RoomMute | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -898,6 +924,110 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return call;
+  }
+  
+  // Moderation operations
+  async addRoomModerator(moderator: InsertRoomModerator): Promise<RoomModerator> {
+    const [newMod] = await db.insert(roomModerators).values(moderator).returning();
+    return newMod;
+  }
+  
+  async removeRoomModerator(streamId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(roomModerators)
+      .where(and(eq(roomModerators.streamId, streamId), eq(roomModerators.userId, userId)));
+    return true;
+  }
+  
+  async getRoomModerators(streamId: string): Promise<(RoomModerator & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(roomModerators)
+      .innerJoin(users, eq(roomModerators.userId, users.id))
+      .where(eq(roomModerators.streamId, streamId));
+    return results.map(r => ({ ...r.room_moderators, user: r.users }));
+  }
+  
+  async isRoomModerator(streamId: string, userId: string): Promise<boolean> {
+    const [mod] = await db
+      .select()
+      .from(roomModerators)
+      .where(and(eq(roomModerators.streamId, streamId), eq(roomModerators.userId, userId)));
+    return !!mod;
+  }
+  
+  async createRoomBan(ban: InsertRoomBan): Promise<RoomBan> {
+    const [newBan] = await db.insert(roomBans).values(ban).returning();
+    return newBan;
+  }
+  
+  async removeRoomBan(streamId: string, userId: string): Promise<boolean> {
+    await db
+      .delete(roomBans)
+      .where(and(eq(roomBans.streamId, streamId), eq(roomBans.userId, userId)));
+    return true;
+  }
+  
+  async getRoomBans(streamId: string): Promise<(RoomBan & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(roomBans)
+      .innerJoin(users, eq(roomBans.userId, users.id))
+      .where(eq(roomBans.streamId, streamId));
+    return results.map(r => ({ ...r.room_bans, user: r.users }));
+  }
+  
+  async isUserBanned(streamId: string, userId: string): Promise<boolean> {
+    const [ban] = await db
+      .select()
+      .from(roomBans)
+      .where(and(
+        eq(roomBans.streamId, streamId), 
+        eq(roomBans.userId, userId),
+        or(
+          eq(roomBans.isPermanent, true),
+          sql`${roomBans.expiresAt} > NOW()`
+        )
+      ));
+    return !!ban;
+  }
+  
+  async createRoomMute(mute: InsertRoomMute): Promise<RoomMute> {
+    const [newMute] = await db.insert(roomMutes).values(mute).returning();
+    return newMute;
+  }
+  
+  async removeRoomMute(streamId: string, userId: string): Promise<boolean> {
+    await db
+      .delete(roomMutes)
+      .where(and(eq(roomMutes.streamId, streamId), eq(roomMutes.userId, userId)));
+    return true;
+  }
+  
+  async getRoomMutes(streamId: string): Promise<(RoomMute & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(roomMutes)
+      .innerJoin(users, eq(roomMutes.userId, users.id))
+      .where(eq(roomMutes.streamId, streamId));
+    return results.map(r => ({ ...r.room_mutes, user: r.users }));
+  }
+  
+  async isUserMuted(streamId: string, userId: string): Promise<boolean> {
+    const mute = await this.getActiveMute(streamId, userId);
+    return !!mute;
+  }
+  
+  async getActiveMute(streamId: string, userId: string): Promise<RoomMute | undefined> {
+    const [mute] = await db
+      .select()
+      .from(roomMutes)
+      .where(and(
+        eq(roomMutes.streamId, streamId), 
+        eq(roomMutes.userId, userId),
+        sql`${roomMutes.expiresAt} > NOW()`
+      ));
+    return mute;
   }
 }
 

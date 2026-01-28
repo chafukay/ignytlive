@@ -59,6 +59,8 @@ export const streams = pgTable("streams", {
   accessType: text("access_type").notNull().default("public"),
   minVipTier: integer("min_vip_tier").notNull().default(0),
   groupId: varchar("group_id"),
+  slowModeSeconds: integer("slow_mode_seconds").notNull().default(0), // 0 = disabled, otherwise rate limit in seconds
+  pinnedMessageId: varchar("pinned_message_id"),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -515,6 +517,88 @@ export const insertMediaUnlockSchema = createInsertSchema(mediaUnlocks).omit({
 });
 export type InsertMediaUnlock = z.infer<typeof insertMediaUnlockSchema>;
 export type MediaUnlock = typeof mediaUnlocks.$inferSelect;
+
+// Room Moderators - users assigned as moderators for a stream
+export const roomModerators = pgTable("room_moderators", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").notNull().references(() => streams.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  assignedBy: varchar("assigned_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  streamIdIdx: index("room_moderators_stream_id_idx").on(table.streamId),
+  userIdIdx: index("room_moderators_user_id_idx").on(table.userId),
+}));
+
+export const roomModeratorsRelations = relations(roomModerators, ({ one }) => ({
+  stream: one(streams, { fields: [roomModerators.streamId], references: [streams.id] }),
+  user: one(users, { fields: [roomModerators.userId], references: [users.id] }),
+  assigner: one(users, { fields: [roomModerators.assignedBy], references: [users.id] }),
+}));
+
+export const insertRoomModeratorSchema = createInsertSchema(roomModerators).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRoomModerator = z.infer<typeof insertRoomModeratorSchema>;
+export type RoomModerator = typeof roomModerators.$inferSelect;
+
+// Room Bans - users banned from a stream
+export const roomBans = pgTable("room_bans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").notNull().references(() => streams.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  bannedBy: varchar("banned_by").notNull().references(() => users.id),
+  reason: text("reason"),
+  isPermanent: boolean("is_permanent").notNull().default(false),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  streamIdIdx: index("room_bans_stream_id_idx").on(table.streamId),
+  userIdIdx: index("room_bans_user_id_idx").on(table.userId),
+}));
+
+export const roomBansRelations = relations(roomBans, ({ one }) => ({
+  stream: one(streams, { fields: [roomBans.streamId], references: [streams.id] }),
+  user: one(users, { fields: [roomBans.userId], references: [users.id] }),
+  banner: one(users, { fields: [roomBans.bannedBy], references: [users.id] }),
+}));
+
+export const insertRoomBanSchema = createInsertSchema(roomBans).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRoomBan = z.infer<typeof insertRoomBanSchema>;
+export type RoomBan = typeof roomBans.$inferSelect;
+
+// Room Mutes - temporary mutes with duration
+export const roomMutes = pgTable("room_mutes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").notNull().references(() => streams.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  mutedBy: varchar("muted_by").notNull().references(() => users.id),
+  reason: text("reason"),
+  durationSeconds: integer("duration_seconds").notNull().default(300), // default 5 mins
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  streamIdIdx: index("room_mutes_stream_id_idx").on(table.streamId),
+  userIdIdx: index("room_mutes_user_id_idx").on(table.userId),
+  expiresAtIdx: index("room_mutes_expires_at_idx").on(table.expiresAt),
+}));
+
+export const roomMutesRelations = relations(roomMutes, ({ one }) => ({
+  stream: one(streams, { fields: [roomMutes.streamId], references: [streams.id] }),
+  user: one(users, { fields: [roomMutes.userId], references: [users.id] }),
+  muter: one(users, { fields: [roomMutes.mutedBy], references: [users.id] }),
+}));
+
+export const insertRoomMuteSchema = createInsertSchema(roomMutes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRoomMute = z.infer<typeof insertRoomMuteSchema>;
+export type RoomMute = typeof roomMutes.$inferSelect;
 
 // Private Calls table - paid 1:1 video calls between viewer and host
 export const privateCalls = pgTable("private_calls", {
