@@ -177,26 +177,41 @@ export default function LiveRoom() {
     if (!streamId || !stream) return;
     
     const channelName = `stream_${streamId}`;
+    let mounted = true;
     
     if (isAgoraConfigured()) {
       if (isBroadcaster) {
         // Broadcaster: join as host and publish
         const startBroadcast = async () => {
+          // Wait a tick for refs to be available
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (!mounted) return;
+          
           try {
-            await joinAsHost(channelName, localVideoRef.current);
-            setAgoraConnected(true);
-            setAgoraError(null);
-            console.log("Broadcasting via Agora");
+            const container = localVideoRef.current;
+            console.log("Starting Agora broadcast, container:", container);
+            await joinAsHost(channelName, container);
+            if (mounted) {
+              setAgoraConnected(true);
+              setAgoraError(null);
+              console.log("Broadcasting via Agora");
+            }
           } catch (error: any) {
             console.error("Agora broadcast error:", error);
-            setAgoraError(error.message || "Failed to start broadcast");
-            startFallbackCamera();
+            if (mounted) {
+              setAgoraError(error.message || "Failed to start broadcast");
+              startFallbackCamera();
+            }
           }
         };
         startBroadcast();
       } else {
         // Viewer: join as audience and subscribe
         const startViewing = async () => {
+          // Wait a tick for refs to be available
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (!mounted) return;
+          
           try {
             await joinAsAudience(
               channelName,
@@ -217,12 +232,16 @@ export default function LiveRoom() {
                 }
               }
             );
-            setAgoraConnected(true);
-            setAgoraError(null);
-            console.log("Viewing via Agora");
+            if (mounted) {
+              setAgoraConnected(true);
+              setAgoraError(null);
+              console.log("Viewing via Agora");
+            }
           } catch (error: any) {
             console.error("Agora view error:", error);
-            setAgoraError(error.message || "Failed to connect to stream");
+            if (mounted) {
+              setAgoraError(error.message || "Failed to connect to stream");
+            }
           }
         };
         startViewing();
@@ -235,6 +254,7 @@ export default function LiveRoom() {
     }
     
     return () => {
+      mounted = false;
       leaveChannel().catch(console.error);
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
@@ -451,21 +471,35 @@ export default function LiveRoom() {
                     Retry Camera
                   </button>
                 </div>
-              ) : isAgoraConfigured() && agoraConnected ? (
-                <div 
-                  ref={localVideoRef}
-                  className="w-full h-full"
-                  data-testid="video-broadcaster-agora"
-                />
               ) : (
-                <video 
-                  ref={videoRef}
-                  autoPlay 
-                  playsInline 
-                  muted 
-                  className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
-                  data-testid="video-broadcaster"
-                />
+                <>
+                  {/* Agora video container - always rendered so ref is available */}
+                  <div 
+                    ref={localVideoRef}
+                    className={`w-full h-full absolute inset-0 [&>div]:w-full [&>div]:h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover ${isAgoraConfigured() ? '' : 'hidden'}`}
+                    data-testid="video-broadcaster-agora"
+                  />
+                  {/* Fallback video - shown when Agora not configured */}
+                  {!isAgoraConfigured() && (
+                    <video 
+                      ref={videoRef}
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+                      data-testid="video-broadcaster"
+                    />
+                  )}
+                  {/* Loading state while Agora connects */}
+                  {isAgoraConfigured() && !agoraConnected && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      <div className="text-center">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-white/70">Starting camera...</p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
               <button
                 onClick={flipCamera}
@@ -477,13 +511,14 @@ export default function LiveRoom() {
             </>
           ) : (
             <>
-              {isAgoraConfigured() && hasRemoteVideo ? (
-                <div 
-                  ref={remoteVideoRef}
-                  className="w-full h-full"
-                  data-testid="video-viewer-agora"
-                />
-              ) : (
+              {/* Agora remote video container - always rendered */}
+              <div 
+                ref={remoteVideoRef}
+                className={`w-full h-full absolute inset-0 [&>div]:w-full [&>div]:h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover ${hasRemoteVideo ? '' : 'hidden'}`}
+                data-testid="video-viewer-agora"
+              />
+              {/* Fallback/placeholder when no remote video */}
+              {!hasRemoteVideo && (
                 <div className="w-full h-full relative">
                   <img 
                     src={stream?.thumbnail || displayUser.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=' + streamId} 
@@ -491,11 +526,19 @@ export default function LiveRoom() {
                     className="w-full h-full object-cover opacity-80"
                     data-testid="img-stream-background"
                   />
-                  {isAgoraConfigured() && agoraConnected && !hasRemoteVideo && (
+                  {isAgoraConfigured() && agoraConnected && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                       <div className="text-center">
                         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                         <p className="text-white/70">Waiting for broadcaster...</p>
+                      </div>
+                    </div>
+                  )}
+                  {isAgoraConfigured() && !agoraConnected && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      <div className="text-center">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-white/70">Connecting...</p>
                       </div>
                     </div>
                   )}
@@ -508,10 +551,6 @@ export default function LiveRoom() {
                   )}
                 </div>
               )}
-              <div 
-                ref={remoteVideoRef}
-                className={`absolute inset-0 ${hasRemoteVideo ? '' : 'hidden'}`}
-              />
             </>
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90 pointer-events-none" />
