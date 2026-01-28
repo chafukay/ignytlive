@@ -73,6 +73,32 @@ export const api = {
     return res.json() as Promise<User[]>;
   },
 
+  async followUser(followerId: string, followingId: string) {
+    const res = await fetch(`${API_BASE}/api/follows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ followerId, followingId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async unfollowUser(followerId: string, followingId: string) {
+    const res = await fetch(`${API_BASE}/api/follows`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ followerId, followingId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async isFollowing(followerId: string, followingId: string) {
+    const res = await fetch(`${API_BASE}/api/follows/check?followerId=${followerId}&followingId=${followingId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ isFollowing: boolean }>;
+  },
+
   // Streams
   async getLiveStreams(limit = 50) {
     const res = await fetch(`${API_BASE}/api/streams/live?limit=${limit}`);
@@ -110,6 +136,16 @@ export const api = {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Stream>;
+  },
+
+  async endStream(streamId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/end`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Stream>;

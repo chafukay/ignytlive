@@ -1,5 +1,6 @@
 import Layout from "@/components/layout";
 import StreamCard from "@/components/stream-card";
+import UserAvatar from "@/components/user-avatar";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2 } from "lucide-react";
@@ -151,23 +152,17 @@ export default function Home() {
                 </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {liveStreamers.slice(0, 10).map((streamer) => (
-                    <Link key={streamer.id} href={`/profile/${streamer.id}`}>
-                      <div className="flex flex-col items-center gap-1 min-w-[70px]">
-                        <div className="relative">
-                          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-pink-500 p-0.5">
-                            <img 
-                              src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`}
-                              className="w-full h-full rounded-full object-cover"
-                              alt={streamer.username}
-                            />
-                          </div>
-                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
-                            LIVE
-                          </div>
-                        </div>
-                        <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
-                      </div>
-                    </Link>
+                    <div key={streamer.id} className="flex flex-col items-center gap-1 min-w-[70px]">
+                      <UserAvatar 
+                        userId={streamer.id}
+                        username={streamer.username}
+                        avatar={streamer.avatar}
+                        isLive={true}
+                        size="lg"
+                        showStatus={true}
+                      />
+                      <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -183,18 +178,18 @@ export default function Home() {
                 </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {offlineStreamers.slice(0, 10).map((streamer) => (
-                    <Link key={streamer.id} href={`/profile/${streamer.id}`}>
-                      <div className="flex flex-col items-center gap-1 min-w-[70px] opacity-60 hover:opacity-100 transition-opacity">
-                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white/20">
-                          <img 
-                            src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`}
-                            className="w-full h-full rounded-full object-cover grayscale"
-                            alt={streamer.username}
-                          />
-                        </div>
-                        <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
-                      </div>
-                    </Link>
+                    <div key={streamer.id} className="flex flex-col items-center gap-1 min-w-[70px] hover:opacity-100 transition-opacity">
+                      <UserAvatar 
+                        userId={streamer.id}
+                        username={streamer.username}
+                        avatar={streamer.avatar}
+                        isLive={false}
+                        isOnline={false}
+                        size="lg"
+                        showStatus={true}
+                      />
+                      <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
+                    </div>
                   ))}
                 </div>
               </div>

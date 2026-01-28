@@ -2,10 +2,11 @@ import Layout from "@/components/layout";
 import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Phone, Gift, Building2, Package, Link2, Eye, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import BadgesDisplay from "@/components/badges-display";
+import UserAvatar from "@/components/user-avatar";
 import { useState } from "react";
 
 export default function Profile() {
@@ -13,6 +14,15 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [dndEnabled, setDndEnabled] = useState(user?.dndEnabled || false);
+
+  // Check if user is currently live streaming
+  const { data: liveStreams } = useQuery({
+    queryKey: ['liveStreams'],
+    queryFn: () => api.getLiveStreams(),
+    enabled: !!user,
+  });
+  
+  const isUserLive = liveStreams?.some(stream => stream.userId === user?.id) ?? false;
 
   const dndMutation = useMutation({
     mutationFn: (enabled: boolean) => api.toggleDND(user!.id, enabled),
@@ -77,15 +87,20 @@ export default function Profile() {
 
         <div className="flex flex-col items-center mb-6">
           <div className="relative mb-3">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent p-1">
-              <img 
-                src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
-                alt={user.username}
-                className="w-full h-full rounded-full bg-background object-cover"
-                data-testid="img-profile-avatar"
+            <div className="relative">
+              <UserAvatar
+                userId={user.id}
+                username={user.username}
+                avatar={user.avatar}
+                isLive={isUserLive}
+                isOnline={true}
+                size="lg"
+                showStatus={true}
+                linkToProfile={false}
+                className="w-24 h-24"
               />
             </div>
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
               {user.level}
             </span>
           </div>

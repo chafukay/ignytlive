@@ -89,6 +89,39 @@ export default function LiveRoom() {
   // Check if current user is the broadcaster (computed early for query dependencies)
   const isBroadcaster = !!(user && stream && user.id === stream.userId);
 
+  // Check if user is following the streamer
+  const { data: followStatus, refetch: refetchFollowStatus } = useQuery({
+    queryKey: ['isFollowing', user?.id, stream?.userId],
+    queryFn: () => api.isFollowing(user!.id, stream!.userId),
+    enabled: !!user && !!stream && !isBroadcaster,
+  });
+
+  const isFollowing = followStatus?.isFollowing ?? false;
+
+  // Follow mutation
+  const followMutation = useMutation({
+    mutationFn: () => {
+      if (!user || !stream) throw new Error("Not authenticated");
+      if (isFollowing) {
+        return api.unfollowUser(user.id, stream.userId);
+      }
+      return api.followUser(user.id, stream.userId);
+    },
+    onSuccess: () => {
+      refetchFollowStatus();
+      toast({ 
+        title: isFollowing ? "Unfollowed" : "Following!", 
+        description: isFollowing ? undefined : `You're now following this streamer`
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to update follow status", variant: "destructive" });
+    },
+  });
+
+  // Track co-hosts (accepted join requests)
+  const [coHosts, setCoHosts] = useState<Array<{ id: string; username: string; avatar?: string }>>([]);
+
   // Fetch join requests for broadcaster
   const { data: joinRequests, refetch: refetchJoinRequests } = useQuery({
     queryKey: ['joinRequests', streamId],
@@ -116,14 +149,22 @@ export default function LiveRoom() {
 
   // Mutation to handle join requests (for broadcaster)
   const handleJoinRequestMutation = useMutation({
-    mutationFn: ({ requestId, status }: { requestId: string; status: string }) => {
+    mutationFn: ({ requestId, status, requester }: { requestId: string; status: string; requester?: { id: string; username: string; avatar?: string } }) => {
       return api.updateJoinRequest(requestId, status);
     },
     onSuccess: (_, variables) => {
-      toast({ 
-        title: variables.status === 'accepted' ? "Request accepted!" : "Request declined",
-        description: variables.status === 'accepted' ? "User can now join your stream" : undefined,
-      });
+      if (variables.status === 'accepted' && variables.requester) {
+        // Add accepted user as co-host
+        setCoHosts(prev => [...prev, variables.requester!]);
+        toast({ 
+          title: "Co-host added!",
+          description: `${variables.requester.username} is now on your stream`,
+        });
+      } else {
+        toast({ 
+          title: "Request declined",
+        });
+      }
       refetchJoinRequests();
     },
     onError: () => {
@@ -507,6 +548,20 @@ export default function LiveRoom() {
     level: 1
   };
 
+  // Handle closing/leaving the stream
+  const handleClose = async () => {
+    if (isBroadcaster && streamId && user) {
+      try {
+        // End the stream when broadcaster leaves
+        await api.endStream(streamId, user.id);
+        toast({ title: "Stream ended" });
+      } catch (error) {
+        console.error("Failed to end stream:", error);
+      }
+    }
+    setLocation("/");
+  };
+
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Background Video / PK View */}
@@ -564,6 +619,38 @@ export default function LiveRoom() {
               >
                 <RefreshCw className="w-5 h-5" />
               </button>
+
+              {/* Co-host Overlays - Floating windows for accepted join requests */}
+              {coHosts.length > 0 && (
+                <div className="absolute bottom-32 right-4 z-30 flex flex-col gap-2">
+                  {coHosts.map((coHost, index) => (
+                    <motion.div
+                      key={coHost.id}
+                      initial={{ opacity: 0, scale: 0.8, x: 50 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, x: 50 }}
+                      className="relative w-24 h-32 rounded-xl overflow-hidden border-2 border-pink-500 shadow-lg bg-black"
+                      data-testid={`cohost-${coHost.id}`}
+                    >
+                      <img 
+                        src={coHost.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${coHost.username}`}
+                        className="w-full h-full object-cover"
+                        alt={coHost.username}
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                        <span className="text-white text-[10px] font-bold truncate block">{coHost.username}</span>
+                      </div>
+                      <div className="absolute top-1 left-1 bg-green-500 rounded-full w-2 h-2 animate-pulse" />
+                      <button
+                        onClick={() => setCoHosts(prev => prev.filter(c => c.id !== coHost.id))}
+                        className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500/80 flex items-center justify-center text-white text-[8px] hover:bg-red-500"
+                      >
+                        ✕
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -637,10 +724,17 @@ export default function LiveRoom() {
           </div>
           {!isBroadcaster && (
             <button 
-              className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full ml-1 hover:bg-primary/90 transition-colors"
+              onClick={() => followMutation.mutate()}
+              disabled={followMutation.isPending}
+              className={cn(
+                "text-[10px] font-bold px-3 py-1 rounded-full ml-1 transition-colors disabled:opacity-50",
+                isFollowing 
+                  ? "bg-white/20 text-white hover:bg-white/30" 
+                  : "bg-primary text-white hover:bg-primary/90"
+              )}
               data-testid="button-follow"
             >
-              Follow
+              {followMutation.isPending ? "..." : isFollowing ? "Following" : "Follow"}
             </button>
           )}
         </div>
@@ -714,7 +808,7 @@ export default function LiveRoom() {
             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
           </button>
           <button 
-            onClick={() => setLocation("/")}
+            onClick={handleClose}
             className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
             data-testid="button-close"
           >
@@ -760,7 +854,15 @@ export default function LiveRoom() {
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleJoinRequestMutation.mutate({ requestId: request.id, status: 'accepted' })}
+                          onClick={() => handleJoinRequestMutation.mutate({ 
+                            requestId: request.id, 
+                            status: 'accepted',
+                            requester: {
+                              id: request.userId,
+                              username: request.user?.username || 'User',
+                              avatar: request.user?.avatar || undefined
+                            }
+                          })}
                           disabled={handleJoinRequestMutation.isPending}
                           className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full hover:bg-green-600 transition-colors disabled:opacity-50"
                         >

@@ -131,13 +131,25 @@ export async function registerRoutes(
   app.get("/api/streamers", async (req, res) => {
     try {
       const users = await storage.getStreamers();
+      const liveStreams = await storage.getLiveStreams(100);
+      
+      // Build a set of user IDs who have active live streams
+      const liveUserIds = new Set(liveStreams.map(s => s.userId));
+      
+      // Update isLive based on actual active streams
+      const usersWithLiveStatus = users.map(u => ({
+        ...u,
+        password: undefined,
+        isLive: liveUserIds.has(u.id), // Compute from actual streams
+      }));
+      
       // Sort by isLive (live users first), then by followersCount
-      const sorted = users.sort((a, b) => {
+      const sorted = usersWithLiveStatus.sort((a, b) => {
         if (a.isLive && !b.isLive) return -1;
         if (!a.isLive && b.isLive) return 1;
         return (b.followersCount || 0) - (a.followersCount || 0);
       });
-      res.json(sorted.map(u => ({ ...u, password: undefined })));
+      res.json(sorted);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch streamers" });
     }
@@ -196,6 +208,32 @@ export async function registerRoutes(
       res.json(stream);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Update failed" });
+    }
+  });
+
+  // End stream (properly mark as not live)
+  app.post("/api/streams/:id/end", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const stream = await storage.getStream(req.params.id);
+      
+      if (!stream) {
+        return res.status(404).json({ error: "Stream not found" });
+      }
+      
+      // Only stream owner can end the stream
+      if (stream.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to end this stream" });
+      }
+      
+      const updatedStream = await storage.updateStream(req.params.id, {
+        isLive: false,
+        endedAt: new Date(),
+      });
+      
+      res.json(updatedStream);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to end stream" });
     }
   });
 
@@ -282,6 +320,15 @@ export async function registerRoutes(
   app.get("/api/users/:id/following", async (req, res) => {
     const following = await storage.getFollowing(req.params.id);
     res.json(following);
+  });
+
+  app.get("/api/follows/check", async (req, res) => {
+    const { followerId, followingId } = req.query;
+    if (!followerId || !followingId) {
+      return res.status(400).json({ error: "followerId and followingId required" });
+    }
+    const isFollowing = await storage.isFollowing(followerId as string, followingId as string);
+    res.json({ isFollowing });
   });
 
   // Gift routes
