@@ -32,7 +32,9 @@ export default function LiveRoom() {
   const { user } = useAuth();
   const streamId = params?.id;
   
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<Comment[]>([
+    { id: 'welcome', user: 'IgnytLIVE', text: 'Welcome to the stream! 🎉', color: 'text-pink-400' }
+  ]);
   const [inputValue, setInputValue] = useState("");
   const [likes, setLikes] = useState(0);
   const [showGiftMenu, setShowGiftMenu] = useState(false);
@@ -634,6 +636,27 @@ export default function LiveRoom() {
         data-testid="area-stream-tap"
       />
 
+      {/* Chat Area - Always visible */}
+      <div className="relative z-10 px-4 pb-2">
+        <div className="h-40 overflow-y-auto no-scrollbar mask-image-gradient">
+          <div className="flex flex-col gap-2 justify-end min-h-full">
+            {comments.map((msg) => (
+              <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">
+                <div className={cn(
+                  "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[85%]",
+                  msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/30"
+                )}>
+                  <span className="font-bold text-white/90 mr-2">{msg.user}:</span>
+                  {msg.gift && <span className="mr-1">{msg.gift}</span>}
+                  <span className={msg.color || "text-white"}>{msg.text}</span>
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+        </div>
+      </div>
+
       {/* Overlay Elements - Hidden when tapped */}
       <AnimatePresence>
         {showOverlay && (
@@ -664,25 +687,6 @@ export default function LiveRoom() {
 
             {/* Bottom Interface */}
             <div className="p-4 pt-0 pb-6">
-              {/* Chat Area */}
-              <div className="h-32 overflow-y-auto no-scrollbar mb-4 mask-image-gradient">
-                <div className="flex flex-col gap-2 justify-end min-h-full">
-                  {comments.map((msg) => (
-                    <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">
-                      <div className={cn(
-                        "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[80%]",
-                        msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/20"
-                      )}>
-                        <span className="font-bold text-white/90 mr-2 opacity-75">{msg.user}:</span>
-                        {msg.gift && <span className="mr-1">{msg.gift}</span>}
-                        <span className={msg.color || "text-white"}>{msg.text}</span>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={chatEndRef} />
-                </div>
-              </div>
-
               {/* Actions Bar */}
               <div className="flex items-center gap-3">
                 <form onSubmit={handleSend} className="flex-1 relative">
