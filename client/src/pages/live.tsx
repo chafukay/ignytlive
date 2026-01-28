@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,11 +14,13 @@ import SpinWheel from "@/components/spin-wheel";
 import WishlistPanel from "@/components/wishlist-panel";
 import BadgesDisplay from "@/components/badges-display";
 import CallButton from "@/components/call-button";
+import ModerationPanel, { UserActionMenu } from "@/components/moderation-panel";
 import { useToast } from "@/hooks/use-toast";
 import type { Gift as GiftType, StreamGoal } from "@shared/schema";
 
 interface Comment {
   id: string;
+  userId?: string;
   user: string;
   text: string;
   color?: string;
@@ -59,6 +61,8 @@ export default function LiveRoom() {
   const [agoraConnected, setAgoraConnected] = useState(false);
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const [agoraError, setAgoraError] = useState<string | null>(null);
+  const [showModerationPanel, setShowModerationPanel] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{ userId: string; username: string } | null>(null);
 
   const { data: stream, isLoading: streamLoading } = useQuery({
     queryKey: ['stream', streamId],
@@ -97,6 +101,15 @@ export default function LiveRoom() {
   });
 
   const isFollowing = followStatus?.isFollowing ?? false;
+
+  // Check if current user can moderate (is host or moderator)
+  const { data: modInfo } = useQuery({
+    queryKey: ['modInfo', streamId, user?.id],
+    queryFn: () => api.getModerationInfo(streamId!, user!.id),
+    enabled: !!streamId && !!user,
+  });
+
+  const canModerate = isBroadcaster || modInfo?.isModerator;
 
   // Follow mutation
   const followMutation = useMutation({
@@ -451,28 +464,45 @@ export default function LiveRoom() {
     return () => clearInterval(interval);
   }, [stream, streamerUser, isBroadcaster]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || !user) return;
+    if (!inputValue.trim() || !user || !streamId) return;
     
-    const newComment = {
-      id: Date.now().toString(),
-      user: user.username,
-      text: inputValue,
-      color: 'text-white'
-    };
-    
-    setComments(prev => [...prev, newComment]);
-    
-    // Send via WebSocket
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'comment',
-        data: { content: inputValue, username: user.username }
-      }));
-    }
-    
+    const messageText = inputValue;
     setInputValue("");
+    
+    try {
+      // Send via API (includes moderation checks: slow mode, mute, ban)
+      await api.postStreamComment(streamId, {
+        userId: user.id,
+        text: messageText,
+      });
+      
+      const newComment = {
+        id: Date.now().toString(),
+        userId: user.id,
+        user: user.username,
+        text: messageText,
+        color: 'text-white'
+      };
+      
+      setComments(prev => [...prev, newComment]);
+      
+      // Also send via WebSocket for real-time updates to other viewers
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'comment',
+          data: { content: messageText, username: user.username, userId: user.id }
+        }));
+      }
+    } catch (error: any) {
+      toast({ 
+        title: "Couldn't send message", 
+        description: error.message || "Please try again",
+        variant: "destructive" 
+      });
+      setInputValue(messageText); // Restore message if failed
+    }
   };
 
   const handleSendGift = async (gift: GiftType) => {
@@ -807,6 +837,15 @@ export default function LiveRoom() {
           >
             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
           </button>
+          {canModerate && (
+            <button 
+              onClick={() => setShowModerationPanel(true)}
+              className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-primary hover:bg-white/20"
+              data-testid="button-moderation"
+            >
+              <Shield className="w-5 h-5" />
+            </button>
+          )}
           <button 
             onClick={handleClose}
             className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
@@ -923,6 +962,13 @@ export default function LiveRoom() {
 
       {/* Chat Area - Always visible */}
       <div className="relative z-10 px-4 pb-2">
+        {/* Slow Mode Indicator */}
+        {stream?.slowModeSeconds ? (
+          <div className="flex items-center gap-1 text-xs text-yellow-400 mb-1">
+            <span>Slow mode: {stream.slowModeSeconds}s</span>
+          </div>
+        ) : null}
+        
         <div className="h-40 overflow-y-auto no-scrollbar mask-image-gradient">
           <div className="flex flex-col gap-2 justify-end min-h-full">
             {comments.map((msg) => (
@@ -931,7 +977,19 @@ export default function LiveRoom() {
                   "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[85%]",
                   msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/30"
                 )}>
-                  <span className="font-bold text-white/90 mr-2">{msg.user}:</span>
+                  <span 
+                    className={cn(
+                      "font-bold mr-2",
+                      canModerate && msg.userId && msg.userId !== stream?.userId ? "text-white/90 cursor-pointer hover:text-primary" : "text-white/90"
+                    )}
+                    onClick={() => {
+                      if (canModerate && msg.userId && msg.userId !== stream?.userId) {
+                        setSelectedUser({ userId: msg.userId, username: msg.user });
+                      }
+                    }}
+                  >
+                    {msg.user}:
+                  </span>
                   {msg.gift && <span className="mr-1">{msg.gift}</span>}
                   <span className={msg.color || "text-white"}>{msg.text}</span>
                 </div>
@@ -1089,6 +1147,32 @@ export default function LiveRoom() {
           streamerId={streamerUser.id}
         />
       )}
+
+      {/* Moderation Panel */}
+      <AnimatePresence>
+        {showModerationPanel && stream && user && (
+          <ModerationPanel
+            streamId={stream.id}
+            hostId={stream.userId}
+            currentUserId={user.id}
+            onClose={() => setShowModerationPanel(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* User Action Menu (when tapping on a username in chat) */}
+      <AnimatePresence>
+        {selectedUser && stream && user && (
+          <UserActionMenu
+            streamId={stream.id}
+            targetUserId={selectedUser.userId}
+            targetUsername={selectedUser.username}
+            hostId={stream.userId}
+            currentUserId={user.id}
+            onClose={() => setSelectedUser(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

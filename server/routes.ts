@@ -19,6 +19,9 @@ import { z } from "zod";
 // WebSocket connections per stream
 const streamConnections = new Map<string, Set<WebSocket>>();
 
+// Track last message time per user per stream for slow mode
+const lastMessageTimes = new Map<string, Map<string, number>>();
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -41,13 +44,69 @@ export async function registerRoutes(
       });
       
       ws.on("message", async (data) => {
-        const message = JSON.parse(data.toString());
-        // Broadcast to all viewers of the stream
-        streamConnections.get(streamId)?.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(message));
+        try {
+          const message = JSON.parse(data.toString());
+          
+          // If this is a chat comment, validate through moderation checks
+          if (message.type === 'comment' && message.data?.userId) {
+            const userId = message.data.userId;
+            
+            // Check if user is banned
+            const isBanned = await storage.isUserBanned(streamId, userId);
+            if (isBanned) {
+              ws.send(JSON.stringify({ 
+                type: 'error', 
+                message: 'You are banned from this stream' 
+              }));
+              return;
+            }
+            
+            // Check if user is muted
+            const isMuted = await storage.isUserMuted(streamId, userId);
+            if (isMuted) {
+              ws.send(JSON.stringify({ 
+                type: 'error', 
+                message: 'You are muted in this stream' 
+              }));
+              return;
+            }
+            
+            // Check slow mode (get stream to check settings)
+            const stream = await storage.getStream(streamId);
+            if (stream?.slowModeSeconds && stream.slowModeSeconds > 0 && stream.userId !== userId) {
+              const isMod = await storage.isRoomModerator(streamId, userId);
+              if (!isMod) {
+                // Check last message time from the map
+                if (!lastMessageTimes.has(streamId)) {
+                  lastMessageTimes.set(streamId, new Map());
+                }
+                const streamMessages = lastMessageTimes.get(streamId)!;
+                const lastTime = streamMessages.get(userId) || 0;
+                const now = Date.now();
+                const timeSinceLastMessage = (now - lastTime) / 1000;
+                
+                if (timeSinceLastMessage < stream.slowModeSeconds) {
+                  const waitTime = Math.ceil(stream.slowModeSeconds - timeSinceLastMessage);
+                  ws.send(JSON.stringify({ 
+                    type: 'error', 
+                    message: `Slow mode is enabled. Wait ${waitTime} seconds.` 
+                  }));
+                  return;
+                }
+                streamMessages.set(userId, now);
+              }
+            }
           }
-        });
+          
+          // Broadcast validated message to all viewers of the stream
+          streamConnections.get(streamId)?.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(message));
+            }
+          });
+        } catch (error) {
+          console.error('WebSocket message error:', error);
+        }
       });
     }
   });
@@ -242,9 +301,6 @@ export async function registerRoutes(
     const comments = await storage.getStreamComments(req.params.id, limit);
     res.json(comments);
   });
-
-  // Track last message time per user per stream for slow mode
-  const lastMessageTimes = new Map<string, Map<string, number>>();
   
   app.post("/api/streams/:id/comments", async (req, res) => {
     try {

@@ -54,6 +54,22 @@ Core data models include:
 - WebSocket connections are stream-scoped (connected via `?streamId=` query param)
 - Messages broadcast to all viewers of a specific stream
 - Used for live comments, gift animations, and viewer count updates
+- **WebSocket Moderation**: All chat messages validated against moderation state (ban/mute/slow mode) before broadcast
+
+### Moderation System
+- **Room Moderators**: Hosts can assign/remove moderators for their streams
+- **Bans**: Hosts and moderators can permanently or temporarily ban users from streams
+- **Mutes**: Duration-based muting (5 min to 24 hours) with automatic expiration
+- **Slow Mode**: Configurable rate limiting (0s-5m intervals), hosts and moderators exempt
+- **Authorization**: All moderation endpoints verify host/moderator status before execution
+- **WebSocket Enforcement**: Moderation rules enforced both in REST API and WebSocket message handling to prevent bypass
+
+### Private Video Calls
+- Per-minute billing: Charged every 60 seconds during call
+- Per-session billing: Flat fee upfront for entire session
+- Agora integration for video/audio
+- Authorization-protected endpoints for initiating/accepting calls
+- Earnings tracking for hosts
 
 ## External Dependencies
 

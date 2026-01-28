@@ -141,6 +141,16 @@ export const api = {
     return res.json() as Promise<Stream>;
   },
 
+  async postStreamComment(streamId: string, data: { userId: string; text: string }) {
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
   async endStream(streamId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/end`, {
       method: "POST",
