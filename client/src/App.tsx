@@ -60,10 +60,10 @@ function Router() {
       <Route path="/shorts">{() => <ProtectedRoute component={Shorts} />}</Route>
       <Route path="/groups">{() => <ProtectedRoute component={Groups} />}</Route>
       <Route path="/leaderboard">{() => <ProtectedRoute component={Leaderboard} />}</Route>
+      <Route path="/profile/:userId">{() => <ProtectedRoute component={UserProfile} />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
       <Route path="/live/:id" component={LiveRoom} />
       <Route path="/private-call/:id">{() => <ProtectedRoute component={PrivateCall} />}</Route>
-      <Route path="/profile/:userId">{() => <ProtectedRoute component={UserProfile} />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
       <Route path="/store">{() => <ProtectedRoute component={Store} />}</Route>
       <Route path="/user-level">{() => <ProtectedRoute component={UserLevel} />}</Route>
