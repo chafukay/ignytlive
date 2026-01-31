@@ -91,6 +91,7 @@ export const shorts = pgTable("shorts", {
   thumbnail: text("thumbnail"),
   description: text("description"),
   song: text("song"),
+  duration: integer("duration").notNull().default(0), // Duration in seconds (max 60 configurable)
   likesCount: integer("likes_count").notNull().default(0),
   commentsCount: integer("comments_count").notNull().default(0),
   sharesCount: integer("shares_count").notNull().default(0),
