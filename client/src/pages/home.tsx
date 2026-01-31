@@ -277,8 +277,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Suggested Users Section - show when no live/online/followed users */}
-        {suggestedUsers.length > 0 && liveStreamers.length === 0 && onlineUsers.length === 0 && offlineStreamers.length === 0 && (
+        {/* Suggested Users Section - always show at the bottom if there are users to suggest */}
+        {suggestedUsers.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-cyan-400" />
