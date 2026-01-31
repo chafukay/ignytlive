@@ -31,7 +31,7 @@ export async function registerRoutes(
   // WebSocket server for real-time features
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   
-  wss.on("connection", (ws: WebSocket, req) => {
+  wss.on("connection", async (ws: WebSocket, req) => {
     const streamId = new URL(req.url!, `http://${req.headers.host}`).searchParams.get("streamId");
     
     if (streamId) {
@@ -40,8 +40,30 @@ export async function registerRoutes(
       }
       streamConnections.get(streamId)!.add(ws);
       
-      ws.on("close", () => {
+      // Update viewer count when user joins
+      const viewersCount = streamConnections.get(streamId)!.size;
+      await storage.updateStream(streamId, { viewersCount });
+      
+      // Broadcast updated viewer count to all clients
+      streamConnections.get(streamId)?.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: 'viewer_count', data: { viewerCount: viewersCount } }));
+        }
+      });
+      
+      ws.on("close", async () => {
         streamConnections.get(streamId)?.delete(ws);
+        
+        // Update viewer count when user leaves
+        const newViewersCount = streamConnections.get(streamId)?.size || 0;
+        await storage.updateStream(streamId, { viewersCount: newViewersCount });
+        
+        // Broadcast updated viewer count
+        streamConnections.get(streamId)?.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'viewer_count', data: { viewerCount: newViewersCount } }));
+          }
+        });
       });
       
       ws.on("message", async (data) => {

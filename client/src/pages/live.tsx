@@ -246,7 +246,7 @@ export default function LiveRoom() {
               gift: message.data.giftEmoji,
             }]);
           } else if (message.type === 'viewer_count') {
-            setViewerCount(message.data.count);
+            setViewerCount(message.data.viewerCount);
           } else if (message.type === 'join_request') {
             // Refresh join requests when a new one comes in
             refetchJoinRequests();
