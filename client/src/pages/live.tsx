@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createStreamWebSocket } from "@/lib/websocket";
-import { isAgoraConfigured, joinAsHost, joinAsAudience, leaveChannel, switchCamera, toggleMute } from "@/lib/agora";
+import { isAgoraConfigured, ensureAgoraConfigured, joinAsHost, joinAsAudience, leaveChannel, switchCamera, toggleMute } from "@/lib/agora";
 import type { IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import PKBattleView from "@/components/pk-battle-view";
 import SpinWheel from "@/components/spin-wheel";
@@ -289,79 +289,82 @@ export default function LiveRoom() {
     const channelName = `stream_${streamId}`;
     let mounted = true;
     
-    if (isAgoraConfigured()) {
+    // Wait for Agora config to load, then initialize
+    const initAgora = async () => {
+      const configured = await ensureAgoraConfigured();
+      if (!mounted) return;
+      
+      if (!configured) {
+        console.log("[Agora] Not configured, using fallback");
+        if (isBroadcaster) {
+          startFallbackCamera();
+        }
+        return;
+      }
+      
       if (isBroadcaster) {
         // Broadcaster: join as host and publish
-        const startBroadcast = async () => {
-          // Wait a tick for refs to be available
-          await new Promise(resolve => setTimeout(resolve, 100));
-          if (!mounted) return;
-          
-          try {
-            const container = localVideoRef.current;
-            console.log("Starting Agora broadcast, container:", container);
-            await joinAsHost(channelName, container);
-            if (mounted) {
-              setAgoraConnected(true);
-              setAgoraError(null);
-              console.log("Broadcasting via Agora");
-            }
-          } catch (error: any) {
-            console.error("Agora broadcast error:", error);
-            if (mounted) {
-              setAgoraError(error.message || "Failed to start broadcast");
-              startFallbackCamera();
-            }
+        // Wait a tick for refs to be available
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if (!mounted) return;
+        
+        try {
+          const container = localVideoRef.current;
+          console.log("Starting Agora broadcast, container:", container);
+          await joinAsHost(channelName, container);
+          if (mounted) {
+            setAgoraConnected(true);
+            setAgoraError(null);
+            console.log("Broadcasting via Agora");
           }
-        };
-        startBroadcast();
+        } catch (error: any) {
+          console.error("Agora broadcast error:", error);
+          if (mounted) {
+            setAgoraError(error.message || "Failed to start broadcast");
+            startFallbackCamera();
+          }
+        }
       } else {
         // Viewer: join as audience and subscribe
-        const startViewing = async () => {
-          // Wait a tick for refs to be available
-          await new Promise(resolve => setTimeout(resolve, 100));
-          if (!mounted) return;
-          
-          try {
-            await joinAsAudience(
-              channelName,
-              (user: IAgoraRTCRemoteUser, mediaType) => {
-                console.log("Remote user published:", user.uid, mediaType);
-                if (mediaType === "video" && remoteVideoRef.current) {
-                  user.videoTrack?.play(remoteVideoRef.current);
-                  setHasRemoteVideo(true);
-                }
-                if (mediaType === "audio") {
-                  user.audioTrack?.play();
-                }
-              },
-              (user: IAgoraRTCRemoteUser, mediaType) => {
-                console.log("Remote user unpublished:", user.uid, mediaType);
-                if (mediaType === "video") {
-                  setHasRemoteVideo(false);
-                }
+        // Wait a tick for refs to be available
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if (!mounted) return;
+        
+        try {
+          await joinAsAudience(
+            channelName,
+            (user: IAgoraRTCRemoteUser, mediaType) => {
+              console.log("Remote user published:", user.uid, mediaType);
+              if (mediaType === "video" && remoteVideoRef.current) {
+                user.videoTrack?.play(remoteVideoRef.current);
+                setHasRemoteVideo(true);
               }
-            );
-            if (mounted) {
-              setAgoraConnected(true);
-              setAgoraError(null);
-              console.log("Viewing via Agora");
+              if (mediaType === "audio") {
+                user.audioTrack?.play();
+              }
+            },
+            (user: IAgoraRTCRemoteUser, mediaType) => {
+              console.log("Remote user unpublished:", user.uid, mediaType);
+              if (mediaType === "video") {
+                setHasRemoteVideo(false);
+              }
             }
-          } catch (error: any) {
-            console.error("Agora view error:", error);
-            if (mounted) {
-              setAgoraError(error.message || "Failed to connect to stream");
-            }
+          );
+          if (mounted) {
+            setAgoraConnected(true);
+            setAgoraError(null);
+            console.log("Viewing via Agora");
           }
-        };
-        startViewing();
+        } catch (error: any) {
+          console.error("Agora view error:", error);
+          if (mounted) {
+            setAgoraError(error.message || "Failed to connect to stream");
+          }
+        }
       }
-    } else {
-      // Fallback to local camera for broadcaster if Agora not configured
-      if (isBroadcaster) {
-        startFallbackCamera();
-      }
-    }
+    };
+    
+    initAgora();
     
     return () => {
       mounted = false;

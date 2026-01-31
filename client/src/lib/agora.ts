@@ -5,10 +5,32 @@ import AgoraRTC, {
   IAgoraRTCRemoteUser
 } from "agora-rtc-sdk-ng";
 
-const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
+// App ID loaded from server (not environment variable)
+let APP_ID: string = "";
+let configLoaded = false;
+let configPromise: Promise<void> | null = null;
 
-// Debug: Log Agora configuration status
-console.log("[Agora] App ID configured:", !!APP_ID, APP_ID ? `(${APP_ID.substring(0, 8)}...)` : "(empty)");
+// Load Agora config from server
+async function loadAgoraConfig(): Promise<void> {
+  if (configLoaded) return;
+  
+  try {
+    const response = await fetch("/api/agora/config");
+    const data = await response.json();
+    if (data.configured && data.appId) {
+      APP_ID = data.appId;
+      console.log("[Agora] App ID loaded from server:", APP_ID.substring(0, 8) + "...");
+    } else {
+      console.log("[Agora] Not configured on server");
+    }
+  } catch (error) {
+    console.error("[Agora] Failed to load config:", error);
+  }
+  configLoaded = true;
+}
+
+// Initialize config on module load
+configPromise = loadAgoraConfig();
 
 let client: IAgoraRTCClient | null = null;
 let localAudioTrack: IMicrophoneAudioTrack | null = null;
@@ -16,9 +38,13 @@ let localVideoTrack: ICameraVideoTrack | null = null;
 let isConnected = false;
 
 export function isAgoraConfigured(): boolean {
-  const configured = !!APP_ID;
-  console.log("[Agora] isAgoraConfigured called:", configured);
-  return configured;
+  return !!APP_ID;
+}
+
+// Async version that waits for config to load
+export async function ensureAgoraConfigured(): Promise<boolean> {
+  await configPromise;
+  return !!APP_ID;
 }
 
 export function getAgoraClient(): IAgoraRTCClient {

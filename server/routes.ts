@@ -111,6 +111,15 @@ export async function registerRoutes(
     }
   });
 
+  // Agora config endpoint - returns App ID for frontend
+  app.get("/api/agora/config", async (req, res) => {
+    const appId = process.env.VITE_AGORA_APP_ID;
+    if (!appId) {
+      return res.status(200).json({ appId: null, configured: false });
+    }
+    res.json({ appId, configured: true });
+  });
+
   // Agora token generation endpoint
   app.post("/api/agora/token", async (req, res) => {
     try {
