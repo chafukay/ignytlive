@@ -287,6 +287,9 @@ export default function LiveRoom() {
     if (!streamId || !stream) return;
     
     const channelName = `stream_${streamId}`;
+    console.log("[Live Page] Stream ID:", streamId);
+    console.log("[Live Page] Channel name for Agora:", channelName);
+    console.log("[Live Page] Is broadcaster:", isBroadcaster);
     let mounted = true;
     
     // Wait for Agora config to load, then initialize

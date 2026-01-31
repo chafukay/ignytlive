@@ -37,6 +37,9 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
     if (!stream.isLive || isConnectingRef.current) return;
     
     const channelName = `stream_${stream.id}`;
+    console.log("[StreamCard Preview] Starting preview for stream:", stream.id);
+    console.log("[StreamCard Preview] Channel name:", channelName);
+    console.log("[StreamCard Preview] Stream isLive:", stream.isLive);
     
     isConnectingRef.current = true;
     setIsPreviewLoading(true);
@@ -69,15 +72,19 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
       const { token, uid } = await tokenRes.json();
       
       client.on("user-published", async (user: IAgoraRTCRemoteUser, mediaType: "audio" | "video") => {
+        console.log("[StreamCard Preview] user-published event:", user.uid, mediaType);
         try {
           await client.subscribe(user, mediaType);
+          console.log("[StreamCard Preview] Subscribed to:", user.uid, mediaType);
           
           if (mediaType === "video" && user.videoTrack) {
+            console.log("[StreamCard Preview] Got video track, playing...");
             remoteVideoRef.current = user.videoTrack;
             if (videoContainerRef.current) {
               user.videoTrack.play(videoContainerRef.current, { fit: "cover" });
               setHasPreview(true);
               setIsPreviewLoading(false);
+              console.log("[StreamCard Preview] Video playing!");
             }
           }
           
@@ -85,7 +92,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
             remoteAudioRef.current = user.audioTrack;
           }
         } catch (err) {
-          console.error("Subscribe error:", err);
+          console.error("[StreamCard Preview] Subscribe error:", err);
         }
       });
 
@@ -95,10 +102,13 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
         }
       });
       
+      console.log("[StreamCard Preview] Joining channel:", channelName, "with uid:", uid);
       await client.join(config.appId, channelName, token, uid);
+      console.log("[StreamCard Preview] Successfully joined channel:", channelName);
       
       setTimeout(() => {
         if (!hasPreview) {
+          console.log("[StreamCard Preview] Timeout - no remote video received for:", channelName);
           setIsPreviewLoading(false);
         }
       }, 5000);
