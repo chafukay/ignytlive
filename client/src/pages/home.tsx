@@ -6,7 +6,8 @@ import { api } from "@/lib/api";
 import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const STREAM_TABS = [
   { id: 'popular', label: 'Popular', icon: null },
@@ -21,6 +22,8 @@ const STREAM_TABS = [
 export default function Home() {
   const { user, login } = useAuth();
   const [activeTab, setActiveTab] = useState('popular');
+  const { toast } = useToast();
+  const previousLiveStreamersRef = useRef<Set<string>>(new Set());
   
   const { data: liveStreams, isLoading } = useQuery({
     queryKey: ['liveStreams'],
@@ -35,6 +38,17 @@ export default function Home() {
     refetchInterval: 5000, // Poll every 5 seconds
   });
 
+  // Get users that current user is following
+  const { data: following } = useQuery({
+    queryKey: ['following', user?.id],
+    queryFn: () => api.getFollowing(user!.id),
+    enabled: !!user,
+    refetchInterval: 10000,
+  });
+
+  // Set of user IDs that current user follows
+  const followedUserIds = new Set(following?.map(f => f.id) || []);
+
   // Get user IDs who are actually streaming (have an active stream)
   const streamingUserIds = new Set(liveStreams?.map(s => s.userId) || []);
   
@@ -44,8 +58,30 @@ export default function Home() {
   // Online users = users marked as isLive but NOT actually streaming  
   const onlineUsers = streamers?.filter(s => s.isLive && !streamingUserIds.has(s.id)) || [];
   
-  // Offline streamers = users who are not live at all
-  const offlineStreamers = streamers?.filter(s => !s.isLive && !streamingUserIds.has(s.id)) || [];
+  // Offline streamers = only show users we follow who are offline
+  const offlineStreamers = streamers?.filter(s => 
+    !s.isLive && !streamingUserIds.has(s.id) && followedUserIds.has(s.id)
+  ) || [];
+
+  // Notify when a followed user goes live
+  useEffect(() => {
+    if (!liveStreams || !following || following.length === 0) return;
+    
+    const currentLiveStreamers = new Set(liveStreams.map(s => s.userId));
+    const previousLive = previousLiveStreamersRef.current;
+    
+    // Find newly live streamers that we follow
+    liveStreams.forEach(stream => {
+      if (followedUserIds.has(stream.userId) && !previousLive.has(stream.userId)) {
+        toast({
+          title: "🔴 Someone you follow is live!",
+          description: `${stream.user?.username || 'A streamer'} just started streaming`,
+        });
+      }
+    });
+    
+    previousLiveStreamersRef.current = currentLiveStreamers;
+  }, [liveStreams, following, followedUserIds, toast]);
 
   if (!user) {
     api.login('NeonQueen', 'demo123')
@@ -207,12 +243,12 @@ export default function Home() {
               </div>
             )}
 
-            {/* Offline Streamers */}
+            {/* Offline Followed Users */}
             {offlineStreamers.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-gray-500 rounded-full" />
-                  <span className="text-white/70 text-sm font-medium">Offline</span>
+                  <span className="text-white/70 text-sm font-medium">Following (Offline)</span>
                   <span className="text-white/50 text-xs">({offlineStreamers.length})</span>
                 </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
