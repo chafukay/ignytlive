@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ export default function PostShort() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const [mode, setMode] = useState<"select" | "record" | "preview">("select");
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
@@ -208,6 +209,7 @@ export default function PostShort() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shorts'] });
       toast({
         title: "Short Posted!",
         description: "Your short has been uploaded successfully.",
