@@ -175,6 +175,26 @@ export const api = {
     return res.json() as Promise<Short>;
   },
 
+  async createShort(data: { userId: string; videoUrl: string; description?: string; duration?: number; song?: string; thumbnail?: string }) {
+    const res = await fetch(`${API_BASE}/api/shorts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Short>;
+  },
+
+  async likeShort(shortId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/like`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
   // Follows
   async follow(followerId: string, followingId: string) {
     const res = await fetch(`${API_BASE}/api/follows`, {

@@ -96,6 +96,7 @@ export interface IStorage {
   getUserShorts(userId: string): Promise<Short[]>;
   createShort(short: InsertShort): Promise<Short>;
   updateShort(id: string, updates: Partial<Short>): Promise<Short | undefined>;
+  likeShort(shortId: string, userId: string): Promise<void>;
   
   // Follow operations
   createFollow(follow: InsertFollow): Promise<Follow>;
@@ -330,6 +331,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(shorts.id, id))
       .returning();
     return short || undefined;
+  }
+
+  async likeShort(shortId: string, userId: string): Promise<void> {
+    // Increment likes count (in production, track individual likes to prevent duplicates)
+    await db
+      .update(shorts)
+      .set({ likesCount: sql`${shorts.likesCount} + 1` })
+      .where(eq(shorts.id, shortId));
   }
 
   // Follow operations

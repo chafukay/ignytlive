@@ -459,6 +459,20 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/shorts/:id/like", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      await storage.likeShort(id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to like short" });
+    }
+  });
+
   // Follow routes
   app.post("/api/follows", async (req, res) => {
     try {
