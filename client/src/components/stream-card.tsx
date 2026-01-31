@@ -34,7 +34,9 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
   };
 
   const loadPreview = async () => {
-    if (!stream.isLive || !stream.streamKey || isConnectingRef.current) return;
+    if (!stream.isLive || isConnectingRef.current) return;
+    
+    const channelName = `stream_${stream.id}`;
     
     isConnectingRef.current = true;
     setIsPreviewLoading(true);
@@ -58,7 +60,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          channelName: stream.streamKey,
+          channelName,
           uid: Math.floor(Math.random() * 100000) + 200000,
           role: 'audience'
         })
@@ -93,7 +95,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
         }
       });
       
-      await client.join(config.appId, stream.streamKey, token, uid);
+      await client.join(config.appId, channelName, token, uid);
       
       setTimeout(() => {
         if (!hasPreview) {
