@@ -25,12 +25,14 @@ export default function Home() {
   const { data: liveStreams, isLoading } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
+    refetchInterval: 5000, // Poll every 5 seconds to catch new streams
   });
 
   // Get all streamers sorted by live status
   const { data: streamers } = useQuery({
     queryKey: ['streamers'],
     queryFn: () => api.getStreamers(),
+    refetchInterval: 5000, // Poll every 5 seconds
   });
 
   // Get user IDs who are actually streaming (have an active stream)
