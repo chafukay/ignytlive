@@ -33,6 +33,7 @@ import About from "@/pages/about";
 import PrivateCall from "@/pages/private-call";
 import UserProfile from "@/pages/user-profile";
 import PostShort from "@/pages/post-short";
+import MyPosts from "@/pages/my-posts";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -60,6 +61,7 @@ function Router() {
       <Route path="/chat/:userId">{() => <ProtectedRoute component={Conversation} />}</Route>
       <Route path="/shorts">{() => <ProtectedRoute component={Shorts} />}</Route>
       <Route path="/post-short">{() => <ProtectedRoute component={PostShort} />}</Route>
+      <Route path="/my-posts">{() => <ProtectedRoute component={MyPosts} />}</Route>
       <Route path="/groups">{() => <ProtectedRoute component={Groups} />}</Route>
       <Route path="/leaderboard">{() => <ProtectedRoute component={Leaderboard} />}</Route>
       <Route path="/profile/:userId">{() => <ProtectedRoute component={UserProfile} />}</Route>

@@ -175,6 +175,12 @@ export const api = {
     return res.json() as Promise<Short>;
   },
 
+  async getUserShorts(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/shorts`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Short[]>;
+  },
+
   async createShort(data: { userId: string; videoUrl: string; description?: string; duration?: number; song?: string; thumbnail?: string }) {
     const res = await fetch(`${API_BASE}/api/shorts`, {
       method: "POST",

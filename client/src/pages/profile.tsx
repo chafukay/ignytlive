@@ -240,7 +240,7 @@ export default function Profile() {
         {/* Menu Items - SuperLive Style */}
         <div className="space-y-1">
           {[
-            { icon: Clapperboard, label: "My Posts", color: "text-pink-400", href: "/shorts" },
+            { icon: Clapperboard, label: "My Posts", color: "text-pink-400", href: "/my-posts" },
             { icon: Star, label: "Families", color: "text-yellow-400", href: "/groups" },
             { icon: Wallet, label: "Purchase Coins", color: "text-yellow-500", href: "/coins" },
             { icon: ShoppingBag, label: "Store", color: "text-blue-400", href: "/store", extra: "Purchase" },

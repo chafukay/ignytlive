@@ -449,6 +449,11 @@ export async function registerRoutes(
     res.json(short);
   });
 
+  app.get("/api/users/:userId/shorts", async (req, res) => {
+    const shorts = await storage.getUserShorts(req.params.userId);
+    res.json(shorts);
+  });
+
   app.post("/api/shorts", async (req, res) => {
     try {
       const shortData = insertShortSchema.parse(req.body);
