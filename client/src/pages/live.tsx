@@ -90,8 +90,8 @@ export default function LiveRoom() {
 
   const queryClient = useQueryClient();
   
-  // Check if current user is the broadcaster (computed early for query dependencies)
-  const isBroadcaster = !!(user && stream && user.id === stream.userId);
+  // Check if current user is the broadcaster (only if they own the stream AND it's live)
+  const isBroadcaster = !!(user && stream && user.id === stream.userId && stream.isLive);
 
   // Check if user is following the streamer
   const { data: followStatus, refetch: refetchFollowStatus } = useQuery({
