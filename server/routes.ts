@@ -31,8 +31,13 @@ export async function registerRoutes(
   // WebSocket server for real-time features
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   
+  // Track real viewers separately from all connections
+  const realViewers = new Map<string, Set<WebSocket>>();
+  
   wss.on("connection", async (ws: WebSocket, req) => {
-    const streamId = new URL(req.url!, `http://${req.headers.host}`).searchParams.get("streamId");
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    const streamId = url.searchParams.get("streamId");
+    const isPreview = url.searchParams.get("preview") === "true";
     
     if (streamId) {
       if (!streamConnections.has(streamId)) {
@@ -40,30 +45,43 @@ export async function registerRoutes(
       }
       streamConnections.get(streamId)!.add(ws);
       
-      // Update viewer count when user joins
-      const viewersCount = streamConnections.get(streamId)!.size;
-      await storage.updateStream(streamId, { viewersCount });
-      
-      // Broadcast updated viewer count to all clients
-      streamConnections.get(streamId)?.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'viewer_count', data: { viewerCount: viewersCount } }));
+      // Only count as viewer if not a preview connection
+      if (!isPreview) {
+        if (!realViewers.has(streamId)) {
+          realViewers.set(streamId, new Set());
         }
-      });
+        realViewers.get(streamId)!.add(ws);
+        
+        // Update viewer count when user joins
+        const viewersCount = realViewers.get(streamId)!.size;
+        await storage.updateStream(streamId, { viewersCount });
+        
+        // Broadcast updated viewer count to all clients
+        streamConnections.get(streamId)?.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'viewer_count', data: { viewerCount: viewersCount } }));
+          }
+        });
+      }
       
       ws.on("close", async () => {
         streamConnections.get(streamId)?.delete(ws);
         
-        // Update viewer count when user leaves
-        const newViewersCount = streamConnections.get(streamId)?.size || 0;
-        await storage.updateStream(streamId, { viewersCount: newViewersCount });
-        
-        // Broadcast updated viewer count
-        streamConnections.get(streamId)?.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'viewer_count', data: { viewerCount: newViewersCount } }));
-          }
-        });
+        // Only update viewer count if this was a real viewer
+        if (!isPreview && realViewers.has(streamId)) {
+          realViewers.get(streamId)?.delete(ws);
+          
+          // Update viewer count when user leaves
+          const newViewersCount = realViewers.get(streamId)?.size || 0;
+          await storage.updateStream(streamId, { viewersCount: newViewersCount });
+          
+          // Broadcast updated viewer count
+          streamConnections.get(streamId)?.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: 'viewer_count', data: { viewerCount: newViewersCount } }));
+            }
+          });
+        }
       });
       
       ws.on("message", async (data) => {
@@ -285,6 +303,7 @@ export async function registerRoutes(
         groupId: groupId || null,
         streamKey: `stream_${Date.now()}_${Math.random().toString(36).substring(2)}`,
         isLive: true,
+        viewersCount: 0,
         startedAt: new Date(),
       });
       res.json(stream);
