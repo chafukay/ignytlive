@@ -14,11 +14,12 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [hasPreview, setHasPreview] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const videoRef = useRef<HTMLDivElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
   const remoteVideoRef = useRef<IRemoteVideoTrack | null>(null);
   const remoteAudioRef = useRef<IRemoteAudioTrack | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isConnectingRef = useRef(false);
 
   const formatViewers = (count: number) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
@@ -33,8 +34,9 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
   };
 
   const loadPreview = async () => {
-    if (!stream.isLive || !stream.streamKey) return;
+    if (!stream.isLive || !stream.streamKey || isConnectingRef.current) return;
     
+    isConnectingRef.current = true;
     setIsPreviewLoading(true);
     
     try {
@@ -43,6 +45,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
       
       if (!config.configured || !config.appId) {
         setIsPreviewLoading(false);
+        isConnectingRef.current = false;
         return;
       }
 
@@ -63,31 +66,46 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
       
       const { token, uid } = await tokenRes.json();
       
-      await client.join(config.appId, stream.streamKey, token, uid);
-      
       client.on("user-published", async (user: IAgoraRTCRemoteUser, mediaType: "audio" | "video") => {
-        await client.subscribe(user, mediaType);
-        
-        if (mediaType === "video") {
-          remoteVideoRef.current = user.videoTrack || null;
-          if (user.videoTrack && videoRef.current) {
-            user.videoTrack.play(videoRef.current);
-            setHasPreview(true);
+        try {
+          await client.subscribe(user, mediaType);
+          
+          if (mediaType === "video" && user.videoTrack) {
+            remoteVideoRef.current = user.videoTrack;
+            if (videoContainerRef.current) {
+              user.videoTrack.play(videoContainerRef.current, { fit: "cover" });
+              setHasPreview(true);
+              setIsPreviewLoading(false);
+            }
           }
+          
+          if (mediaType === "audio" && user.audioTrack) {
+            remoteAudioRef.current = user.audioTrack;
+          }
+        } catch (err) {
+          console.error("Subscribe error:", err);
         }
-        
-        if (mediaType === "audio") {
-          remoteAudioRef.current = user.audioTrack || null;
-          if (user.audioTrack && !isMuted) {
-            user.audioTrack.play();
-          }
+      });
+
+      client.on("user-unpublished", (user: IAgoraRTCRemoteUser, mediaType: "audio" | "video") => {
+        if (mediaType === "video") {
+          setHasPreview(false);
         }
       });
       
+      await client.join(config.appId, stream.streamKey, token, uid);
+      
+      setTimeout(() => {
+        if (!hasPreview) {
+          setIsPreviewLoading(false);
+        }
+      }, 5000);
+      
     } catch (error) {
       console.error("Preview load error:", error);
-    } finally {
       setIsPreviewLoading(false);
+    } finally {
+      isConnectingRef.current = false;
     }
   };
 
@@ -113,9 +131,11 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
 
   const handleMouseEnter = () => {
     setIsHovering(true);
-    hoverTimeoutRef.current = setTimeout(() => {
-      loadPreview();
-    }, 500);
+    if (stream.isLive) {
+      hoverTimeoutRef.current = setTimeout(() => {
+        loadPreview();
+      }, 300);
+    }
   };
 
   const handleMouseLeave = () => {
@@ -160,32 +180,40 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
         <img 
           src={stream.thumbnail || stream.user.avatar || "https://api.dicebear.com/7.x/shapes/svg?seed=" + stream.id} 
           alt={stream.user.username}
-          className={`w-full h-full object-cover transition-all duration-500 ${isHovering ? 'scale-110' : ''} ${hasPreview ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${isHovering ? 'scale-110' : ''} ${hasPreview ? 'opacity-0' : 'opacity-100'}`}
           data-testid={`img-stream-${stream.id}`}
         />
         
         {/* Live Video Preview Container */}
         <div 
-          ref={videoRef}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${hasPreview ? 'opacity-100' : 'opacity-0'}`}
-          style={{ zIndex: hasPreview ? 5 : 0 }}
+          ref={videoContainerRef}
+          className={`absolute inset-0 w-full h-full overflow-hidden transition-opacity duration-300 ${hasPreview ? 'opacity-100 z-[5]' : 'opacity-0 z-0'}`}
+          style={{ 
+            backgroundColor: hasPreview ? '#000' : 'transparent',
+          }}
         />
         
         {/* Loading indicator */}
         {isPreviewLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-10">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-[15]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-white/80 text-xs">Loading preview...</span>
+            </div>
           </div>
         )}
         
         {/* LIVE Badge */}
         {stream.isLive && (
-          <div className="absolute top-3 left-12 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded animate-pulse z-20">
-            LIVE
+          <div className="absolute top-3 left-14 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded z-20">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+              LIVE
+            </span>
           </div>
         )}
         
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80 z-10 pointer-events-none" />
 
         {/* Viewer Count */}
         <div 
@@ -228,7 +256,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
         )}
 
         {/* Video Call Button (when not previewing) */}
-        {!hasPreview && (
+        {!hasPreview && !isPreviewLoading && (
           <button 
             className="absolute bottom-16 right-3 bg-yellow-500 text-black p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20"
             onClick={(e) => {
