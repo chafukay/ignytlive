@@ -113,8 +113,9 @@ export async function registerRoutes(
   });
 
   // Agora config endpoint - returns App ID for frontend
+  // Note: Secrets were swapped during entry, so we read them in reverse
   app.get("/api/agora/config", async (req, res) => {
-    const appId = process.env.VITE_AGORA_APP_ID;
+    const appId = process.env.AGORA_APP_CERTIFICATE; // Actually contains App ID
     if (!appId) {
       return res.status(200).json({ appId: null, configured: false });
     }
@@ -126,8 +127,9 @@ export async function registerRoutes(
     try {
       const { channelName, uid, role } = req.body;
       
-      const appId = process.env.VITE_AGORA_APP_ID;
-      const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+      // Note: Secrets were swapped during entry, so we read them in reverse
+      const appId = process.env.AGORA_APP_CERTIFICATE; // Actually contains App ID
+      const appCertificate = process.env.VITE_AGORA_APP_ID; // Actually contains Certificate
       
       if (!appId || !appCertificate) {
         return res.status(500).json({ error: "Agora credentials not configured" });
