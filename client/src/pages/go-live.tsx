@@ -78,13 +78,16 @@ export default function GoLive() {
 
   useEffect(() => {
     startCamera();
-    
+  }, [facingMode]);
+
+  // Cleanup camera on unmount
+  useEffect(() => {
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [facingMode]);
+  }, [stream]);
 
   const flipCamera = () => {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
@@ -220,7 +223,12 @@ export default function GoLive() {
       <div className="relative z-10 h-full flex flex-col justify-between p-6">
         <div className="flex justify-between items-start">
           <button 
-            onClick={() => setLocation("/")} 
+            onClick={() => {
+              if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+              }
+              setLocation("/");
+            }} 
             className="p-2 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-white/10"
             data-testid="button-close"
           >
