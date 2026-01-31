@@ -31,7 +31,7 @@ interface Comment {
 export default function LiveRoom() {
   const [, params] = useRoute("/live/:id");
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const streamId = params?.id;
   
   const [comments, setComments] = useState<Comment[]>([
@@ -497,6 +497,12 @@ export default function LiveRoom() {
         streamId: streamId,
         quantity: 1,
         totalCoins: gift.coinCost,
+      });
+      
+      // Update user's coin balance locally
+      setUser({
+        ...user,
+        coins: (user.coins || 0) - gift.coinCost
       });
       
       setComments(prev => [...prev, {
