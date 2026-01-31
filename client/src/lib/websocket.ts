@@ -1,8 +1,10 @@
-export function createStreamWebSocket(streamId: string, isPreview: boolean = false) {
+export function createStreamWebSocket(streamId: string, options: { isPreview?: boolean; userId?: string } = {}) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = window.location.host;
-  const previewParam = isPreview ? "&preview=true" : "";
-  const ws = new WebSocket(`${protocol}//${host}/ws?streamId=${streamId}${previewParam}`);
+  const params = new URLSearchParams({ streamId });
+  if (options.isPreview) params.set("preview", "true");
+  if (options.userId) params.set("userId", options.userId);
+  const ws = new WebSocket(`${protocol}//${host}/ws?${params.toString()}`);
   
   return ws;
 }

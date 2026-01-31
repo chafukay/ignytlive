@@ -38,6 +38,7 @@ export async function registerRoutes(
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const streamId = url.searchParams.get("streamId");
     const isPreview = url.searchParams.get("preview") === "true";
+    const userId = url.searchParams.get("userId");
     
     if (streamId) {
       if (!streamConnections.has(streamId)) {
@@ -45,8 +46,14 @@ export async function registerRoutes(
       }
       streamConnections.get(streamId)!.add(ws);
       
-      // Only count as viewer if not a preview connection
-      if (!isPreview) {
+      // Check if this user is the broadcaster (stream owner)
+      const stream = await storage.getStream(streamId);
+      const isBroadcaster = stream && userId && stream.userId === userId;
+      
+      // Only count as viewer if not a preview connection and not the broadcaster
+      const shouldCountAsViewer = !isPreview && !isBroadcaster;
+      
+      if (shouldCountAsViewer) {
         if (!realViewers.has(streamId)) {
           realViewers.set(streamId, new Set());
         }
@@ -67,8 +74,8 @@ export async function registerRoutes(
       ws.on("close", async () => {
         streamConnections.get(streamId)?.delete(ws);
         
-        // Only update viewer count if this was a real viewer
-        if (!isPreview && realViewers.has(streamId)) {
+        // Only update viewer count if this was a real viewer (not preview, not broadcaster)
+        if (shouldCountAsViewer && realViewers.has(streamId)) {
           realViewers.get(streamId)?.delete(ws);
           
           // Update viewer count when user leaves

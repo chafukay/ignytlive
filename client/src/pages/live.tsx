@@ -214,7 +214,7 @@ export default function LiveRoom() {
     let ws: WebSocket;
     
     const connect = () => {
-      ws = createStreamWebSocket(streamId);
+      ws = createStreamWebSocket(streamId, { userId: user?.id });
       wsRef.current = ws;
       
       ws.onopen = () => {
@@ -755,7 +755,7 @@ export default function LiveRoom() {
               {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" allowGifting={true} />}
             </div>
             <span className="text-[10px] text-white/80" data-testid="text-viewer-count">
-              {Math.max(0, viewerCount - 1)} viewers
+              {viewerCount} viewers
             </span>
           </div>
           {!isBroadcaster && (
