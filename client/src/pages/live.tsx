@@ -212,8 +212,11 @@ export default function LiveRoom() {
     
     let reconnectTimeout: NodeJS.Timeout;
     let ws: WebSocket;
+    let isClosing = false; // Flag to prevent reconnection on intentional close
     
     const connect = () => {
+      if (isClosing) return; // Don't connect if we're closing
+      
       ws = createStreamWebSocket(streamId, { userId: user?.id });
       wsRef.current = ws;
       
@@ -261,16 +264,21 @@ export default function LiveRoom() {
       };
       
       ws.onclose = () => {
-        // Attempt reconnection after 3 seconds
-        reconnectTimeout = setTimeout(connect, 3000);
+        // Only attempt reconnection if not intentionally closing
+        if (!isClosing) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
       };
     };
     
     connect();
     
     return () => {
+      isClosing = true; // Set flag to prevent reconnection
       clearTimeout(reconnectTimeout);
-      ws?.close();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, [streamId]);
 
