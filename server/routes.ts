@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
-import * as AgoraToken from "agora-token";
+import agoraToken from "agora-token";
+const { RtcRole, RtcTokenBuilder } = agoraToken;
 import { 
   insertUserSchema, 
   insertStreamSchema,
@@ -136,9 +137,9 @@ export async function registerRoutes(
       const currentTimestamp = Math.floor(Date.now() / 1000);
       const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
       
-      const agoraRole = role === "host" ? AgoraToken.RtcRole.PUBLISHER : AgoraToken.RtcRole.SUBSCRIBER;
+      const agoraRole = role === "host" ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
       
-      const token = AgoraToken.RtcTokenBuilder.buildTokenWithUid(
+      const token = RtcTokenBuilder.buildTokenWithUid(
         appId,
         appCertificate,
         channelName,
