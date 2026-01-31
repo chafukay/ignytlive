@@ -141,17 +141,18 @@ export async function registerRoutes(
       
       const agoraRole = role === "host" ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
       
+      const finalUid = uid || 0;
       const token = RtcTokenBuilder.buildTokenWithUid(
         appId,
         appCertificate,
         channelName,
-        uid || 0,
+        finalUid,
         agoraRole,
         privilegeExpiredTs,
         privilegeExpiredTs
       );
       
-      res.json({ token });
+      res.json({ token, uid: finalUid });
     } catch (error) {
       console.error("Error generating Agora token:", error);
       res.status(500).json({ error: "Failed to generate token" });
