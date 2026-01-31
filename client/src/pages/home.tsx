@@ -33,9 +33,17 @@ export default function Home() {
     queryFn: () => api.getStreamers(),
   });
 
-  // Separate live and offline streamers
-  const liveStreamers = streamers?.filter(s => s.isLive) || [];
-  const offlineStreamers = streamers?.filter(s => !s.isLive) || [];
+  // Get user IDs who are actually streaming (have an active stream)
+  const streamingUserIds = new Set(liveStreams?.map(s => s.userId) || []);
+  
+  // Live streamers = users who have an active stream right now
+  const liveStreamers = streamers?.filter(s => streamingUserIds.has(s.id)) || [];
+  
+  // Online users = users marked as isLive but NOT actually streaming  
+  const onlineUsers = streamers?.filter(s => s.isLive && !streamingUserIds.has(s.id)) || [];
+  
+  // Offline streamers = users who are not live at all
+  const offlineStreamers = streamers?.filter(s => !s.isLive && !streamingUserIds.has(s.id)) || [];
 
   if (!user) {
     api.login('NeonQueen', 'demo123')
@@ -168,6 +176,35 @@ export default function Home() {
               </div>
             )}
 
+            {/* Online Users (active but not streaming) */}
+            {onlineUsers.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                  <span className="text-white/70 text-sm font-medium">Online</span>
+                  <span className="text-white/50 text-xs">({onlineUsers.length})</span>
+                </div>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                  {onlineUsers.slice(0, 10).map((user) => (
+                    <Link key={user.id} href={`/profile/${user.id}`}>
+                      <div className="flex flex-col items-center gap-1 min-w-[70px] hover:opacity-100 transition-opacity cursor-pointer">
+                        <UserAvatar 
+                          userId={user.id}
+                          username={user.username}
+                          avatar={user.avatar}
+                          isLive={false}
+                          isOnline={true}
+                          size="lg"
+                          showStatus={true}
+                        />
+                        <span className="text-white text-xs truncate max-w-[60px]">{user.username}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Offline Streamers */}
             {offlineStreamers.length > 0 && (
               <div>
@@ -178,18 +215,20 @@ export default function Home() {
                 </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {offlineStreamers.slice(0, 10).map((streamer) => (
-                    <div key={streamer.id} className="flex flex-col items-center gap-1 min-w-[70px] hover:opacity-100 transition-opacity">
-                      <UserAvatar 
-                        userId={streamer.id}
-                        username={streamer.username}
-                        avatar={streamer.avatar}
-                        isLive={false}
-                        isOnline={false}
-                        size="lg"
-                        showStatus={true}
-                      />
-                      <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
-                    </div>
+                    <Link key={streamer.id} href={`/profile/${streamer.id}`}>
+                      <div className="flex flex-col items-center gap-1 min-w-[70px] hover:opacity-100 transition-opacity cursor-pointer">
+                        <UserAvatar 
+                          userId={streamer.id}
+                          username={streamer.username}
+                          avatar={streamer.avatar}
+                          isLive={false}
+                          isOnline={false}
+                          size="lg"
+                          showStatus={true}
+                        />
+                        <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </div>
