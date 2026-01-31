@@ -63,6 +63,11 @@ export default function Home() {
     !s.isLive && !streamingUserIds.has(s.id) && followedUserIds.has(s.id)
   ) || [];
 
+  // Suggested users to follow = users we're NOT following (excluding ourselves)
+  const suggestedUsers = streamers?.filter(s => 
+    user && s.id !== user.id && !followedUserIds.has(s.id)
+  ).slice(0, 10) || [];
+
   // Notify when a followed user goes live
   useEffect(() => {
     if (!liveStreams || !following || following.length === 0) return;
@@ -95,6 +100,11 @@ export default function Home() {
     if (activeTab === 'new') return true;
     return true;
   });
+
+  // Show suggested users when no live streams AND no one being followed
+  const showSuggestedUsers = (!liveStreams || liveStreams.length === 0) && 
+    followedUserIds.size === 0 && 
+    suggestedUsers.length > 0;
 
   return (
     <Layout>
@@ -177,6 +187,36 @@ export default function Home() {
                 <div className="col-span-full text-center py-12 text-white/50">
                   <p className="text-lg">No live streams at the moment</p>
                   <p className="text-sm mt-2">Check back soon!</p>
+                  
+                  {/* Suggested Users to Follow */}
+                  {showSuggestedUsers && (
+                    <div className="mt-8 text-left">
+                      <div className="flex items-center gap-2 mb-4 justify-center">
+                        <Users className="w-5 h-5 text-cyan-400" />
+                        <span className="text-white font-medium text-base">People you might like</span>
+                      </div>
+                      <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 justify-center flex-wrap">
+                        {suggestedUsers.map((suggestedUser) => (
+                          <Link key={suggestedUser.id} href={`/profile/${suggestedUser.id}`}>
+                            <div className="flex flex-col items-center gap-2 min-w-[80px] p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer">
+                              <UserAvatar 
+                                userId={suggestedUser.id}
+                                username={suggestedUser.username}
+                                avatar={suggestedUser.avatar}
+                                isLive={streamingUserIds.has(suggestedUser.id)}
+                                isOnline={suggestedUser.isLive}
+                                size="lg"
+                                showStatus={true}
+                              />
+                              <span className="text-white text-xs truncate max-w-[70px]">{suggestedUser.username}</span>
+                              <span className="text-cyan-400 text-[10px]">Level {suggestedUser.level}</span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                      <p className="text-white/40 text-xs mt-4">Tap to view profile and follow</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
