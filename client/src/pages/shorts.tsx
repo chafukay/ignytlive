@@ -1,14 +1,36 @@
 import Layout from "@/components/layout";
-import { Heart, MessageCircle, Share2, Music2, Disc, Plus, Video } from "lucide-react";
-import { useState } from "react";
+import { Heart, MessageCircle, Share2, Music2, Disc, Plus, Video, X, Send, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from "@shared/schema";
+
+interface ShortComment {
+  id: string;
+  shortId: string;
+  userId: string;
+  parentId: string | null;
+  content: string;
+  likesCount: number;
+  repliesCount: number;
+  createdAt: string;
+  user: User;
+  replies: (ShortComment & { user: User })[];
+}
+
+const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "🔥"];
 
 export default function Shorts() {
   const [activeShort, setActiveShort] = useState(0);
+  const [likedShorts, setLikedShorts] = useState<Record<string, boolean>>({});
+  const [showComments, setShowComments] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
+  const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({});
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -18,10 +40,54 @@ export default function Shorts() {
     queryFn: () => api.getShortsFeed(),
   });
 
+  const { data: comments, refetch: refetchComments } = useQuery({
+    queryKey: ['short-comments', showComments],
+    queryFn: () => showComments ? api.getShortComments(showComments) : Promise.resolve([]),
+    enabled: !!showComments,
+  });
+
+  useEffect(() => {
+    if (shorts && user) {
+      shorts.forEach(async (short) => {
+        const liked = await api.isShortLiked(short.id, user.id);
+        setLikedShorts(prev => ({ ...prev, [short.id]: liked }));
+      });
+    }
+  }, [shorts, user]);
+
   const likeMutation = useMutation({
     mutationFn: (shortId: string) => api.likeShort(shortId, user!.id),
-    onSuccess: () => {
+    onSuccess: (data, shortId) => {
+      setLikedShorts(prev => ({ ...prev, [shortId]: data.liked }));
       queryClient.invalidateQueries({ queryKey: ['shorts'] });
+    },
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: ({ shortId, content, parentId }: { shortId: string; content: string; parentId?: string }) => 
+      api.createShortComment(shortId, user!.id, content, parentId),
+    onSuccess: () => {
+      setCommentText("");
+      setReplyingTo(null);
+      refetchComments();
+      queryClient.invalidateQueries({ queryKey: ['shorts'] });
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: string) => api.deleteShortComment(commentId, user!.id),
+    onSuccess: () => {
+      refetchComments();
+      queryClient.invalidateQueries({ queryKey: ['shorts'] });
+    },
+  });
+
+  const reactMutation = useMutation({
+    mutationFn: ({ commentId, reaction }: { commentId: string; reaction: string }) => 
+      api.reactToComment(commentId, user!.id, reaction),
+    onSuccess: () => {
+      refetchComments();
+      setShowReactionPicker(null);
     },
   });
 
@@ -36,6 +102,30 @@ export default function Shorts() {
     return count.toString();
   };
 
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    if (days < 7) return `${days}d`;
+    return date.toLocaleDateString();
+  };
+
+  const handleSubmitComment = () => {
+    if (!commentText.trim() || !showComments) return;
+    commentMutation.mutate({
+      shortId: showComments,
+      content: commentText,
+      parentId: replyingTo?.id,
+    });
+  };
+
   if (isLoading) {
     return (
       <Layout>
@@ -48,7 +138,6 @@ export default function Shorts() {
 
   return (
     <Layout>
-      {/* Post Short Button - Fixed at top */}
       {user && (
         <Link href="/post-short">
           <button
@@ -82,17 +171,16 @@ export default function Shorts() {
           onScroll={handleScroll}
         >
           {shorts.map((short, i) => {
-            // Check if videoUrl is a video (data URL or file extension)
             const isVideo = short.videoUrl && (
               short.videoUrl.startsWith('data:video/') || 
               short.videoUrl.endsWith('.mp4') ||
               short.videoUrl.endsWith('.webm') ||
               short.videoUrl.endsWith('.mov')
             );
+            const isLiked = likedShorts[short.id];
 
             return (
             <div key={short.id} className="h-full w-full snap-start relative flex items-center justify-center bg-gray-900">
-              {/* Video or Thumbnail */}
               {isVideo ? (
                 <video 
                   src={short.videoUrl}
@@ -113,7 +201,6 @@ export default function Shorts() {
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90" />
 
-              {/* Right Side Actions */}
               <div className="absolute right-4 bottom-20 flex flex-col items-center gap-6 z-20">
                 <Link href={`/profile/${short.user.id}`}>
                   <div className="relative">
@@ -137,7 +224,7 @@ export default function Shorts() {
                     className="p-3 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors cursor-pointer disabled:opacity-50"
                     data-testid={`button-like-${short.id}`}
                   >
-                    <Heart className="w-7 h-7 text-white fill-white/20 hover:fill-red-500 hover:text-red-500 transition-colors" />
+                    <Heart className={`w-7 h-7 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : 'text-white fill-white/20 hover:fill-red-500 hover:text-red-500'}`} />
                   </button>
                   <span className="text-white text-xs font-bold" data-testid={`text-likes-${short.id}`}>
                     {formatCount(short.likesCount)}
@@ -145,9 +232,13 @@ export default function Shorts() {
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
-                  <div className="p-3 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors cursor-pointer">
+                  <button 
+                    onClick={() => setShowComments(short.id)}
+                    className="p-3 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors cursor-pointer"
+                    data-testid={`button-comments-${short.id}`}
+                  >
                     <MessageCircle className="w-7 h-7 text-white fill-white/20" />
-                  </div>
+                  </button>
                   <span className="text-white text-xs font-bold">{formatCount(short.commentsCount)}</span>
                 </div>
 
@@ -171,7 +262,6 @@ export default function Shorts() {
                 </div>
               </div>
 
-              {/* Bottom Info */}
               <div className="absolute bottom-6 left-4 right-16 z-20 text-white">
                 <Link href={`/profile/${short.user.id}`}>
                   <h3 className="font-bold text-lg mb-2 hover:underline" data-testid={`text-username-${short.id}`}>
@@ -192,6 +282,205 @@ export default function Shorts() {
             </div>
             );
           })}
+        </div>
+      )}
+
+      {showComments && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center" onClick={() => setShowComments(null)}>
+          <div 
+            className="bg-gray-900 w-full max-w-lg rounded-t-3xl max-h-[70vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-white font-bold text-lg">
+                {(comments as ShortComment[])?.length || 0} Comments
+              </h2>
+              <button onClick={() => setShowComments(null)} className="text-white/60 hover:text-white" data-testid="button-close-comments">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {!comments || (comments as ShortComment[]).length === 0 ? (
+                <div className="text-center py-10 text-white/50">
+                  <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No comments yet. Be the first to comment!</p>
+                </div>
+              ) : (
+                (comments as ShortComment[]).map((comment) => (
+                  <div key={comment.id} className="space-y-2">
+                    <div className="flex gap-3">
+                      <Link href={`/profile/${comment.user.id}`}>
+                        <img 
+                          src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      </Link>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/profile/${comment.user.id}`}>
+                            <span className="text-white font-semibold text-sm hover:underline">@{comment.user.username}</span>
+                          </Link>
+                          <span className="text-white/40 text-xs">{formatTime(comment.createdAt)}</span>
+                        </div>
+                        <p className="text-white/90 text-sm mt-1">{comment.content}</p>
+                        
+                        <div className="flex items-center gap-4 mt-2">
+                          <div className="relative">
+                            <button 
+                              onClick={() => setShowReactionPicker(showReactionPicker === comment.id ? null : comment.id)}
+                              className="text-white/50 text-xs hover:text-white flex items-center gap-1"
+                            >
+                              <Heart className="w-4 h-4" />
+                              <span>{comment.likesCount}</span>
+                            </button>
+                            {showReactionPicker === comment.id && (
+                              <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-full px-2 py-1 flex gap-1 shadow-lg">
+                                {REACTION_EMOJIS.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => user && reactMutation.mutate({ commentId: comment.id, reaction: emoji })}
+                                    className="hover:scale-125 transition-transform text-lg"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <button 
+                            onClick={() => setReplyingTo({ id: comment.id, username: comment.user.username })}
+                            className="text-white/50 text-xs hover:text-white"
+                          >
+                            Reply
+                          </button>
+                          {user && comment.userId === user.id && (
+                            <button 
+                              onClick={() => deleteCommentMutation.mutate(comment.id)}
+                              className="text-red-400/50 text-xs hover:text-red-400"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        {comment.replies.length > 0 && (
+                          <div className="mt-3">
+                            <button 
+                              onClick={() => setExpandedReplies(prev => ({ ...prev, [comment.id]: !prev[comment.id] }))}
+                              className="text-purple-400 text-xs flex items-center gap-1 hover:text-purple-300"
+                            >
+                              {expandedReplies[comment.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+                            </button>
+                            
+                            {expandedReplies[comment.id] && (
+                              <div className="mt-2 space-y-3 pl-4 border-l border-white/10">
+                                {comment.replies.map((reply) => (
+                                  <div key={reply.id} className="flex gap-2">
+                                    <Link href={`/profile/${reply.user.id}`}>
+                                      <img 
+                                        src={reply.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${reply.user.username}`}
+                                        className="w-8 h-8 rounded-full object-cover"
+                                      />
+                                    </Link>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <Link href={`/profile/${reply.user.id}`}>
+                                          <span className="text-white font-semibold text-xs hover:underline">@{reply.user.username}</span>
+                                        </Link>
+                                        <span className="text-white/40 text-xs">{formatTime(reply.createdAt)}</span>
+                                      </div>
+                                      <p className="text-white/90 text-xs mt-1">{reply.content}</p>
+                                      <div className="flex items-center gap-3 mt-1">
+                                        <div className="relative">
+                                          <button 
+                                            onClick={() => setShowReactionPicker(showReactionPicker === reply.id ? null : reply.id)}
+                                            className="text-white/50 text-xs hover:text-white flex items-center gap-1"
+                                          >
+                                            <Heart className="w-3 h-3" />
+                                            <span>{reply.likesCount}</span>
+                                          </button>
+                                          {showReactionPicker === reply.id && (
+                                            <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-full px-2 py-1 flex gap-1 shadow-lg">
+                                              {REACTION_EMOJIS.map((emoji) => (
+                                                <button
+                                                  key={emoji}
+                                                  onClick={() => user && reactMutation.mutate({ commentId: reply.id, reaction: emoji })}
+                                                  className="hover:scale-125 transition-transform text-lg"
+                                                >
+                                                  {emoji}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        {user && reply.userId === user.id && (
+                                          <button 
+                                            onClick={() => deleteCommentMutation.mutate(reply.id)}
+                                            className="text-red-400/50 text-xs hover:text-red-400"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {user ? (
+              <div className="p-4 border-t border-white/10">
+                {replyingTo && (
+                  <div className="flex items-center gap-2 mb-2 text-sm">
+                    <span className="text-white/50">Replying to</span>
+                    <span className="text-purple-400">@{replyingTo.username}</span>
+                    <button onClick={() => setReplyingTo(null)} className="text-white/50 hover:text-white ml-auto">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex gap-3 items-center">
+                  <img 
+                    src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment..."}
+                    className="flex-1 bg-white/10 text-white placeholder:text-white/40 rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-purple-500"
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmitComment()}
+                    data-testid="input-comment"
+                  />
+                  <button
+                    onClick={handleSubmitComment}
+                    disabled={!commentText.trim() || commentMutation.isPending}
+                    className="p-2 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full disabled:opacity-50"
+                    data-testid="button-submit-comment"
+                  >
+                    <Send className="w-5 h-5 text-white" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 border-t border-white/10 text-center">
+                <p className="text-white/50 text-sm">
+                  <Link href="/login" className="text-purple-400 hover:underline">Log in</Link> to comment
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </Layout>

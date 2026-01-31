@@ -191,7 +191,7 @@ export const api = {
     return res.json() as Promise<Short>;
   },
 
-  async likeShort(shortId: string, userId: string) {
+  async likeShort(shortId: string, userId: string): Promise<{ success: boolean; liked: boolean }> {
     const res = await fetch(`${API_BASE}/api/shorts/${shortId}/like`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -199,6 +199,72 @@ export const api = {
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
+  },
+
+  async isShortLiked(shortId: string, userId: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/liked/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.liked;
+  },
+
+  async getShortComments(shortId: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/comments`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async createShortComment(shortId: string, userId: string, content: string, parentId?: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, content, parentId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async deleteShortComment(commentId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async reactToComment(commentId: string, userId: string, reaction: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, reaction }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async removeCommentReaction(commentId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/react`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getCommentReactions(commentId: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/reactions`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getUserCommentReaction(commentId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/reactions/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.reaction;
   },
 
   // Follows

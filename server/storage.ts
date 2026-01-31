@@ -2,6 +2,9 @@ import {
   users,
   streams,
   shorts,
+  shortLikes,
+  shortComments,
+  shortCommentReactions,
   follows,
   gifts,
   giftTransactions,
@@ -29,6 +32,10 @@ import {
   type InsertStream,
   type Short,
   type InsertShort,
+  type ShortLike,
+  type ShortComment,
+  type InsertShortComment,
+  type ShortCommentReaction,
   type Follow,
   type InsertFollow,
   type Gift,
@@ -96,7 +103,18 @@ export interface IStorage {
   getUserShorts(userId: string): Promise<Short[]>;
   createShort(short: InsertShort): Promise<Short>;
   updateShort(id: string, updates: Partial<Short>): Promise<Short | undefined>;
-  likeShort(shortId: string, userId: string): Promise<void>;
+  likeShort(shortId: string, userId: string): Promise<boolean>; // returns true if liked, false if unliked
+  unlikeShort(shortId: string, userId: string): Promise<void>;
+  isShortLiked(shortId: string, userId: string): Promise<boolean>;
+  
+  // Short comment operations
+  getShortComments(shortId: string): Promise<(ShortComment & { user: User; replies: (ShortComment & { user: User })[] })[]>;
+  createShortComment(comment: InsertShortComment): Promise<ShortComment>;
+  deleteShortComment(commentId: string, userId: string): Promise<boolean>;
+  reactToComment(commentId: string, userId: string, reaction: string): Promise<void>;
+  removeCommentReaction(commentId: string, userId: string): Promise<void>;
+  getCommentReactions(commentId: string): Promise<{ reaction: string; count: number; users: string[] }[]>;
+  getUserCommentReaction(commentId: string, userId: string): Promise<string | null>;
   
   // Follow operations
   createFollow(follow: InsertFollow): Promise<Follow>;
@@ -333,12 +351,240 @@ export class DatabaseStorage implements IStorage {
     return short || undefined;
   }
 
-  async likeShort(shortId: string, userId: string): Promise<void> {
-    // Increment likes count (in production, track individual likes to prevent duplicates)
+  async likeShort(shortId: string, userId: string): Promise<boolean> {
+    // Check if already liked
+    const existing = await db
+      .select()
+      .from(shortLikes)
+      .where(and(eq(shortLikes.shortId, shortId), eq(shortLikes.userId, userId)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Unlike - remove the like
+      await db
+        .delete(shortLikes)
+        .where(and(eq(shortLikes.shortId, shortId), eq(shortLikes.userId, userId)));
+      
+      await db
+        .update(shorts)
+        .set({ likesCount: sql`GREATEST(${shorts.likesCount} - 1, 0)` })
+        .where(eq(shorts.id, shortId));
+      
+      return false; // unliked
+    } else {
+      // Like - add the like
+      await db.insert(shortLikes).values({ shortId, userId });
+      
+      await db
+        .update(shorts)
+        .set({ likesCount: sql`${shorts.likesCount} + 1` })
+        .where(eq(shorts.id, shortId));
+      
+      return true; // liked
+    }
+  }
+
+  async unlikeShort(shortId: string, userId: string): Promise<void> {
+    const result = await db
+      .delete(shortLikes)
+      .where(and(eq(shortLikes.shortId, shortId), eq(shortLikes.userId, userId)));
+    
     await db
       .update(shorts)
-      .set({ likesCount: sql`${shorts.likesCount} + 1` })
+      .set({ likesCount: sql`GREATEST(${shorts.likesCount} - 1, 0)` })
       .where(eq(shorts.id, shortId));
+  }
+
+  async isShortLiked(shortId: string, userId: string): Promise<boolean> {
+    const existing = await db
+      .select()
+      .from(shortLikes)
+      .where(and(eq(shortLikes.shortId, shortId), eq(shortLikes.userId, userId)))
+      .limit(1);
+    return existing.length > 0;
+  }
+
+  // Short comment operations
+  async getShortComments(shortId: string): Promise<(ShortComment & { user: User; replies: (ShortComment & { user: User })[] })[]> {
+    // Get all top-level comments (parentId is null)
+    const topLevelComments = await db
+      .select()
+      .from(shortComments)
+      .where(and(eq(shortComments.shortId, shortId), sql`${shortComments.parentId} IS NULL`))
+      .orderBy(desc(shortComments.createdAt));
+
+    const result = [];
+    for (const comment of topLevelComments) {
+      const commentUser = await db.select().from(users).where(eq(users.id, comment.userId)).limit(1);
+      
+      // Get replies for this comment
+      const replies = await db
+        .select()
+        .from(shortComments)
+        .where(eq(shortComments.parentId, comment.id))
+        .orderBy(shortComments.createdAt);
+
+      const repliesWithUsers = [];
+      for (const reply of replies) {
+        const replyUser = await db.select().from(users).where(eq(users.id, reply.userId)).limit(1);
+        repliesWithUsers.push({ ...reply, user: replyUser[0] });
+      }
+
+      result.push({
+        ...comment,
+        user: commentUser[0],
+        replies: repliesWithUsers,
+      });
+    }
+
+    return result;
+  }
+
+  async createShortComment(comment: InsertShortComment): Promise<ShortComment> {
+    // Enforce 2-level depth: if parentId is provided, ensure parent is a top-level comment
+    if (comment.parentId) {
+      const parent = await db
+        .select()
+        .from(shortComments)
+        .where(eq(shortComments.id, comment.parentId))
+        .limit(1);
+      
+      if (parent.length === 0) {
+        throw new Error("Parent comment not found");
+      }
+      
+      // If parent already has a parentId, it's a reply - reject reply-to-reply
+      if (parent[0].parentId !== null) {
+        throw new Error("Cannot reply to a reply. Only 2-level comments supported.");
+      }
+    }
+
+    const [newComment] = await db
+      .insert(shortComments)
+      .values(comment)
+      .returning();
+
+    // Update comments count on the short
+    await db
+      .update(shorts)
+      .set({ commentsCount: sql`${shorts.commentsCount} + 1` })
+      .where(eq(shorts.id, comment.shortId));
+
+    // If this is a reply, update the parent's replies count
+    if (comment.parentId) {
+      await db
+        .update(shortComments)
+        .set({ repliesCount: sql`${shortComments.repliesCount} + 1` })
+        .where(eq(shortComments.id, comment.parentId));
+    }
+
+    return newComment;
+  }
+
+  async deleteShortComment(commentId: string, userId: string): Promise<boolean> {
+    const comment = await db
+      .select()
+      .from(shortComments)
+      .where(and(eq(shortComments.id, commentId), eq(shortComments.userId, userId)))
+      .limit(1);
+
+    if (comment.length === 0) return false;
+
+    // Delete all replies first
+    await db.delete(shortComments).where(eq(shortComments.parentId, commentId));
+
+    // Delete the comment
+    await db.delete(shortComments).where(eq(shortComments.id, commentId));
+
+    // Update comments count on the short
+    await db
+      .update(shorts)
+      .set({ commentsCount: sql`GREATEST(${shorts.commentsCount} - 1, 0)` })
+      .where(eq(shorts.id, comment[0].shortId));
+
+    // If this was a reply, update the parent's replies count
+    if (comment[0].parentId) {
+      await db
+        .update(shortComments)
+        .set({ repliesCount: sql`GREATEST(${shortComments.repliesCount} - 1, 0)` })
+        .where(eq(shortComments.id, comment[0].parentId));
+    }
+
+    return true;
+  }
+
+  async reactToComment(commentId: string, userId: string, reaction: string): Promise<void> {
+    // Check if user already reacted
+    const existing = await db
+      .select()
+      .from(shortCommentReactions)
+      .where(and(eq(shortCommentReactions.commentId, commentId), eq(shortCommentReactions.userId, userId)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Update existing reaction
+      await db
+        .update(shortCommentReactions)
+        .set({ reaction })
+        .where(and(eq(shortCommentReactions.commentId, commentId), eq(shortCommentReactions.userId, userId)));
+    } else {
+      // Insert new reaction
+      await db.insert(shortCommentReactions).values({ commentId, userId, reaction });
+      
+      // Increment likes count on the comment
+      await db
+        .update(shortComments)
+        .set({ likesCount: sql`${shortComments.likesCount} + 1` })
+        .where(eq(shortComments.id, commentId));
+    }
+  }
+
+  async removeCommentReaction(commentId: string, userId: string): Promise<void> {
+    const existing = await db
+      .select()
+      .from(shortCommentReactions)
+      .where(and(eq(shortCommentReactions.commentId, commentId), eq(shortCommentReactions.userId, userId)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db
+        .delete(shortCommentReactions)
+        .where(and(eq(shortCommentReactions.commentId, commentId), eq(shortCommentReactions.userId, userId)));
+      
+      await db
+        .update(shortComments)
+        .set({ likesCount: sql`GREATEST(${shortComments.likesCount} - 1, 0)` })
+        .where(eq(shortComments.id, commentId));
+    }
+  }
+
+  async getCommentReactions(commentId: string): Promise<{ reaction: string; count: number; users: string[] }[]> {
+    const reactions = await db
+      .select()
+      .from(shortCommentReactions)
+      .where(eq(shortCommentReactions.commentId, commentId));
+
+    const grouped: Record<string, string[]> = {};
+    for (const r of reactions) {
+      if (!grouped[r.reaction]) grouped[r.reaction] = [];
+      grouped[r.reaction].push(r.userId);
+    }
+
+    return Object.entries(grouped).map(([reaction, users]) => ({
+      reaction,
+      count: users.length,
+      users,
+    }));
+  }
+
+  async getUserCommentReaction(commentId: string, userId: string): Promise<string | null> {
+    const result = await db
+      .select()
+      .from(shortCommentReactions)
+      .where(and(eq(shortCommentReactions.commentId, commentId), eq(shortCommentReactions.userId, userId)))
+      .limit(1);
+    
+    return result.length > 0 ? result[0].reaction : null;
   }
 
   // Follow operations

@@ -117,6 +117,96 @@ export const insertShortSchema = createInsertSchema(shorts).omit({
 export type InsertShort = z.infer<typeof insertShortSchema>;
 export type Short = typeof shorts.$inferSelect;
 
+// Short Likes table - tracks who liked which shorts
+export const shortLikes = pgTable("short_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shortId: varchar("short_id").notNull().references(() => shorts.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  shortUserIdx: index("short_likes_short_user_idx").on(table.shortId, table.userId),
+  userIdx: index("short_likes_user_idx").on(table.userId),
+}));
+
+export const shortLikesRelations = relations(shortLikes, ({ one }) => ({
+  short: one(shorts, {
+    fields: [shortLikes.shortId],
+    references: [shorts.id],
+  }),
+  user: one(users, {
+    fields: [shortLikes.userId],
+    references: [users.id],
+  }),
+}));
+
+export type ShortLike = typeof shortLikes.$inferSelect;
+
+// Short Comments table - 2-level deep (comments + replies)
+export const shortComments = pgTable("short_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shortId: varchar("short_id").notNull().references(() => shorts.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  parentId: varchar("parent_id"), // null = top-level comment, non-null = reply
+  content: text("content").notNull(),
+  likesCount: integer("likes_count").notNull().default(0),
+  repliesCount: integer("replies_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  shortIdx: index("short_comments_short_idx").on(table.shortId),
+  userIdx: index("short_comments_user_idx").on(table.userId),
+  parentIdx: index("short_comments_parent_idx").on(table.parentId),
+}));
+
+export const shortCommentsRelations = relations(shortComments, ({ one, many }) => ({
+  short: one(shorts, {
+    fields: [shortComments.shortId],
+    references: [shorts.id],
+  }),
+  user: one(users, {
+    fields: [shortComments.userId],
+    references: [users.id],
+  }),
+  parent: one(shortComments, {
+    fields: [shortComments.parentId],
+    references: [shortComments.id],
+    relationName: "parentReply",
+  }),
+  replies: many(shortComments, {
+    relationName: "parentReply",
+  }),
+}));
+
+export const insertShortCommentSchema = createInsertSchema(shortComments).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertShortComment = z.infer<typeof insertShortCommentSchema>;
+export type ShortComment = typeof shortComments.$inferSelect;
+
+// Short Comment Reactions table - reactions on comments
+export const shortCommentReactions = pgTable("short_comment_reactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentId: varchar("comment_id").notNull().references(() => shortComments.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  reaction: text("reaction").notNull(), // emoji like ❤️, 😂, 😮, 😢, 😡
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  commentUserIdx: index("short_comment_reactions_comment_user_idx").on(table.commentId, table.userId),
+}));
+
+export const shortCommentReactionsRelations = relations(shortCommentReactions, ({ one }) => ({
+  comment: one(shortComments, {
+    fields: [shortCommentReactions.commentId],
+    references: [shortComments.id],
+  }),
+  user: one(users, {
+    fields: [shortCommentReactions.userId],
+    references: [users.id],
+  }),
+}));
+
+export type ShortCommentReaction = typeof shortCommentReactions.$inferSelect;
+
 // Follows table
 export const follows = pgTable("follows", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

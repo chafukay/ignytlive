@@ -471,10 +471,111 @@ export async function registerRoutes(
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });
       }
-      await storage.likeShort(id, userId);
-      res.json({ success: true });
+      const liked = await storage.likeShort(id, userId);
+      res.json({ success: true, liked });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to like short" });
+    }
+  });
+
+  app.get("/api/shorts/:id/liked/:userId", async (req, res) => {
+    try {
+      const { id, userId } = req.params;
+      const liked = await storage.isShortLiked(id, userId);
+      res.json({ liked });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to check like status" });
+    }
+  });
+
+  // Short comments routes
+  app.get("/api/shorts/:id/comments", async (req, res) => {
+    try {
+      const comments = await storage.getShortComments(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to get comments" });
+    }
+  });
+
+  app.post("/api/shorts/:id/comments", async (req, res) => {
+    try {
+      const { userId, content, parentId } = req.body;
+      if (!userId || !content) {
+        return res.status(400).json({ error: "userId and content are required" });
+      }
+      const comment = await storage.createShortComment({
+        shortId: req.params.id,
+        userId,
+        content,
+        parentId: parentId || null,
+        likesCount: 0,
+        repliesCount: 0,
+      });
+      res.json(comment);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create comment" });
+    }
+  });
+
+  app.delete("/api/shorts/comments/:commentId", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      const deleted = await storage.deleteShortComment(req.params.commentId, userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Comment not found or not authorized" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to delete comment" });
+    }
+  });
+
+  // Comment reactions routes
+  app.post("/api/shorts/comments/:commentId/react", async (req, res) => {
+    try {
+      const { userId, reaction } = req.body;
+      if (!userId || !reaction) {
+        return res.status(400).json({ error: "userId and reaction are required" });
+      }
+      await storage.reactToComment(req.params.commentId, userId, reaction);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to react to comment" });
+    }
+  });
+
+  app.delete("/api/shorts/comments/:commentId/react", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      await storage.removeCommentReaction(req.params.commentId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to remove reaction" });
+    }
+  });
+
+  app.get("/api/shorts/comments/:commentId/reactions", async (req, res) => {
+    try {
+      const reactions = await storage.getCommentReactions(req.params.commentId);
+      res.json(reactions);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to get reactions" });
+    }
+  });
+
+  app.get("/api/shorts/comments/:commentId/reactions/:userId", async (req, res) => {
+    try {
+      const reaction = await storage.getUserCommentReaction(req.params.commentId, req.params.userId);
+      res.json({ reaction });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to get user reaction" });
     }
   });
 
