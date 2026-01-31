@@ -81,10 +81,19 @@ export default function Shorts() {
           className="h-[calc(100vh-5rem)] md:h-screen w-full snap-y snap-mandatory overflow-y-scroll no-scrollbar bg-black"
           onScroll={handleScroll}
         >
-          {shorts.map((short, i) => (
+          {shorts.map((short, i) => {
+            // Check if videoUrl is a video (data URL or file extension)
+            const isVideo = short.videoUrl && (
+              short.videoUrl.startsWith('data:video/') || 
+              short.videoUrl.endsWith('.mp4') ||
+              short.videoUrl.endsWith('.webm') ||
+              short.videoUrl.endsWith('.mov')
+            );
+
+            return (
             <div key={short.id} className="h-full w-full snap-start relative flex items-center justify-center bg-gray-900">
               {/* Video or Thumbnail */}
-              {short.videoUrl && short.videoUrl.endsWith('.mp4') ? (
+              {isVideo ? (
                 <video 
                   src={short.videoUrl}
                   className="w-full h-full object-cover"
@@ -181,7 +190,8 @@ export default function Shorts() {
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Layout>
