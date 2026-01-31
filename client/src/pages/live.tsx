@@ -707,24 +707,33 @@ export default function LiveRoom() {
                   />
                   {isAgoraConfigured() && agoraConnected && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                      <div className="text-center">
-                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-white/70">Waiting for broadcaster...</p>
+                      <div className="text-center px-6">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                          <span className="text-2xl">🎬</span>
+                        </div>
+                        <h3 className="text-white font-bold text-lg mb-2">You're Connected!</h3>
+                        <p className="text-white/70 text-sm">Loading the live stream...</p>
+                        <p className="text-white/50 text-xs mt-2">Video will appear when the host starts broadcasting</p>
                       </div>
                     </div>
                   )}
                   {isAgoraConfigured() && !agoraConnected && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                      <div className="text-center">
+                      <div className="text-center px-6">
                         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-white/70">Connecting...</p>
+                        <p className="text-white/70">Joining the stream...</p>
                       </div>
                     </div>
                   )}
                   {!isAgoraConfigured() && (
-                    <div className="absolute bottom-24 left-0 right-0 flex justify-center">
-                      <div className="glass px-4 py-2 rounded-full text-sm text-white/70">
-                        Live streaming not configured
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      <div className="text-center px-6">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-r from-gray-600 to-gray-700 flex items-center justify-center mx-auto mb-4">
+                          <span className="text-2xl">📺</span>
+                        </div>
+                        <h3 className="text-white font-bold text-lg mb-2">Stream Preview</h3>
+                        <p className="text-white/70 text-sm">Live video is not available right now</p>
+                        <p className="text-white/50 text-xs mt-2">You can still chat and send gifts!</p>
                       </div>
                     </div>
                   )}
