@@ -223,11 +223,9 @@ export default function Home() {
           )}
         </div>
 
-        {/* Streamers Section - Live vs Offline */}
-        {streamers && streamers.length > 0 && (
+        {/* Streamers Section - Live vs Offline (only show if someone is live/online/followed) */}
+        {streamers && streamers.length > 0 && (liveStreamers.length > 0 || onlineUsers.length > 0 || offlineStreamers.length > 0) && (
           <div className="mb-8">
-            <h2 className="text-lg font-bold text-white mb-4">Streamers</h2>
-            
             {/* Live Streamers */}
             {liveStreamers.length > 0 && (
               <div className="mb-6">
@@ -311,6 +309,36 @@ export default function Home() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Suggested Users Section - show when no live/online/followed users */}
+        {suggestedUsers.length > 0 && liveStreamers.length === 0 && onlineUsers.length === 0 && offlineStreamers.length === 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-lg font-bold text-white">People you might like</h2>
+            </div>
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+              {suggestedUsers.map((suggestedUser) => (
+                <Link key={suggestedUser.id} href={`/profile/${suggestedUser.id}`}>
+                  <div className="flex flex-col items-center gap-2 min-w-[80px] p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer">
+                    <UserAvatar 
+                      userId={suggestedUser.id}
+                      username={suggestedUser.username}
+                      avatar={suggestedUser.avatar}
+                      isLive={streamingUserIds.has(suggestedUser.id)}
+                      isOnline={suggestedUser.isLive}
+                      size="lg"
+                      showStatus={true}
+                    />
+                    <span className="text-white text-xs truncate max-w-[70px]">{suggestedUser.username}</span>
+                    <span className="text-cyan-400 text-[10px]">Level {suggestedUser.level}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <p className="text-white/40 text-xs mt-3">Tap to view profile and follow</p>
           </div>
         )}
       </div>
