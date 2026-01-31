@@ -1,4 +1,4 @@
-import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff } from "lucide-react";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -21,10 +21,12 @@ export default function GoLive() {
   const { toast } = useToast();
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [isCameraLoading, setIsCameraLoading] = useState(true);
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
 
   const { data: group } = useQuery({
     queryKey: ["group", groupId],
@@ -88,6 +90,43 @@ export default function GoLive() {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
   };
 
+  const captureThumbnail = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    canvas.width = 320;
+    canvas.height = 427;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const canvasAspect = canvas.width / canvas.height;
+    
+    let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+    
+    if (videoAspect > canvasAspect) {
+      sw = video.videoHeight * canvasAspect;
+      sx = (video.videoWidth - sw) / 2;
+    } else {
+      sh = video.videoWidth / canvasAspect;
+      sy = (video.videoHeight - sh) / 2;
+    }
+    
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    setThumbnail(dataUrl);
+    toast({ title: "Thumbnail captured!" });
+  };
+
   const handleGoLive = async () => {
     if (!user) {
       toast({ title: "Please log in to go live", variant: "destructive" });
@@ -105,6 +144,7 @@ export default function GoLive() {
         userId: user.id,
         title: title.trim(),
         category,
+        thumbnail: thumbnail || undefined,
         isPrivate: accessType !== "public",
         accessType,
         minVipTier: accessType === "vip" ? minVipTier : undefined,
@@ -153,7 +193,28 @@ export default function GoLive() {
             className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
           />
         )}
+        <canvas ref={canvasRef} className="hidden" />
       </div>
+
+      {/* Thumbnail Preview */}
+      {thumbnail && (
+        <div className="absolute top-20 right-6 z-20">
+          <div className="relative">
+            <img 
+              src={thumbnail} 
+              alt="Stream thumbnail preview" 
+              className="w-20 h-28 object-cover rounded-lg border-2 border-primary shadow-lg"
+            />
+            <button
+              onClick={() => setThumbnail(null)}
+              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs"
+            >
+              ✕
+            </button>
+            <span className="absolute -bottom-5 left-0 right-0 text-[10px] text-white/70 text-center">Preview</span>
+          </div>
+        </div>
+      )}
 
       {/* Controls Overlay */}
       <div className="relative z-10 h-full flex flex-col justify-between p-6">
@@ -166,8 +227,14 @@ export default function GoLive() {
             <X className="w-6 h-6" />
           </button>
           <div className="flex gap-4">
-            <button className="p-2 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-white/10">
-              <Camera className="w-6 h-6" />
+            <button 
+              onClick={captureThumbnail}
+              disabled={cameraError !== null || isCameraLoading}
+              className="p-2 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-white/10 disabled:opacity-50"
+              title="Capture thumbnail"
+              data-testid="button-capture-thumbnail"
+            >
+              <ImageIcon className="w-6 h-6" />
             </button>
             <button className="p-2 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-white/10">
               <Settings className="w-6 h-6" />

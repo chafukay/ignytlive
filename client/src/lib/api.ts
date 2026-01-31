@@ -117,6 +117,7 @@ export const api = {
     title: string; 
     description?: string; 
     category?: string;
+    thumbnail?: string;
     isPrivate?: boolean;
     accessType?: string;
     minVipTier?: number;
