@@ -671,12 +671,23 @@ export class DatabaseStorage implements IStorage {
     return call;
   }
   
-  async getUserCallRequests(userId: string): Promise<CallRequest[]> {
-    return await db
+  async getUserCallRequests(userId: string): Promise<(CallRequest & { caller?: User; receiver?: User })[]> {
+    const results = await db
       .select()
       .from(callRequests)
       .where(or(eq(callRequests.callerId, userId), eq(callRequests.receiverId, userId)))
       .orderBy(desc(callRequests.createdAt));
+    
+    // Fetch caller and receiver info for each request
+    const enrichedResults = await Promise.all(
+      results.map(async (call) => {
+        const [caller] = await db.select().from(users).where(eq(users.id, call.callerId));
+        const [receiver] = await db.select().from(users).where(eq(users.id, call.receiverId));
+        return { ...call, caller, receiver };
+      })
+    );
+    
+    return enrichedResults;
   }
   
   // Stream Goal operations

@@ -145,6 +145,16 @@ export default function LiveRoom() {
 
   const pendingJoinRequests = joinRequests?.filter(r => r.status === 'pending') || [];
 
+  // Fetch call requests for broadcaster (where they are the receiver)
+  const { data: callRequests, refetch: refetchCallRequests } = useQuery({
+    queryKey: ['callRequests', user?.id],
+    queryFn: () => api.getUserCalls(user!.id),
+    enabled: !!user && isBroadcaster,
+    refetchInterval: 3000,
+  });
+
+  const pendingCallRequests = callRequests?.filter(r => r.status === 'pending' && r.receiverId === user?.id) || [];
+
   const joinVideoMutation = useMutation({
     mutationFn: () => {
       if (!streamId || !user) {
@@ -186,6 +196,29 @@ export default function LiveRoom() {
   });
 
   const [showJoinRequests, setShowJoinRequests] = useState(false);
+
+  // Mutation to handle call requests (for broadcaster)
+  const handleCallRequestMutation = useMutation({
+    mutationFn: ({ callId, status }: { callId: string; status: string }) => {
+      return api.updateCall(callId, { status });
+    },
+    onSuccess: (call, variables) => {
+      if (variables.status === 'accepted') {
+        toast({ 
+          title: "Call accepted!",
+          description: "Redirecting to call...",
+        });
+        // Navigate to private call page
+        setLocation(`/private-call/${call.id}`);
+      } else {
+        toast({ title: "Call declined" });
+      }
+      refetchCallRequests();
+    },
+    onError: () => {
+      toast({ title: "Failed to update call request", variant: "destructive" });
+    },
+  });
 
   // Mutation to toggle PK battle mode (for broadcaster)
   const togglePKMutation = useMutation({
@@ -758,13 +791,13 @@ export default function LiveRoom() {
 
         {/* Viewer List & Close */}
         <div className="flex items-center gap-3">
-          {/* Join Requests Button (for broadcaster only) */}
+          {/* Requests Button (for broadcaster only) */}
           {isBroadcaster && (
             <button 
               onClick={() => setShowJoinRequests(!showJoinRequests)}
               className={cn(
                 "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors relative",
-                pendingJoinRequests.length > 0 
+                (pendingJoinRequests.length > 0 || pendingCallRequests.length > 0)
                   ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white animate-pulse" 
                   : "bg-white/10 text-white hover:bg-white/20"
               )}
@@ -772,9 +805,9 @@ export default function LiveRoom() {
             >
               <UserPlus className="w-3 h-3" />
               Requests
-              {pendingJoinRequests.length > 0 && (
+              {(pendingJoinRequests.length + pendingCallRequests.length) > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center">
-                  {pendingJoinRequests.length}
+                  {pendingJoinRequests.length + pendingCallRequests.length}
                 </span>
               )}
             </button>
@@ -843,7 +876,7 @@ export default function LiveRoom() {
         </div>
       </div>
 
-      {/* Join Requests Panel (for broadcaster) */}
+      {/* Requests Panel (for broadcaster) - Join Requests & Call Requests */}
       <AnimatePresence>
         {showJoinRequests && isBroadcaster && (
           <motion.div
@@ -852,9 +885,9 @@ export default function LiveRoom() {
             exit={{ opacity: 0, y: -10 }}
             className="relative z-20 mx-4 mb-3"
           >
-            <div className="glass rounded-xl p-3 max-h-48 overflow-y-auto">
+            <div className="glass rounded-xl p-3 max-h-64 overflow-y-auto">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-white font-bold text-sm">Join Requests</h4>
+                <h4 className="text-white font-bold text-sm">Requests</h4>
                 <button 
                   onClick={() => setShowJoinRequests(false)}
                   className="text-white/50 hover:text-white"
@@ -862,49 +895,103 @@ export default function LiveRoom() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              {pendingJoinRequests.length === 0 ? (
-                <p className="text-white/50 text-sm text-center py-2">No pending requests</p>
-              ) : (
-                <div className="space-y-2">
-                  {pendingJoinRequests.map((request) => (
-                    <div key={request.id} className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                      <div className="flex items-center gap-2">
-                        <img 
-                          src={request.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.userId}`}
-                          className="w-8 h-8 rounded-full"
-                          alt="User avatar"
-                        />
-                        <span className="text-white text-sm font-medium">
-                          {request.user?.username || 'User'}
-                        </span>
+              
+              {/* Call Requests Section */}
+              {pendingCallRequests.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-pink-400 text-xs font-bold mb-2 flex items-center gap-1">
+                    <Video className="w-3 h-3" /> Private Call Requests
+                  </p>
+                  <div className="space-y-2">
+                    {pendingCallRequests.map((call: any) => (
+                      <div key={call.id} className="flex items-center justify-between bg-pink-500/10 border border-pink-500/30 rounded-lg p-2">
+                        <div className="flex items-center gap-2">
+                          <img 
+                            src={call.caller?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${call.callerId}`}
+                            className="w-8 h-8 rounded-full ring-2 ring-pink-500"
+                            alt="Caller avatar"
+                          />
+                          <div>
+                            <span className="text-white text-sm font-medium block">
+                              {call.caller?.username || 'User'}
+                            </span>
+                            <span className="text-yellow-400 text-xs">{call.coinCost} coins</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleCallRequestMutation.mutate({ callId: call.id, status: 'accepted' })}
+                            disabled={handleCallRequestMutation.isPending}
+                            className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full hover:bg-green-600 transition-colors disabled:opacity-50"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleCallRequestMutation.mutate({ callId: call.id, status: 'declined' })}
+                            disabled={handleCallRequestMutation.isPending}
+                            className="px-3 py-1 bg-red-500/50 text-white text-xs font-bold rounded-full hover:bg-red-500 transition-colors disabled:opacity-50"
+                          >
+                            Decline
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleJoinRequestMutation.mutate({ 
-                            requestId: request.id, 
-                            status: 'accepted',
-                            requester: {
-                              id: request.userId,
-                              username: request.user?.username || 'User',
-                              avatar: request.user?.avatar || undefined
-                            }
-                          })}
-                          disabled={handleJoinRequestMutation.isPending}
-                          className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full hover:bg-green-600 transition-colors disabled:opacity-50"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleJoinRequestMutation.mutate({ requestId: request.id, status: 'rejected' })}
-                          disabled={handleJoinRequestMutation.isPending}
-                          className="px-3 py-1 bg-red-500/50 text-white text-xs font-bold rounded-full hover:bg-red-500 transition-colors disabled:opacity-50"
-                        >
-                          Decline
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
+              )}
+              
+              {/* Join Requests Section */}
+              {pendingJoinRequests.length > 0 && (
+                <div>
+                  <p className="text-blue-400 text-xs font-bold mb-2 flex items-center gap-1">
+                    <UserPlus className="w-3 h-3" /> Join Stream Requests
+                  </p>
+                  <div className="space-y-2">
+                    {pendingJoinRequests.map((request) => (
+                      <div key={request.id} className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                        <div className="flex items-center gap-2">
+                          <img 
+                            src={request.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.userId}`}
+                            className="w-8 h-8 rounded-full"
+                            alt="User avatar"
+                          />
+                          <span className="text-white text-sm font-medium">
+                            {request.user?.username || 'User'}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleJoinRequestMutation.mutate({ 
+                              requestId: request.id, 
+                              status: 'accepted',
+                              requester: {
+                                id: request.userId,
+                                username: request.user?.username || 'User',
+                                avatar: request.user?.avatar || undefined
+                              }
+                            })}
+                            disabled={handleJoinRequestMutation.isPending}
+                            className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full hover:bg-green-600 transition-colors disabled:opacity-50"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleJoinRequestMutation.mutate({ requestId: request.id, status: 'rejected' })}
+                            disabled={handleJoinRequestMutation.isPending}
+                            className="px-3 py-1 bg-red-500/50 text-white text-xs font-bold rounded-full hover:bg-red-500 transition-colors disabled:opacity-50"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* No pending requests */}
+              {pendingJoinRequests.length === 0 && pendingCallRequests.length === 0 && (
+                <p className="text-white/50 text-sm text-center py-2">No pending requests</p>
               )}
             </div>
           </motion.div>
