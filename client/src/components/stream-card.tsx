@@ -233,7 +233,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
           data-testid={`text-viewers-${stream.id}`}
         >
           <Eye className="w-3 h-3" />
-          {formatViewers(stream.viewersCount)}
+          {formatViewers(Math.max(0, stream.viewersCount - 1))}
         </div>
 
         {/* TOP Rank Badge */}

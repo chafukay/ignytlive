@@ -755,7 +755,7 @@ export default function LiveRoom() {
               {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" allowGifting={true} />}
             </div>
             <span className="text-[10px] text-white/80" data-testid="text-viewer-count">
-              {viewerCount} viewers
+              {Math.max(0, viewerCount - 1)} viewers
             </span>
           </div>
           {!isBroadcaster && (
