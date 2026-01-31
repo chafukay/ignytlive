@@ -10,18 +10,32 @@ const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
 let client: IAgoraRTCClient | null = null;
 let localAudioTrack: IMicrophoneAudioTrack | null = null;
 let localVideoTrack: ICameraVideoTrack | null = null;
+let isConnected = false;
 
 export function isAgoraConfigured(): boolean {
   return !!APP_ID;
 }
 
 export function getAgoraClient(): IAgoraRTCClient {
+  // Always create a fresh client to avoid state issues
   if (!client) {
     client = AgoraRTC.createClient({ 
       mode: "live", 
       codec: "vp8" 
     });
   }
+  return client;
+}
+
+function createFreshClient(): IAgoraRTCClient {
+  // Remove old client and create fresh one
+  if (client) {
+    client.removeAllListeners();
+  }
+  client = AgoraRTC.createClient({ 
+    mode: "live", 
+    codec: "vp8" 
+  });
   return client;
 }
 
@@ -48,12 +62,19 @@ export async function joinAsHost(
     throw new Error("Agora App ID not configured");
   }
 
-  const agoraClient = getAgoraClient();
+  // Leave any existing channel first
+  if (isConnected) {
+    await leaveChannel();
+  }
+
+  // Create fresh client to avoid state issues
+  const agoraClient = createFreshClient();
   
   const token = await getToken(channelName, "host");
   
   await agoraClient.setClientRole("host");
   await agoraClient.join(APP_ID, channelName, token, null);
+  isConnected = true;
 
   [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
     {},
@@ -69,7 +90,7 @@ export async function joinAsHost(
 
   await agoraClient.publish([localAudioTrack, localVideoTrack]);
   
-  console.log("Joined as host and published stream");
+  console.log("Joined as host and published stream to channel:", channelName);
   
   return { audioTrack: localAudioTrack, videoTrack: localVideoTrack };
 }
@@ -83,14 +104,23 @@ export async function joinAsAudience(
     throw new Error("Agora App ID not configured");
   }
 
-  const agoraClient = getAgoraClient();
+  // Leave any existing channel first
+  if (isConnected) {
+    await leaveChannel();
+  }
+
+  // Create fresh client to avoid state issues
+  const agoraClient = createFreshClient();
   
   const token = await getToken(channelName, "audience");
   
   await agoraClient.setClientRole("audience");
   await agoraClient.join(APP_ID, channelName, token, null);
+  isConnected = true;
 
+  // Set up event listeners for remote users
   agoraClient.on("user-published", async (user, mediaType) => {
+    console.log("Remote user published:", user.uid, mediaType);
     if (mediaType === "audio" || mediaType === "video") {
       await agoraClient.subscribe(user, mediaType);
       onUserPublished(user, mediaType);
@@ -98,12 +128,25 @@ export async function joinAsAudience(
   });
 
   agoraClient.on("user-unpublished", (user, mediaType) => {
+    console.log("Remote user unpublished:", user.uid, mediaType);
     if (mediaType === "audio" || mediaType === "video") {
       onUserUnpublished(user, mediaType);
     }
   });
 
-  console.log("Joined as audience");
+  // Also check for any existing remote users already in the channel
+  agoraClient.remoteUsers.forEach(async (user) => {
+    if (user.hasVideo) {
+      await agoraClient.subscribe(user, "video");
+      onUserPublished(user, "video");
+    }
+    if (user.hasAudio) {
+      await agoraClient.subscribe(user, "audio");
+      onUserPublished(user, "audio");
+    }
+  });
+
+  console.log("Joined as audience to channel:", channelName);
 }
 
 export async function switchCamera(): Promise<void> {
@@ -142,9 +185,15 @@ export async function leaveChannel(): Promise<void> {
   }
   
   if (client) {
-    await client.leave();
+    client.removeAllListeners();
+    try {
+      await client.leave();
+    } catch (e) {
+      // Ignore errors when leaving - might already be disconnected
+    }
   }
   
+  isConnected = false;
   console.log("Left channel");
 }
 
