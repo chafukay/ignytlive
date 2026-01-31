@@ -143,20 +143,10 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
 
   const handleMouseEnter = () => {
     setIsHovering(true);
-    if (stream.isLive) {
-      hoverTimeoutRef.current = setTimeout(() => {
-        loadPreview();
-      }, 300);
-    }
   };
 
   const handleMouseLeave = () => {
     setIsHovering(false);
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    unloadPreview();
   };
 
   const toggleMute = (e: React.MouseEvent) => {
@@ -171,6 +161,16 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
       }
     }
   };
+
+  // Load preview automatically when component mounts
+  useEffect(() => {
+    if (stream.isLive) {
+      const timer = setTimeout(() => {
+        loadPreview();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [stream.isLive, stream.id]);
 
   useEffect(() => {
     return () => {
