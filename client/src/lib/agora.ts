@@ -7,13 +7,18 @@ import AgoraRTC, {
 
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
 
+// Debug: Log Agora configuration status
+console.log("[Agora] App ID configured:", !!APP_ID, APP_ID ? `(${APP_ID.substring(0, 8)}...)` : "(empty)");
+
 let client: IAgoraRTCClient | null = null;
 let localAudioTrack: IMicrophoneAudioTrack | null = null;
 let localVideoTrack: ICameraVideoTrack | null = null;
 let isConnected = false;
 
 export function isAgoraConfigured(): boolean {
-  return !!APP_ID;
+  const configured = !!APP_ID;
+  console.log("[Agora] isAgoraConfigured called:", configured);
+  return configured;
 }
 
 export function getAgoraClient(): IAgoraRTCClient {
