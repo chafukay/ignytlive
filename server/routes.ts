@@ -365,7 +365,7 @@ export async function registerRoutes(
       const comment = await storage.createStreamComment({
         streamId,
         userId,
-        text,
+        content: text,
         ...req.body
       });
       
