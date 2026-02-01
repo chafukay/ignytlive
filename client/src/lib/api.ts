@@ -24,6 +24,26 @@ export const api = {
     return res.json() as Promise<{ user: User }>;
   },
 
+  async sendPhoneCode(phone: string) {
+    const res = await fetch(`${API_BASE}/api/auth/phone/send-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ success: boolean; message: string; smsConfigured: boolean }>;
+  },
+
+  async verifyPhoneCode(phone: string, code: string) {
+    const res = await fetch(`${API_BASE}/api/auth/phone/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, code }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ user: User }>;
+  },
+
   // Users
   async getUser(id: string) {
     const res = await fetch(`${API_BASE}/api/users/${id}`);

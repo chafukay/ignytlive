@@ -238,6 +238,74 @@ export async function registerRoutes(
     }
   });
 
+  // Phone authentication - send verification code
+  app.post("/api/auth/phone/send-code", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      
+      if (!phone || typeof phone !== "string") {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+
+      // Generate 6-digit code
+      const { generateVerificationCode, sendVerificationCode, isSmsConfigured } = await import("./sms");
+      const code = generateVerificationCode();
+      
+      // Store in database
+      await storage.createPhoneVerificationCode(phone, code);
+      
+      // Send via SMS
+      const sent = await sendVerificationCode(phone, code);
+      
+      res.json({ 
+        success: true, 
+        message: sent ? "Verification code sent" : "Code generated (SMS not configured)",
+        smsConfigured: isSmsConfigured()
+      });
+    } catch (error) {
+      console.error("Phone code error:", error);
+      res.status(500).json({ error: "Failed to send verification code" });
+    }
+  });
+
+  // Phone authentication - verify code and login/register
+  app.post("/api/auth/phone/verify", async (req, res) => {
+    try {
+      const { phone, code } = req.body;
+      
+      if (!phone || !code) {
+        return res.status(400).json({ error: "Phone and code are required" });
+      }
+
+      // Verify the code
+      const isValid = await storage.verifyPhoneCode(phone, code);
+      
+      if (!isValid) {
+        return res.status(401).json({ error: "Invalid or expired code" });
+      }
+
+      // Check if user exists with this phone
+      let user = await storage.getUserByPhone(phone);
+      
+      if (!user) {
+        // Create new user with phone number
+        const username = `user_${phone.slice(-4)}_${Date.now().toString(36)}`;
+        user = await storage.createUser({
+          username,
+          email: `${username}@phone.ignyt.live`,
+          password: Math.random().toString(36).slice(2),
+          phone,
+          phoneVerified: true,
+        });
+      }
+
+      res.json({ user: { ...user, password: undefined } });
+    } catch (error) {
+      console.error("Phone verify error:", error);
+      res.status(500).json({ error: "Verification failed" });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     const user = await storage.getUser(req.params.id);
     if (!user) {

@@ -26,6 +26,9 @@ import {
   roomModerators,
   roomBans,
   roomMutes,
+  phoneVerificationCodes,
+  type PhoneVerificationCode,
+  type InsertPhoneVerificationCode,
   type User,
   type InsertUser,
   type Stream,
@@ -1294,6 +1297,62 @@ export class DatabaseStorage implements IStorage {
         sql`${roomMutes.expiresAt} > NOW()`
       ));
     return mute;
+  }
+
+  // Phone verification methods
+  async createPhoneVerificationCode(phone: string, code: string): Promise<PhoneVerificationCode> {
+    // Delete any existing unused codes for this phone
+    await db
+      .delete(phoneVerificationCodes)
+      .where(and(
+        eq(phoneVerificationCodes.phone, phone),
+        eq(phoneVerificationCodes.used, false)
+      ));
+
+    // Create new code with 10 minute expiry
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const [newCode] = await db
+      .insert(phoneVerificationCodes)
+      .values({ phone, code, expiresAt })
+      .returning();
+    return newCode;
+  }
+
+  async verifyPhoneCode(phone: string, code: string): Promise<boolean> {
+    const [verification] = await db
+      .select()
+      .from(phoneVerificationCodes)
+      .where(and(
+        eq(phoneVerificationCodes.phone, phone),
+        eq(phoneVerificationCodes.code, code),
+        eq(phoneVerificationCodes.used, false)
+      ))
+      .limit(1);
+
+    if (!verification) return false;
+    if (new Date(verification.expiresAt) < new Date()) return false;
+
+    // Mark as used
+    await db
+      .update(phoneVerificationCodes)
+      .set({ used: true })
+      .where(eq(phoneVerificationCodes.id, verification.id));
+
+    return true;
+  }
+
+  async getUserByPhone(phone: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.phone, phone));
+    return user;
+  }
+
+  async updateUserPhone(userId: string, phone: string): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ phone, phoneVerified: true })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
   }
 }
 

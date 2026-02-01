@@ -27,11 +27,33 @@ export const users = pgTable("users", {
   privateCallBillingMode: text("private_call_billing_mode").notNull().default("per_minute"), // per_minute or per_session
   privateCallSessionPrice: integer("private_call_session_price").notNull().default(500), // flat fee for per_session
   role: text("role").notNull().default("user"), // user, admin, superadmin
+  phone: text("phone").unique(),
+  phoneVerified: boolean("phone_verified").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   usernameIdx: index("username_idx").on(table.username),
   emailIdx: index("email_idx").on(table.email),
+  phoneIdx: index("phone_idx").on(table.phone),
 }));
+
+// Phone verification codes table
+export const phoneVerificationCodes = pgTable("phone_verification_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phone: text("phone").notNull(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  phoneIdx: index("phone_code_idx").on(table.phone),
+}));
+
+export const insertPhoneVerificationCodeSchema = createInsertSchema(phoneVerificationCodes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPhoneVerificationCode = z.infer<typeof insertPhoneVerificationCodeSchema>;
+export type PhoneVerificationCode = typeof phoneVerificationCodes.$inferSelect
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
