@@ -1,17 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Flame, ChevronRight, Shield, Crown, Star, User } from "lucide-react";
+import { Eye, EyeOff, Flame } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-
-const demoUsers = [
-  { username: "SuperAdmin", password: "admin123", role: "superadmin", icon: Shield, color: "from-red-500 to-orange-500" },
-  { username: "AdminMike", password: "admin123", role: "admin", icon: Crown, color: "from-purple-500 to-pink-500" },
-  { username: "NeonQueen", password: "demo123", role: "user", icon: Star, color: "from-cyan-500 to-blue-500" },
-  { username: "NewUser123", password: "demo123", role: "user", icon: User, color: "from-green-500 to-teal-500" },
-];
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -37,20 +30,6 @@ export default function Login() {
       setLocation("/");
     } catch (error) {
       toast({ title: "Invalid credentials", description: "Please check your username and password", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async (demoUser: typeof demoUsers[0]) => {
-    setIsLoading(true);
-    try {
-      const { user: loggedInUser } = await api.login(demoUser.username, demoUser.password);
-      login(loggedInUser);
-      toast({ title: `Logged in as ${loggedInUser.username}` });
-      setLocation("/");
-    } catch (error) {
-      toast({ title: "Demo login failed", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -129,35 +108,6 @@ export default function Login() {
           >
             Create Account
           </button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mt-10 w-full max-w-sm"
-        >
-          <p className="text-white/30 text-xs text-center mb-4">DEMO ACCOUNTS</p>
-          <div className="space-y-2">
-            {demoUsers.map((demo) => (
-              <button
-                key={demo.username}
-                onClick={() => handleDemoLogin(demo)}
-                disabled={isLoading}
-                className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
-                data-testid={`demo-${demo.username}`}
-              >
-                <div className={`w-10 h-10 rounded-full bg-gradient-to-r ${demo.color} flex items-center justify-center`}>
-                  <demo.icon className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-white font-medium">{demo.username}</p>
-                  <p className="text-white/50 text-xs capitalize">{demo.role}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-white/30" />
-              </button>
-            ))}
-          </div>
         </motion.div>
       </div>
     </div>
