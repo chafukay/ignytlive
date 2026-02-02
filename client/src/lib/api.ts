@@ -93,14 +93,23 @@ export const api = {
     return res.json() as Promise<User[]>;
   },
 
-  async updateUser(userId: string, updates: Partial<User>, adminUserId?: string) {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (adminUserId) {
-      headers["x-admin-user-id"] = adminUserId;
-    }
+  async updateUser(userId: string, updates: Partial<User>) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/profile`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<User>;
+  },
+
+  async updateUserAdmin(userId: string, updates: Partial<User>, adminUserId: string) {
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
       method: "PATCH",
-      headers,
+      headers: { 
+        "Content-Type": "application/json",
+        "x-admin-user-id": adminUserId,
+      },
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(await res.text());

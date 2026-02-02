@@ -513,6 +513,34 @@ export async function registerRoutes(
     }
   });
 
+  // Update user profile (for regular users updating their own profile)
+  app.patch("/api/users/:id/profile", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { username, bio, gender, birthdate, avatar } = req.body;
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Build updates object with only allowed fields
+      const updates: any = {};
+      if (username !== undefined) updates.username = username;
+      if (bio !== undefined) updates.bio = bio;
+      if (gender !== undefined) updates.gender = gender;
+      if (birthdate !== undefined) updates.birthdate = new Date(birthdate);
+      if (avatar !== undefined) updates.avatar = avatar;
+
+      const user = await storage.updateUser(userId, updates);
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      console.error("Update profile error:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
   app.get("/api/streams/:id", async (req, res) => {
     const stream = await storage.getStream(req.params.id);
     if (!stream) {
