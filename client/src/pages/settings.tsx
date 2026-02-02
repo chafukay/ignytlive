@@ -80,10 +80,10 @@ export default function Settings() {
     <Layout>
       <div className="min-h-screen bg-background p-4">
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => setLocation("/profile")} className="text-white">
+          <button onClick={() => setLocation("/profile")} className="text-foreground">
             <ChevronRight className="w-6 h-6 rotate-180" />
           </button>
-          <h1 className="text-xl font-bold text-white">Settings</h1>
+          <h1 className="text-xl font-bold text-foreground">Settings</h1>
         </div>
 
         <div className="space-y-1">
@@ -91,31 +91,31 @@ export default function Settings() {
             <div key={item.label}>
               {item.href ? (
                 <Link href={item.href}>
-                  <div className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5">
-                    <item.icon className="w-5 h-5 text-white/70" />
-                    <span className="flex-1 text-white">{item.label}</span>
-                    {item.extra && <span className="text-white/50 text-sm">{item.extra}</span>}
-                    <ChevronRight className="w-5 h-5 text-white/30" />
+                  <div className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border">
+                    <item.icon className="w-5 h-5 text-muted-foreground" />
+                    <span className="flex-1 text-foreground">{item.label}</span>
+                    {item.extra && <span className="text-muted-foreground text-sm">{item.extra}</span>}
+                    <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
                   </div>
                 </Link>
               ) : item.toggle ? (
                 <div 
                   onClick={() => item.isTheme ? toggleTheme() : item.onChange?.(!item.value)}
-                  className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5"
+                  className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border"
                   data-testid={item.isTheme ? "toggle-dark-mode" : undefined}
                 >
-                  <item.icon className={`w-5 h-5 ${item.isTheme && theme === "dark" ? "text-indigo-400" : item.isTheme ? "text-yellow-500" : "text-white/70"}`} />
-                  <span className="flex-1 text-white">{item.label}</span>
-                  <div className={`w-12 h-6 rounded-full p-1 transition-colors ${item.value ? (item.isTheme ? "bg-indigo-500" : "bg-primary") : "bg-white/20"}`}>
+                  <item.icon className={`w-5 h-5 ${item.isTheme && theme === "dark" ? "text-indigo-400" : item.isTheme ? "text-yellow-500" : "text-muted-foreground"}`} />
+                  <span className="flex-1 text-foreground">{item.label}</span>
+                  <div className={`w-12 h-6 rounded-full p-1 transition-colors ${item.value ? (item.isTheme ? "bg-indigo-500" : "bg-primary") : "bg-muted"}`}>
                     <div className={`w-4 h-4 rounded-full bg-white transition-transform ${item.value ? "translate-x-6" : "translate-x-0"}`} />
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5">
-                  <item.icon className="w-5 h-5 text-white/70" />
-                  <span className="flex-1 text-white">{item.label}</span>
-                  {item.extra && <span className="text-white/50 text-sm">{item.extra}</span>}
-                  <ChevronRight className="w-5 h-5 text-white/30" />
+                <div className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border">
+                  <item.icon className="w-5 h-5 text-muted-foreground" />
+                  <span className="flex-1 text-foreground">{item.label}</span>
+                  {item.extra && <span className="text-muted-foreground text-sm">{item.extra}</span>}
+                  <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
                 </div>
               )}
             </div>
@@ -123,20 +123,20 @@ export default function Settings() {
 
           <div 
             onClick={() => setShowCallSettings(!showCallSettings)}
-            className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5"
+            className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border"
           >
             <Video className="w-5 h-5 text-pink-400" />
-            <span className="flex-1 text-white">Private Call Settings</span>
-            <ChevronRight className={`w-5 h-5 text-white/30 transition-transform ${showCallSettings ? 'rotate-90' : ''}`} />
+            <span className="flex-1 text-foreground">Private Call Settings</span>
+            <ChevronRight className={`w-5 h-5 text-muted-foreground/50 transition-transform ${showCallSettings ? 'rotate-90' : ''}`} />
           </div>
 
           {showCallSettings && (
-            <div className="bg-white/5 p-4 space-y-4">
+            <div className="bg-muted/30 p-4 space-y-4">
               <div 
                 onClick={() => setAvailableForPrivateCall(!availableForPrivateCall)}
                 className="flex items-center gap-4 cursor-pointer"
               >
-                <span className="flex-1 text-white">Available for Private Calls</span>
+                <span className="flex-1 text-foreground">Available for Private Calls</span>
                 <div className={`w-12 h-6 rounded-full p-1 transition-colors ${availableForPrivateCall ? "bg-pink-500" : "bg-white/20"}`}>
                   <div className={`w-4 h-4 rounded-full bg-white transition-transform ${availableForPrivateCall ? "translate-x-6" : "translate-x-0"}`} />
                 </div>
@@ -173,7 +173,7 @@ export default function Settings() {
                     type="number"
                     value={privateCallRate}
                     onChange={(e) => setPrivateCallRate(Number(e.target.value))}
-                    className="bg-white/10 border-white/20 text-white"
+                    className="bg-background border-border text-foreground"
                     min={10}
                   />
                 </div>
@@ -186,7 +186,7 @@ export default function Settings() {
                     type="number"
                     value={sessionPrice}
                     onChange={(e) => setSessionPrice(Number(e.target.value))}
-                    className="bg-white/10 border-white/20 text-white"
+                    className="bg-background border-border text-foreground"
                     min={50}
                   />
                 </div>

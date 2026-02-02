@@ -56,10 +56,10 @@ export default function EditProfile() {
     <Layout>
       <div className="min-h-screen bg-background p-4">
         <div className="flex items-center mb-6">
-          <button onClick={() => setLocation("/settings")} className="text-white">
+          <button onClick={() => setLocation("/settings")} className="text-foreground">
             <ChevronRight className="w-6 h-6 rotate-180" />
           </button>
-          <h1 className="text-xl font-bold text-white ml-4">Edit Profile</h1>
+          <h1 className="text-xl font-bold text-foreground ml-4">Edit Profile</h1>
         </div>
 
         <div className="flex flex-col items-center mb-8">
@@ -78,51 +78,51 @@ export default function EditProfile() {
 
         <div className="space-y-4">
           <div>
-            <label className="text-white/50 text-sm mb-2 block">Username</label>
+            <label className="text-muted-foreground text-sm mb-2 block">Username</label>
             <input 
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary"
+              className="w-full bg-muted/50 border border-border rounded-xl p-4 text-foreground focus:outline-none focus:border-primary"
             />
           </div>
           <div>
-            <label className="text-white/50 text-sm mb-2 block">Bio</label>
+            <label className="text-muted-foreground text-sm mb-2 block">Bio</label>
             <textarea 
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={3}
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary resize-none"
+              className="w-full bg-muted/50 border border-border rounded-xl p-4 text-foreground focus:outline-none focus:border-primary resize-none"
               placeholder="Tell us about yourself..."
               data-testid="input-bio"
             />
           </div>
           <div>
-            <label className="text-white/50 text-sm mb-2 block">Gender</label>
+            <label className="text-muted-foreground text-sm mb-2 block">Gender</label>
             <select 
               value={gender}
               onChange={(e) => setGender(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary"
+              className="w-full bg-muted/50 border border-border rounded-xl p-4 text-foreground focus:outline-none focus:border-primary"
               data-testid="select-gender"
             >
-              <option value="" className="bg-gray-900">Select gender</option>
-              <option value="male" className="bg-gray-900">Male</option>
-              <option value="female" className="bg-gray-900">Female</option>
-              <option value="non-binary" className="bg-gray-900">Non-binary</option>
-              <option value="other" className="bg-gray-900">Other</option>
+              <option value="" className="bg-card">Select gender</option>
+              <option value="male" className="bg-card">Male</option>
+              <option value="female" className="bg-card">Female</option>
+              <option value="non-binary" className="bg-card">Non-binary</option>
+              <option value="other" className="bg-card">Other</option>
             </select>
           </div>
           <div>
-            <label className="text-white/50 text-sm mb-2 block">Date of Birth</label>
+            <label className="text-muted-foreground text-sm mb-2 block">Date of Birth</label>
             <input 
               type="date"
               value={birthdate}
               onChange={(e) => setBirthdate(e.target.value)}
               max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary"
+              className="w-full bg-muted/50 border border-border rounded-xl p-4 text-foreground focus:outline-none focus:border-primary"
               data-testid="input-birthdate"
             />
-            <p className="text-white/30 text-xs mt-1">Must be 18 years or older</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">Must be 18 years or older</p>
           </div>
 
           <button 

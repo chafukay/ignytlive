@@ -108,7 +108,7 @@ export default function Home() {
         <div className="flex justify-between items-center mb-4 pt-2">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              <span className="text-white">Ignyt</span><span className="text-pink-500">LIVE</span>
+              <span className="text-foreground">Ignyt</span><span className="text-pink-500">LIVE</span>
             </h1>
           </div>
           <div className="flex gap-2 items-center">
@@ -118,20 +118,20 @@ export default function Home() {
             </div>
             <button 
               data-testid="button-search"
-              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10"
+              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
             >
-              <Search className="w-5 h-5 text-white" />
+              <Search className="w-5 h-5 text-foreground" />
             </button>
             <Link href="/notifications">
-              <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 relative">
-                <Bell className="w-5 h-5 text-white" />
+              <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 relative">
+                <Bell className="w-5 h-5 text-foreground" />
               </button>
             </Link>
           </div>
         </div>
 
         {/* SuperLive-style Horizontal Tabs */}
-        <div className="flex gap-4 overflow-x-auto no-scrollbar mb-6 pb-2 border-b border-white/10">
+        <div className="flex gap-4 overflow-x-auto no-scrollbar mb-6 pb-2 border-b border-border">
           {STREAM_TABS.map((tab) => (
             <button 
               key={tab.id}
@@ -139,8 +139,8 @@ export default function Home() {
               data-testid={`tab-${tab.id}`}
               className={`flex items-center gap-1.5 whitespace-nowrap px-1 py-3 text-sm font-medium transition-all border-b-2 ${
                 activeTab === tab.id
-                  ? 'text-white border-primary' 
-                  : 'text-white/50 border-transparent hover:text-white/70'
+                  ? 'text-foreground border-primary' 
+                  : 'text-muted-foreground border-transparent hover:text-foreground/80'
               }`}
             >
               {tab.icon && <tab.icon className="w-4 h-4" />}
@@ -151,8 +151,8 @@ export default function Home() {
 
         {/* Countries Filter (show when countries tab active) */}
         {activeTab === 'countries' && (
-          <div className="flex items-center justify-between mb-4 bg-white/5 rounded-xl p-3">
-            <span className="text-white/70 text-sm">Selected countries;</span>
+          <div className="flex items-center justify-between mb-4 bg-muted rounded-xl p-3">
+            <span className="text-muted-foreground text-sm">Selected countries;</span>
             <button className="flex items-center gap-2 bg-primary/20 text-primary px-3 py-1.5 rounded-full text-sm">
               <span>🌍</span>
               <span>+240</span>
@@ -168,7 +168,7 @@ export default function Home() {
               {[...Array(10)].map((_, i) => (
                 <div 
                   key={i}
-                  className="aspect-[3/4] rounded-2xl bg-white/5 animate-pulse"
+                  className="aspect-[3/4] rounded-2xl bg-muted animate-pulse"
                 />
               ))}
             </div>
@@ -179,7 +179,7 @@ export default function Home() {
                   <StreamCard key={stream.id} stream={stream} rank={index < 25 ? index + 1 : undefined} />
                 ))
               ) : (
-                <div className="col-span-full text-center py-12 text-white/50">
+                <div className="col-span-full text-center py-12 text-muted-foreground">
                   <p className="text-lg">No live streams at the moment</p>
                   <p className="text-sm mt-2">Check back soon!</p>
                 </div>
@@ -196,8 +196,8 @@ export default function Home() {
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-white/70 text-sm font-medium">Live Now</span>
-                  <span className="text-white/50 text-xs">({liveStreamers.length})</span>
+                  <span className="text-muted-foreground text-sm font-medium">Live Now</span>
+                  <span className="text-muted-foreground/70 text-xs">({liveStreamers.length})</span>
                 </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {liveStreamers.slice(0, 10).map((streamer) => (
@@ -210,7 +210,7 @@ export default function Home() {
                         size="lg"
                         showStatus={true}
                       />
-                      <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
+                      <span className="text-foreground text-xs truncate max-w-[60px]">{streamer.username}</span>
                     </div>
                   ))}
                 </div>
@@ -222,8 +222,8 @@ export default function Home() {
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-white/70 text-sm font-medium">Online</span>
-                  <span className="text-white/50 text-xs">({onlineUsers.length})</span>
+                  <span className="text-muted-foreground text-sm font-medium">Online</span>
+                  <span className="text-muted-foreground/70 text-xs">({onlineUsers.length})</span>
                 </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {onlineUsers.slice(0, 10).map((user) => (
@@ -238,7 +238,7 @@ export default function Home() {
                           size="lg"
                           showStatus={true}
                         />
-                        <span className="text-white text-xs truncate max-w-[60px]">{user.username}</span>
+                        <span className="text-foreground text-xs truncate max-w-[60px]">{user.username}</span>
                       </div>
                     </Link>
                   ))}
@@ -251,8 +251,8 @@ export default function Home() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-gray-500 rounded-full" />
-                  <span className="text-white/70 text-sm font-medium">Following (Offline)</span>
-                  <span className="text-white/50 text-xs">({offlineStreamers.length})</span>
+                  <span className="text-muted-foreground text-sm font-medium">Following (Offline)</span>
+                  <span className="text-muted-foreground/70 text-xs">({offlineStreamers.length})</span>
                 </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {offlineStreamers.slice(0, 10).map((streamer) => (
@@ -267,7 +267,7 @@ export default function Home() {
                           size="lg"
                           showStatus={true}
                         />
-                        <span className="text-white text-xs truncate max-w-[60px]">{streamer.username}</span>
+                        <span className="text-foreground text-xs truncate max-w-[60px]">{streamer.username}</span>
                       </div>
                     </Link>
                   ))}
@@ -282,12 +282,12 @@ export default function Home() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-cyan-400" />
-              <h2 className="text-lg font-bold text-white">People you might like</h2>
+              <h2 className="text-lg font-bold text-foreground">People you might like</h2>
             </div>
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
               {suggestedUsers.map((suggestedUser) => (
                 <Link key={suggestedUser.id} href={`/profile/${suggestedUser.id}`}>
-                  <div className="flex flex-col items-center gap-2 min-w-[80px] p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer">
+                  <div className="flex flex-col items-center gap-2 min-w-[80px] p-3 bg-muted rounded-xl hover:bg-muted/80 transition-colors cursor-pointer">
                     <UserAvatar 
                       userId={suggestedUser.id}
                       username={suggestedUser.username}
@@ -297,13 +297,13 @@ export default function Home() {
                       size="lg"
                       showStatus={true}
                     />
-                    <span className="text-white text-xs truncate max-w-[70px]">{suggestedUser.username}</span>
+                    <span className="text-foreground text-xs truncate max-w-[70px]">{suggestedUser.username}</span>
                     <span className="text-cyan-400 text-[10px]">Level {suggestedUser.level}</span>
                   </div>
                 </Link>
               ))}
             </div>
-            <p className="text-white/40 text-xs mt-3">Tap to view profile and follow</p>
+            <p className="text-muted-foreground/60 text-xs mt-3">Tap to view profile and follow</p>
           </div>
         )}
       </div>

@@ -33,16 +33,16 @@ export default function Explore() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10">
-              <Search className="w-5 h-5 text-white" />
+            <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80">
+              <Search className="w-5 h-5 text-foreground" />
             </button>
             <Link href="/leaderboard">
-              <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10">
+              <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80">
                 <Flame className="w-5 h-5 text-orange-400" />
               </button>
             </Link>
-            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10">
-              <Calendar className="w-5 h-5 text-white" />
+            <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80">
+              <Calendar className="w-5 h-5 text-foreground" />
             </button>
           </div>
         </div>
@@ -64,7 +64,7 @@ export default function Explore() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-6 mb-6 border-b border-white/10 pb-3">
+        <div className="flex gap-6 mb-6 border-b border-border pb-3">
           {[
             { id: 'new', label: 'New', icon: '⭐' },
             { id: 'nearby', label: 'Nearby', icon: '' },
@@ -75,8 +75,8 @@ export default function Explore() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-1.5 pb-2 font-medium transition-colors relative ${
                 activeTab === tab.id
-                  ? 'text-white'
-                  : 'text-white/50 hover:text-white/70'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/80'
               }`}
               data-testid={`button-tab-${tab.id}`}
             >
@@ -93,7 +93,7 @@ export default function Explore() {
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="aspect-[3/4] rounded-2xl bg-white/5 animate-pulse" />
+              <div key={i} className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />
             ))}
           </div>
         ) : (

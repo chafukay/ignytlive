@@ -52,11 +52,11 @@ export default function Profile() {
       <Layout>
         <div className="p-4 pb-24 max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-              <User className="w-12 h-12 text-white/30" />
+            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              <User className="w-12 h-12 text-muted-foreground" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Not Logged In</h2>
-            <p className="text-white/50 mb-6">Log in to access your profile</p>
+            <h2 className="text-xl font-bold text-foreground mb-2">Not Logged In</h2>
+            <p className="text-muted-foreground mb-6">Log in to access your profile</p>
             <button 
               onClick={() => setLocation("/")}
               className="bg-primary text-white font-bold px-8 py-3 rounded-full"
@@ -74,15 +74,17 @@ export default function Profile() {
     <Layout>
       <div className="p-4 pb-24 max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-xl font-bold text-white">Profile</h1>
-          <Settings className="w-6 h-6 text-white cursor-pointer" />
+          <h1 className="text-xl font-bold text-foreground">Profile</h1>
+          <Link href="/settings">
+            <Settings className="w-6 h-6 text-foreground cursor-pointer" />
+          </Link>
         </div>
 
-        <div className="flex justify-center gap-2 text-white/50 text-sm mb-4">
+        <div className="flex justify-center gap-2 text-muted-foreground text-sm mb-4">
           <span>ID: {user.id.slice(0, 8)}</span>
-          <button className="p-1 rounded hover:bg-white/10"><Eye className="w-4 h-4" /></button>
-          <button className="p-1 rounded hover:bg-white/10"><Users className="w-4 h-4" /></button>
-          <button className="p-1 rounded hover:bg-white/10"><Share2 className="w-4 h-4" /></button>
+          <button className="p-1 rounded hover:bg-muted"><Eye className="w-4 h-4" /></button>
+          <button className="p-1 rounded hover:bg-muted"><Users className="w-4 h-4" /></button>
+          <button className="p-1 rounded hover:bg-muted"><Share2 className="w-4 h-4" /></button>
         </div>
 
         <div className="flex flex-col items-center mb-6">
@@ -105,19 +107,19 @@ export default function Profile() {
             </span>
           </div>
           <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-xl font-bold text-white" data-testid="text-username">
+            <h2 className="text-xl font-bold text-foreground" data-testid="text-username">
               {user.username}
             </h2>
             <BadgesDisplay userId={user.id} size="md" />
           </div>
-          <div className="flex items-center flex-wrap justify-center gap-2 text-sm text-white/60 mb-2">
+          <div className="flex items-center flex-wrap justify-center gap-2 text-sm text-muted-foreground mb-2">
             {user.gender && (
               <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full text-xs" data-testid="text-gender">
                 {user.gender === 'male' ? '♂️ Male' : user.gender === 'female' ? '♀️ Female' : user.gender === 'non-binary' ? '⚧️ Non-binary' : '🏳️ Other'}
               </span>
             )}
             {user.birthdate && (
-              <span className="text-white/50 text-xs" data-testid="text-age">
+              <span className="text-muted-foreground text-xs" data-testid="text-age">
                 {Math.floor((Date.now() - new Date(user.birthdate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))} years old
               </span>
             )}
@@ -127,7 +129,7 @@ export default function Profile() {
             </span>
           </div>
           {user.bio && (
-            <p className="text-white/70 text-sm text-center max-w-xs mb-4 px-4" data-testid="text-bio">
+            <p className="text-muted-foreground text-sm text-center max-w-xs mb-4 px-4" data-testid="text-bio">
               {user.bio}
             </p>
           )}
@@ -140,44 +142,44 @@ export default function Profile() {
           )}
           <div className="flex justify-center gap-8 text-center">
             <div>
-              <div className="font-bold text-white" data-testid="text-followers">
+              <div className="font-bold text-foreground" data-testid="text-followers">
                 {formatNumber(user.followersCount)}
               </div>
-              <div className="text-xs text-white/50">Followers</div>
+              <div className="text-xs text-muted-foreground">Followers</div>
             </div>
             <div>
-              <div className="font-bold text-white" data-testid="text-following">
+              <div className="font-bold text-foreground" data-testid="text-following">
                 {formatNumber(user.followingCount)}
               </div>
-              <div className="text-xs text-white/50">Following</div>
+              <div className="text-xs text-muted-foreground">Following</div>
             </div>
             <div>
-              <div className="font-bold text-white flex items-center gap-1" data-testid="text-received">
+              <div className="font-bold text-foreground flex items-center gap-1" data-testid="text-received">
                 <span className="text-yellow-400">💎</span>{formatNumber(user.diamonds)}
               </div>
-              <div className="text-xs text-white/50">Received</div>
+              <div className="text-xs text-muted-foreground">Received</div>
             </div>
             <div>
-              <div className="font-bold text-white flex items-center gap-1" data-testid="text-sent">
+              <div className="font-bold text-foreground flex items-center gap-1" data-testid="text-sent">
                 <span className="text-yellow-400">🪙</span>{formatNumber(user.coins)}
               </div>
-              <div className="text-xs text-white/50">Sent</div>
+              <div className="text-xs text-muted-foreground">Sent</div>
             </div>
           </div>
         </div>
 
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6 flex items-center justify-between">
-          <p className="text-white text-sm">Please verify your email address for privacy.</p>
-          <button className="bg-white/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+          <p className="text-foreground text-sm">Please verify your email address for privacy.</p>
+          <button className="bg-muted text-primary px-4 py-2 rounded-full text-sm font-medium">
             Link Account
           </button>
         </div>
 
         {/* Wallet Card */}
-        <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-6 mb-6 border border-white/10 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-gray-800 to-gray-900 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 mb-6 border border-border relative overflow-hidden">
           <div className="relative z-10 flex justify-between items-center">
             <div>
-              <p className="text-white/60 text-sm mb-1">My Balance</p>
+              <p className="text-gray-300 text-sm mb-1">My Balance</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-white" data-testid="text-coins">
                   {user.coins.toLocaleString()}
@@ -185,7 +187,7 @@ export default function Profile() {
                 <span className="text-yellow-500 font-bold">Coins</span>
               </div>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-white/50 text-sm">Diamonds:</span>
+                <span className="text-gray-400 text-sm">Diamonds:</span>
                 <span className="text-cyan-400 font-bold" data-testid="text-diamonds">
                   {user.diamonds.toLocaleString()}
                 </span>
@@ -224,19 +226,19 @@ export default function Profile() {
           <Link href="/shorts">
             <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-shorts">
               <Clapperboard className="w-6 h-6 text-pink-400 mx-auto mb-2" />
-              <span className="text-white text-sm font-medium">Shorts</span>
+              <span className="text-foreground text-sm font-medium">Shorts</span>
             </div>
           </Link>
           <Link href="/leaderboard">
             <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-leaderboard">
               <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-              <span className="text-white text-sm font-medium">Leaderboard</span>
+              <span className="text-foreground text-sm font-medium">Leaderboard</span>
             </div>
           </Link>
           <Link href="/groups">
             <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-groups">
               <Users className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-              <span className="text-white text-sm font-medium">Groups</span>
+              <span className="text-foreground text-sm font-medium">Groups</span>
             </div>
           </Link>
         </div>
@@ -250,11 +252,11 @@ export default function Profile() {
                   <Award className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-white font-bold">VIP {user.vipTier}</p>
-                  <p className="text-white/50 text-xs">Premium Member</p>
+                  <p className="text-foreground font-bold">VIP {user.vipTier}</p>
+                  <p className="text-muted-foreground text-xs">Premium Member</p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-white/30" />
+              <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
             </div>
           </div>
         )}
@@ -277,7 +279,7 @@ export default function Profile() {
           ].map((item) => (
             <Link key={item.label} href={item.href || "#"}>
               <div 
-                className={`flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 ${
+                className={`flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border ${
                   item.special ? 'bg-gradient-to-r from-yellow-900/20 to-transparent' : ''
                 }`}
                 data-testid={`menu-${item.label.toLowerCase().replace(/ /g, '-')}`}
@@ -289,26 +291,26 @@ export default function Profile() {
                 ) : (
                   <item.icon className={`w-5 h-5 ${item.color}`} />
                 )}
-                <span className="flex-1 text-white font-medium">{item.special ? '' : item.label}</span>
+                <span className="flex-1 text-foreground font-medium">{item.special ? '' : item.label}</span>
                 {item.extra && (
-                  <span className="text-white/50 text-sm">{item.extra}</span>
+                  <span className="text-muted-foreground text-sm">{item.extra}</span>
                 )}
-                <ChevronRight className="w-5 h-5 text-white/30" />
+                <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
               </div>
             </Link>
           ))}
 
           <div 
             onClick={() => dndMutation.mutate(!dndEnabled)}
-            className={`flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-white/5 ${
-              dndEnabled ? "bg-purple-500/10" : "hover:bg-white/5"
+            className={`flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-border ${
+              dndEnabled ? "bg-purple-500/10" : "hover:bg-muted/50"
             }`}
             data-testid="menu-dnd"
           >
-            <Moon className={`w-5 h-5 ${dndEnabled ? 'text-purple-400' : 'text-gray-400'}`} />
-            <span className="flex-1 text-white font-medium">Do Not Disturb</span>
+            <Moon className={`w-5 h-5 ${dndEnabled ? 'text-purple-400' : 'text-muted-foreground'}`} />
+            <span className="flex-1 text-foreground font-medium">Do Not Disturb</span>
             <div className={`w-12 h-6 rounded-full p-1 transition-colors ${
-              dndEnabled ? "bg-purple-500" : "bg-white/20"
+              dndEnabled ? "bg-purple-500" : "bg-muted"
             }`}>
               <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
                 dndEnabled ? "translate-x-6" : "translate-x-0"
