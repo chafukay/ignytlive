@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Phone, Gift, Building2, Package, Link2, Eye, Share2 } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -270,11 +270,9 @@ export default function Profile() {
             { icon: ShoppingBag, label: "Store", color: "text-blue-400", href: "/store", extra: "Purchase" },
             { icon: Crown, label: "Millionaire", color: "text-yellow-400", href: "/coins", extra: "Upgrade Now", special: true },
             { icon: Award, label: "User Level", color: "text-purple-400", href: "/user-level" },
-            { icon: Phone, label: "Private Call Settings", color: "text-green-400", href: "/settings" },
             { icon: Gift, label: "Top Gifters", color: "text-pink-400", href: "/top-gifters" },
             { icon: Building2, label: "Agency - Earn Extra Diamonds", color: "text-cyan-400", href: "/leaderboard" },
             { icon: Package, label: "Item Bag", color: "text-orange-400", href: "/item-bag" },
-            { icon: Link2, label: "Linked Accounts", color: "text-blue-400", href: "/settings" },
             { icon: Settings, label: "Settings", color: "text-gray-400", href: "/settings" },
           ].map((item) => (
             <Link key={item.label} href={item.href || "#"}>
@@ -316,15 +314,6 @@ export default function Profile() {
                 dndEnabled ? "translate-x-6" : "translate-x-0"
               }`} />
             </div>
-          </div>
-          
-          <div 
-            onClick={handleLogout}
-            className="flex items-center gap-4 p-4 hover:bg-red-500/10 cursor-pointer transition-colors"
-            data-testid="menu-logout"
-          >
-            <LogOut className="w-5 h-5 text-red-400" />
-            <span className="flex-1 text-red-400 font-medium">Log Out</span>
           </div>
         </div>
       </div>
