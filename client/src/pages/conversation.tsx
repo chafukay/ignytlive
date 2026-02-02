@@ -59,20 +59,20 @@ export default function Conversation() {
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-white/50">Please log in to view messages</p>
+        <p className="text-muted-foreground">Please log in to view messages</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="bg-card/50 backdrop-blur-md border-b border-white/10 p-4 flex items-center gap-4">
+      <div className="bg-card/50 backdrop-blur-md border-b border-border p-4 flex items-center gap-4">
         <button 
           onClick={() => setLocation("/chat")}
-          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          className="p-2 hover:bg-muted rounded-full transition-colors"
           data-testid="button-back"
         >
-          <ArrowLeft className="w-5 h-5 text-white" />
+          <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         
         {otherUser ? (
@@ -89,21 +89,21 @@ export default function Conversation() {
               )}
             </div>
             <div>
-              <h2 className="font-bold text-white" data-testid="text-chat-partner-username">{otherUser.username}</h2>
-              <p className="text-xs text-white/50" data-testid="text-chat-partner-status">
+              <h2 className="font-bold text-foreground" data-testid="text-chat-partner-username">{otherUser.username}</h2>
+              <p className="text-xs text-muted-foreground" data-testid="text-chat-partner-status">
                 {otherUser.isLive ? "Live now" : `Level ${otherUser.level}`}
               </p>
             </div>
           </div>
         ) : (
-          <div className="flex-1 h-10 bg-white/10 rounded animate-pulse" />
+          <div className="flex-1 h-10 bg-muted rounded animate-pulse" />
         )}
         
         <button 
-          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          className="p-2 hover:bg-muted rounded-full transition-colors"
           data-testid="button-chat-options"
         >
-          <MoreVertical className="w-5 h-5 text-white/50" />
+          <MoreVertical className="w-5 h-5 text-muted-foreground" />
         </button>
       </div>
 
@@ -112,7 +112,7 @@ export default function Conversation() {
           <div className="flex flex-col gap-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
-                <div className="h-10 w-48 bg-white/10 rounded-2xl animate-pulse" />
+                <div className="h-10 w-48 bg-muted rounded-2xl animate-pulse" />
               </div>
             ))}
           </div>
@@ -128,11 +128,11 @@ export default function Conversation() {
                   className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
                     isOwn 
                       ? 'bg-primary text-white rounded-br-sm' 
-                      : 'bg-white/10 text-white rounded-bl-sm'
+                      : 'bg-muted text-foreground rounded-bl-sm'
                   }`}
                 >
                   <p className="text-sm">{msg.content}</p>
-                  <p className={`text-[10px] mt-1 ${isOwn ? 'text-white/70' : 'text-white/40'}`}>
+                  <p className={`text-[10px] mt-1 ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
                     {formatTime(msg.createdAt)}
                   </p>
                 </div>
@@ -141,7 +141,7 @@ export default function Conversation() {
           })
         ) : (
           <div className="flex-1 flex items-center justify-center h-full">
-            <div className="text-center text-white/40">
+            <div className="text-center text-muted-foreground">
               <p>No messages yet</p>
               <p className="text-sm mt-1">Say hello!</p>
             </div>
@@ -150,14 +150,14 @@ export default function Conversation() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSend} className="p-4 border-t border-white/10 bg-card/30 backdrop-blur-md">
+      <form onSubmit={handleSend} className="p-4 border-t border-border bg-card/30 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <input
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 bg-white/10 border border-white/10 rounded-full py-3 px-4 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
+            className="flex-1 bg-muted border border-border rounded-full py-3 px-4 text-foreground text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground"
             data-testid="input-message"
           />
           <button

@@ -42,7 +42,7 @@ export default function Chat() {
     <Layout>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-white/10">
+        <div className="flex justify-between items-center p-4 border-b border-border">
           <div className="flex items-center gap-3">
             <img 
               src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=User"} 
@@ -54,14 +54,14 @@ export default function Chat() {
               <span className="text-yellow-400 text-sm font-bold">{user?.coins?.toLocaleString() || 0}</span>
             </div>
           </div>
-          <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-            <Mail className="w-5 h-5 text-white" />
+          <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+            <Mail className="w-5 h-5 text-foreground" />
           </button>
         </div>
 
         {/* Live Streamers Row */}
         {liveStreams && liveStreams.length > 0 && (
-          <div className="p-4 border-b border-white/10">
+          <div className="p-4 border-b border-border">
             <div className="flex gap-4 overflow-x-auto no-scrollbar">
               {liveStreams.slice(0, 8).map((stream) => (
                 <Link key={stream.id} href={`/live/${stream.id}`}>
@@ -77,7 +77,7 @@ export default function Chat() {
                         LIVE
                       </span>
                     </div>
-                    <span className="text-white text-[10px] mt-2 truncate w-14 text-center">
+                    <span className="text-foreground text-[10px] mt-2 truncate w-14 text-center">
                       {stream.user?.username?.slice(0, 8) || 'User'}
                     </span>
                   </div>
@@ -88,11 +88,11 @@ export default function Chat() {
         )}
 
         {/* Send Bulk Media */}
-        <div className="mx-4 mt-4 flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 cursor-pointer transition-colors">
+        <div className="mx-4 mt-4 flex items-center gap-3 p-3 bg-muted rounded-xl hover:bg-muted/80 cursor-pointer transition-colors">
           <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
             <Send className="w-5 h-5 text-blue-400" />
           </div>
-          <span className="text-white font-medium">Send Bulk Media</span>
+          <span className="text-foreground font-medium">Send Bulk Media</span>
         </div>
 
         {/* Main/Other Tabs */}
@@ -102,7 +102,7 @@ export default function Chat() {
             className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${
               activeTab === 'main' 
                 ? 'bg-blue-500 text-white' 
-                : 'bg-white/10 text-white/70'
+                : 'bg-muted text-muted-foreground'
             }`}
           >
             Main
@@ -113,7 +113,7 @@ export default function Chat() {
             className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${
               activeTab === 'other' 
                 ? 'bg-blue-500 text-white' 
-                : 'bg-white/10 text-white/70'
+                : 'bg-muted text-muted-foreground'
             }`}
           >
             Other
@@ -124,17 +124,17 @@ export default function Chat() {
         {/* Messages List */}
         <div className="p-4">
           {!user ? (
-            <div className="text-center py-12 text-white/50">
+            <div className="text-center py-12 text-muted-foreground">
               <p>Please log in to see your messages</p>
             </div>
           ) : isLoading ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 animate-pulse">
-                  <div className="w-14 h-14 rounded-full bg-white/10" />
+                <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-muted animate-pulse">
+                  <div className="w-14 h-14 rounded-full bg-muted-foreground/20" />
                   <div className="flex-1">
-                    <div className="h-4 w-24 bg-white/10 rounded mb-2" />
-                    <div className="h-3 w-48 bg-white/10 rounded" />
+                    <div className="h-4 w-24 bg-muted-foreground/20 rounded mb-2" />
+                    <div className="h-3 w-48 bg-muted-foreground/20 rounded" />
                   </div>
                 </div>
               ))}
@@ -145,7 +145,7 @@ export default function Chat() {
                 <div 
                   key={chatUser.id} 
                   onClick={() => setLocation(`/chat/${chatUser.id}`)}
-                  className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 cursor-pointer transition-colors"
+                  className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/50 cursor-pointer transition-colors"
                   data-testid={`chat-${chatUser.id}`}
                 >
                   <div className="relative">
@@ -166,12 +166,12 @@ export default function Chat() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="font-bold text-white">{chatUser.username}</h3>
+                      <h3 className="font-bold text-foreground">{chatUser.username}</h3>
                       {chatUser.vipTier && chatUser.vipTier > 0 && (
                         <span className="text-yellow-400">✓</span>
                       )}
                     </div>
-                    <p className="text-white/50 text-sm truncate flex items-center gap-1">
+                    <p className="text-muted-foreground text-sm truncate flex items-center gap-1">
                       {lastMessage.content?.includes('Premium') && (
                         <Lock className="w-3 h-3 text-yellow-400" />
                       )}
@@ -179,7 +179,7 @@ export default function Chat() {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs text-white/30">{formatTime(lastMessage.createdAt)}</span>
+                    <span className="text-xs text-muted-foreground/60">{formatTime(lastMessage.createdAt)}</span>
                     {Math.random() > 0.5 && (
                       <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 rounded-full">1</span>
                     )}
@@ -188,7 +188,7 @@ export default function Chat() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-white/50">
+            <div className="text-center py-12 text-muted-foreground">
               <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No messages yet</p>
               <p className="text-sm mt-1">Start a conversation!</p>
@@ -202,13 +202,13 @@ export default function Chat() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="font-bold text-white">Ignyt Member</h3>
+                <h3 className="font-bold text-foreground">Ignyt Member</h3>
               </div>
-              <p className="text-white/50 text-sm truncate">You saved a video</p>
+              <p className="text-muted-foreground text-sm truncate">You saved a video</p>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <span className="text-xs text-white/30">March 15</span>
-              <Pin className="w-4 h-4 text-white/20" />
+              <span className="text-xs text-muted-foreground/60">March 15</span>
+              <Pin className="w-4 h-4 text-muted-foreground/40" />
             </div>
           </div>
         </div>
