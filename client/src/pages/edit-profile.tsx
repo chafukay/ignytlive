@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { ChevronRight, Camera, Save, Loader2 } from "lucide-react";
+import { ChevronRight, Camera, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
@@ -55,22 +55,11 @@ export default function EditProfile() {
   return (
     <Layout>
       <div className="min-h-screen bg-background p-4">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setLocation("/settings")} className="text-white">
-              <ChevronRight className="w-6 h-6 rotate-180" />
-            </button>
-            <h1 className="text-xl font-bold text-white">Edit Profile</h1>
-          </div>
-          <button 
-            onClick={handleSave} 
-            disabled={updateMutation.isPending}
-            className="text-primary font-medium flex items-center gap-1 disabled:opacity-50"
-            data-testid="button-save"
-          >
-            {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {updateMutation.isPending ? "Saving..." : "Save"}
+        <div className="flex items-center mb-6">
+          <button onClick={() => setLocation("/settings")} className="text-white">
+            <ChevronRight className="w-6 h-6 rotate-180" />
           </button>
+          <h1 className="text-xl font-bold text-white ml-4">Edit Profile</h1>
         </div>
 
         <div className="flex flex-col items-center mb-8">
@@ -135,6 +124,22 @@ export default function EditProfile() {
             />
             <p className="text-white/30 text-xs mt-1">Must be 18 years or older</p>
           </div>
+
+          <button 
+            onClick={handleSave} 
+            disabled={updateMutation.isPending}
+            className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-4 rounded-full mt-8 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+            data-testid="button-save"
+          >
+            {updateMutation.isPending ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
+          </button>
         </div>
       </div>
     </Layout>
