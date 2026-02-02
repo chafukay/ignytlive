@@ -110,7 +110,7 @@ export default function Profile() {
             </h2>
             <BadgesDisplay userId={user.id} size="md" />
           </div>
-          <div className="flex items-center gap-2 text-sm text-white/60 mb-4">
+          <div className="flex items-center flex-wrap justify-center gap-2 text-sm text-white/60 mb-2">
             {user.gender && (
               <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full text-xs" data-testid="text-gender">
                 {user.gender === 'male' ? '♂️ Male' : user.gender === 'female' ? '♀️ Female' : user.gender === 'non-binary' ? '⚧️ Non-binary' : '🏳️ Other'}
@@ -121,11 +121,23 @@ export default function Profile() {
                 {Math.floor((Date.now() - new Date(user.birthdate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))} years old
               </span>
             )}
-            <span>🌍 US</span>
+            <span>🌍 {user.city || user.country || 'Unknown'}</span>
             <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
               👑 Fans
             </span>
           </div>
+          {user.bio && (
+            <p className="text-white/70 text-sm text-center max-w-xs mb-4 px-4" data-testid="text-bio">
+              {user.bio}
+            </p>
+          )}
+          {!user.bio && (
+            <Link href="/edit-profile">
+              <p className="text-primary/70 text-sm text-center mb-4 cursor-pointer hover:text-primary" data-testid="link-add-bio">
+                + Add a bio
+              </p>
+            </Link>
+          )}
           <div className="flex justify-center gap-8 text-center">
             <div>
               <div className="font-bold text-white" data-testid="text-followers">
