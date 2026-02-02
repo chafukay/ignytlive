@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { ChevronRight, User, Bell, Lock, Eye, Globe, Moon, Sun, HelpCircle, Info, LogOut, Video, Coins, X, Check } from "lucide-react";
+import { ChevronRight, User, Bell, Lock, Eye, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useState, useEffect, type ReactNode } from "react";
@@ -33,7 +33,7 @@ interface NotificationSettings {
 }
 
 export default function Settings() {
-  const { user, logout, setUser } = useAuth();
+  const { user, setUser } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
@@ -159,11 +159,6 @@ export default function Settings() {
     const newValue = !privateAccount;
     setPrivateAccount(newValue);
     updatePrivateAccountMutation.mutate(newValue);
-  };
-
-  const handleLogout = () => {
-    logout();
-    setLocation("/login");
   };
 
   const currentLanguage = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0];
@@ -330,14 +325,6 @@ export default function Settings() {
             </div>
           )}
 
-          <div 
-            onClick={handleLogout}
-            className="flex items-center gap-4 p-4 hover:bg-red-500/10 cursor-pointer transition-colors mt-4"
-            data-testid="button-logout"
-          >
-            <LogOut className="w-5 h-5 text-red-400" />
-            <span className="text-red-400 font-medium">Log Out</span>
-          </div>
         </div>
       </div>
 

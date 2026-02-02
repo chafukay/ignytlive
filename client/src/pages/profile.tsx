@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2 } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -314,6 +314,15 @@ export default function Profile() {
                 dndEnabled ? "translate-x-6" : "translate-x-0"
               }`} />
             </div>
+          </div>
+          
+          <div 
+            onClick={handleLogout}
+            className="flex items-center gap-4 p-4 hover:bg-red-500/10 cursor-pointer transition-colors"
+            data-testid="menu-logout"
+          >
+            <LogOut className="w-5 h-5 text-red-400" />
+            <span className="flex-1 text-red-400 font-medium">Log Out</span>
           </div>
         </div>
       </div>
