@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Sun, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Phone, Gift, Building2, Package, Link2, Eye, Share2 } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, LogOut, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Phone, Gift, Building2, Package, Link2, Eye, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -8,13 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import BadgesDisplay from "@/components/badges-display";
 import UserAvatar from "@/components/user-avatar";
 import { useState } from "react";
-import { useTheme } from "@/lib/theme-context";
 
 export default function Profile() {
   const { user, logout, setUser } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { theme, toggleTheme } = useTheme();
   const [dndEnabled, setDndEnabled] = useState(user?.dndEnabled || false);
 
   // Check if user is currently live streaming
@@ -301,40 +299,16 @@ export default function Profile() {
           ))}
 
           <div 
-            onClick={toggleTheme}
-            className={`flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-white/5 ${
-              theme === "dark" ? "bg-indigo-500/10" : "hover:bg-black/5"
-            }`}
-            data-testid="menu-theme"
-          >
-            {theme === "dark" ? (
-              <Moon className="w-5 h-5 text-indigo-400" />
-            ) : (
-              <Sun className="w-5 h-5 text-yellow-500" />
-            )}
-            <span className="flex-1 text-foreground font-medium">
-              {theme === "dark" ? "Dark Mode" : "Light Mode"}
-            </span>
-            <div className={`w-12 h-6 rounded-full p-1 transition-colors ${
-              theme === "dark" ? "bg-indigo-500" : "bg-yellow-400"
-            }`}>
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                theme === "dark" ? "translate-x-6" : "translate-x-0"
-              }`} />
-            </div>
-          </div>
-
-          <div 
             onClick={() => dndMutation.mutate(!dndEnabled)}
             className={`flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-white/5 ${
-              dndEnabled ? "bg-purple-500/10" : "hover:bg-black/5"
+              dndEnabled ? "bg-purple-500/10" : "hover:bg-white/5"
             }`}
             data-testid="menu-dnd"
           >
-            <Moon className={`w-5 h-5 ${dndEnabled ? 'text-purple-400' : 'text-muted-foreground'}`} />
-            <span className="flex-1 text-foreground font-medium">Do Not Disturb</span>
+            <Moon className={`w-5 h-5 ${dndEnabled ? 'text-purple-400' : 'text-gray-400'}`} />
+            <span className="flex-1 text-white font-medium">Do Not Disturb</span>
             <div className={`w-12 h-6 rounded-full p-1 transition-colors ${
-              dndEnabled ? "bg-purple-500" : "bg-muted"
+              dndEnabled ? "bg-purple-500" : "bg-white/20"
             }`}>
               <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
                 dndEnabled ? "translate-x-6" : "translate-x-0"

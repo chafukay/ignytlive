@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { ChevronRight, User, Bell, Lock, Eye, Globe, Moon, HelpCircle, Info, LogOut, Video, Coins } from "lucide-react";
+import { ChevronRight, User, Bell, Lock, Eye, Globe, Moon, Sun, HelpCircle, Info, LogOut, Video, Coins } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -8,11 +8,13 @@ import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/lib/theme-context";
 
 export default function Settings() {
   const { user, logout, setUser } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState(true);
   const [privateAccount, setPrivateAccount] = useState(false);
@@ -62,13 +64,14 @@ export default function Settings() {
     value?: boolean;
     onChange?: (val: boolean) => void;
     extra?: string;
+    isTheme?: boolean;
   }> = [
     { icon: User, label: "Edit Profile", href: "/edit-profile" },
     { icon: Bell, label: "Notifications", toggle: true, value: notifications, onChange: setNotifications },
     { icon: Lock, label: "Privacy", href: "/privacy" },
     { icon: Eye, label: "Private Account", toggle: true, value: privateAccount, onChange: setPrivateAccount },
     { icon: Globe, label: "Language", extra: "English" },
-    { icon: Moon, label: "Dark Mode", extra: "On" },
+    { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", isTheme: true },
     { icon: HelpCircle, label: "Help & Support", href: "/help" },
     { icon: Info, label: "About", href: "/about" },
   ];
@@ -97,12 +100,13 @@ export default function Settings() {
                 </Link>
               ) : item.toggle ? (
                 <div 
-                  onClick={() => item.onChange?.(!item.value)}
+                  onClick={() => item.isTheme ? toggleTheme() : item.onChange?.(!item.value)}
                   className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5"
+                  data-testid={item.isTheme ? "toggle-dark-mode" : undefined}
                 >
-                  <item.icon className="w-5 h-5 text-white/70" />
+                  <item.icon className={`w-5 h-5 ${item.isTheme && theme === "dark" ? "text-indigo-400" : item.isTheme ? "text-yellow-500" : "text-white/70"}`} />
                   <span className="flex-1 text-white">{item.label}</span>
-                  <div className={`w-12 h-6 rounded-full p-1 transition-colors ${item.value ? "bg-primary" : "bg-white/20"}`}>
+                  <div className={`w-12 h-6 rounded-full p-1 transition-colors ${item.value ? (item.isTheme ? "bg-indigo-500" : "bg-primary") : "bg-white/20"}`}>
                     <div className={`w-4 h-4 rounded-full bg-white transition-transform ${item.value ? "translate-x-6" : "translate-x-0"}`} />
                   </div>
                 </div>
