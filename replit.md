@@ -46,9 +46,16 @@ Core data models include:
 - Stream Comments (live chat)
 
 ### Authentication
-- Simple username/password authentication stored in database
+- **Multiple Login Methods**:
+  - Email/Username + password
+  - Phone number with SMS verification (Twilio)
+  - Social login via Replit Auth (Google, Apple, GitHub, email)
+  - Guest browsing (read-only)
+- **Age Gating**: 18+ enforcement on registration (birthdate required)
+- **Guest Mode**: Temporary accounts with restricted write access
 - Client-side auth state persisted in localStorage
 - Auth context provider wraps the application for global auth access
+- Replit Auth integration via OIDC for social logins
 
 ### Real-time Features
 - WebSocket connections are stream-scoped (connected via `?streamId=` query param)

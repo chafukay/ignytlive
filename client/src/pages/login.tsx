@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Flame, Phone, Mail, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Flame, Phone, Mail, ArrowLeft, User, Chrome } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+
+const AppleIcon = () => (
+  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+  </svg>
+);
 
 type LoginMode = "select" | "username" | "phone" | "verify";
 
@@ -79,12 +85,68 @@ export default function Login() {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setIsLoading(true);
+    try {
+      const { user: guestUser } = await api.guestLogin();
+      login(guestUser);
+      toast({ title: "Welcome! You're browsing as a guest", description: "Some features are limited" });
+      setLocation("/");
+    } catch (error) {
+      toast({ title: "Failed to start guest session", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    window.location.href = "/api/login";
+  };
+
   const renderSelectMode = () => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-sm space-y-4"
+      className="w-full max-w-sm space-y-3"
     >
+      {/* Social Login Options */}
+      <button
+        onClick={() => handleSocialLogin("google")}
+        className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+        data-testid="button-login-google"
+      >
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center">
+          <Chrome className="w-6 h-6 text-[#4285F4]" />
+        </div>
+        <div className="text-left">
+          <p className="text-white font-medium">Continue with Google</p>
+          <p className="text-white/50 text-sm">Quick and secure login</p>
+        </div>
+      </button>
+
+      <button
+        onClick={() => handleSocialLogin("apple")}
+        className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+        data-testid="button-login-apple"
+      >
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-black">
+          <AppleIcon />
+        </div>
+        <div className="text-left">
+          <p className="text-white font-medium">Continue with Apple</p>
+          <p className="text-white/50 text-sm">Sign in with your Apple ID</p>
+        </div>
+      </button>
+
+      <div className="relative py-2">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-white/10"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-background px-4 text-white/40">or</span>
+        </div>
+      </div>
+
       <button
         onClick={() => setMode("username")}
         className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
@@ -94,7 +156,7 @@ export default function Login() {
           <Mail className="w-6 h-6 text-white" />
         </div>
         <div className="text-left">
-          <p className="text-white font-medium">Continue with Username</p>
+          <p className="text-white font-medium">Continue with Email</p>
           <p className="text-white/50 text-sm">Sign in with your account</p>
         </div>
       </button>
@@ -112,6 +174,27 @@ export default function Login() {
           <p className="text-white/50 text-sm">We'll text you a code</p>
         </div>
       </button>
+
+      <div className="pt-4 border-t border-white/10">
+        <button
+          onClick={handleGuestLogin}
+          disabled={isLoading}
+          className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+          data-testid="button-login-guest"
+        >
+          <div className="w-12 h-12 rounded-full bg-gray-500/20 flex items-center justify-center">
+            <User className="w-6 h-6 text-white/70" />
+          </div>
+          <div className="text-left">
+            <p className="text-white font-medium">{isLoading ? "Starting..." : "Browse as Guest"}</p>
+            <p className="text-white/50 text-sm">View streams without signing up</p>
+          </div>
+        </button>
+      </div>
+
+      <p className="text-center text-white/40 text-xs pt-4">
+        By continuing, you confirm you are 18+ and agree to our Terms of Service
+      </p>
     </motion.div>
   );
 

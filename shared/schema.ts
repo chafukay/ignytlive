@@ -34,6 +34,11 @@ export const users = pgTable("users", {
   city: text("city"),
   state: text("state"),
   country: text("country"),
+  gender: text("gender"), // male, female, other, prefer_not_to_say
+  birthdate: timestamp("birthdate"),
+  isGuest: boolean("is_guest").notNull().default(false),
+  socialProvider: text("social_provider"), // google, apple, github, email, phone
+  socialProviderId: text("social_provider_id"), // Provider's unique user ID
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   usernameIdx: index("username_idx").on(table.username),
@@ -756,3 +761,6 @@ export const insertPrivateCallSchema = createInsertSchema(privateCalls).omit({
 });
 export type InsertPrivateCall = z.infer<typeof insertPrivateCallSchema>;
 export type PrivateCall = typeof privateCalls.$inferSelect;
+
+// Export Replit Auth models (sessions table is mandatory)
+export * from "./models/auth";

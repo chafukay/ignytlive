@@ -16,6 +16,59 @@ import {
   insertJoinRequestSchema
 } from "@shared/schema";
 import { z } from "zod";
+import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+
+// Helper to check if user is a guest and block write actions
+const checkGuestRestriction = async (userId: string | undefined, res: any, storage: any): Promise<boolean> => {
+  if (!userId) return false;
+  const user = await storage.getUser(userId);
+  if (user?.isGuest) {
+    res.status(403).json({ error: "Guest users cannot perform this action. Please sign up to continue." });
+    return true;
+  }
+  return false;
+};
+
+// Helper to check if user needs age verification (social login without birthdate)
+const checkAgeVerification = async (userId: string | undefined, res: any, storage: any): Promise<boolean> => {
+  if (!userId) return false;
+  const user = await storage.getUser(userId);
+  // Social login users without birthdate need to verify age
+  if (user?.socialProvider && !user?.birthdate && !user?.isGuest) {
+    res.status(403).json({ 
+      error: "Age verification required",
+      code: "AGE_VERIFICATION_REQUIRED",
+      message: "Please verify your age to continue using IgnytLive"
+    });
+    return true;
+  }
+  return false;
+};
+
+// Combined check for guest and age restrictions
+const checkUserRestrictions = async (userId: string | undefined, res: any, storage: any): Promise<boolean> => {
+  if (await checkGuestRestriction(userId, res, storage)) return true;
+  if (await checkAgeVerification(userId, res, storage)) return true;
+  return false;
+};
+
+// Age verification helper
+const verifyAge = (birthdate: string | Date | null | undefined): { valid: boolean; age?: number; error?: string } => {
+  if (!birthdate) {
+    return { valid: false, error: "Birthdate is required for age verification" };
+  }
+  const birthDate = new Date(birthdate);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  if (age < 18) {
+    return { valid: false, age, error: "You must be 18 or older to use this platform" };
+  }
+  return { valid: true, age };
+};
 
 // WebSocket connections per stream
 const streamConnections = new Map<string, Set<WebSocket>>();
@@ -27,6 +80,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  // Setup Replit Auth (MUST be before other routes)
+  await setupAuth(app);
+  registerAuthRoutes(app);
   
   // WebSocket server for real-time features
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
@@ -210,6 +267,13 @@ export async function registerRoutes(
   app.post("/api/auth/register", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
+      
+      // Age gating - require birthdate and check 18+
+      const ageCheck = verifyAge(userData.birthdate);
+      if (!ageCheck.valid) {
+        return res.status(400).json({ error: ageCheck.error });
+      }
+      
       const existingUser = await storage.getUserByUsername(userData.username);
       
       if (existingUser) {
@@ -220,6 +284,52 @@ export async function registerRoutes(
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
+    }
+  });
+
+  // Guest login - creates a temporary read-only account
+  app.post("/api/auth/guest", async (req, res) => {
+    try {
+      const guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const guestUser = await storage.createUser({
+        username: guestId,
+        email: `${guestId}@guest.ignytlive.com`,
+        password: crypto.randomUUID(),
+        isGuest: true,
+      });
+      res.json({ user: { ...guestUser, password: undefined } });
+    } catch (error) {
+      console.error("Guest login error:", error);
+      res.status(500).json({ error: "Failed to create guest session" });
+    }
+  });
+
+  // Age verification for social login users
+  app.post("/api/auth/verify-age", async (req, res) => {
+    try {
+      const { userId, birthdate } = req.body;
+      
+      if (!userId || !birthdate) {
+        return res.status(400).json({ error: "User ID and birthdate are required" });
+      }
+
+      // Verify age
+      const ageCheck = verifyAge(birthdate);
+      if (!ageCheck.valid) {
+        return res.status(400).json({ error: ageCheck.error });
+      }
+
+      // Update user with verified birthdate
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, { birthdate: new Date(birthdate) });
+      res.json({ user: { ...updatedUser, password: undefined } });
+    } catch (error) {
+      console.error("Age verification error:", error);
+      res.status(500).json({ error: "Failed to verify age" });
     }
   });
 
@@ -275,7 +385,7 @@ export async function registerRoutes(
   // Phone authentication - verify code and login/register
   app.post("/api/auth/phone/verify", async (req, res) => {
     try {
-      const { phone, code } = req.body;
+      const { phone, code, birthdate } = req.body;
       
       if (!phone || !code) {
         return res.status(400).json({ error: "Phone and code are required" });
@@ -292,6 +402,12 @@ export async function registerRoutes(
       let user = await storage.getUserByPhone(phone);
       
       if (!user) {
+        // Age gating for new users
+        const ageCheck = verifyAge(birthdate);
+        if (!ageCheck.valid) {
+          return res.status(400).json({ error: ageCheck.error || "Age verification required" });
+        }
+        
         // Create new user with phone number
         const username = `user_${phone.slice(-4)}_${Date.now().toString(36)}`;
         user = await storage.createUser({
@@ -300,6 +416,7 @@ export async function registerRoutes(
           password: Math.random().toString(36).slice(2),
           phone,
           phoneVerified: true,
+          birthdate: birthdate ? new Date(birthdate) : undefined,
         });
       }
 
@@ -412,6 +529,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "userId and title are required" });
       }
       
+      // Guest restriction
+      if (await checkGuestRestriction(userId, res, storage)) return;
+      
       const stream = await storage.createStream({
         userId,
         title,
@@ -482,6 +602,9 @@ export async function registerRoutes(
     try {
       const { userId, text } = req.body;
       const streamId = req.params.id;
+      
+      // Guest restriction
+      if (await checkGuestRestriction(userId, res, storage)) return;
       
       // Get stream to check slow mode and host
       const stream = await storage.getStream(streamId);
@@ -572,6 +695,10 @@ export async function registerRoutes(
   app.post("/api/shorts", async (req, res) => {
     try {
       const shortData = insertShortSchema.parse(req.body);
+      
+      // Guest restriction
+      if (await checkGuestRestriction(shortData.userId, res, storage)) return;
+      
       const short = await storage.createShort(shortData);
       res.json(short);
     } catch (error) {
@@ -586,6 +713,10 @@ export async function registerRoutes(
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });
       }
+      
+      // Guest restriction
+      if (await checkGuestRestriction(userId, res, storage)) return;
+      
       const liked = await storage.likeShort(id, userId);
       res.json({ success: true, liked });
     } catch (error) {
@@ -619,6 +750,10 @@ export async function registerRoutes(
       if (!userId || !content) {
         return res.status(400).json({ error: "userId and content are required" });
       }
+      
+      // Guest restriction
+      if (await checkGuestRestriction(userId, res, storage)) return;
+      
       const comment = await storage.createShortComment({
         shortId: req.params.id,
         userId,
@@ -698,6 +833,10 @@ export async function registerRoutes(
   app.post("/api/follows", async (req, res) => {
     try {
       const followData = insertFollowSchema.parse(req.body);
+      
+      // Guest restriction
+      if (await checkGuestRestriction(followData.followerId, res, storage)) return;
+      
       const follow = await storage.createFollow(followData);
       res.json(follow);
     } catch (error) {
@@ -743,6 +882,10 @@ export async function registerRoutes(
   app.post("/api/gifts/send", async (req, res) => {
     try {
       const transactionData = insertGiftTransactionSchema.parse(req.body);
+      
+      // Guest restriction
+      if (await checkGuestRestriction(transactionData.senderId, res, storage)) return;
+      
       const transaction = await storage.sendGift(transactionData);
       
       // Broadcast gift to stream viewers
@@ -767,6 +910,10 @@ export async function registerRoutes(
   app.post("/api/messages", async (req, res) => {
     try {
       const messageData = insertMessageSchema.parse(req.body);
+      
+      // Guest restriction
+      if (await checkGuestRestriction(messageData.senderId, res, storage)) return;
+      
       const message = await storage.createMessage(messageData);
       res.json(message);
     } catch (error) {

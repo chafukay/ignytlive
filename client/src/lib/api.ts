@@ -44,6 +44,15 @@ export const api = {
     return res.json() as Promise<{ user: User }>;
   },
 
+  async guestLogin() {
+    const res = await fetch(`${API_BASE}/api/auth/guest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ user: User }>;
+  },
+
   // Location
   async updateUserLocation(userId: string, location: { latitude: number; longitude: number; city?: string; state?: string; country?: string }) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/location`, {
