@@ -129,8 +129,8 @@ export default function Shorts() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="h-[calc(100vh-5rem)] md:h-screen w-full bg-black flex items-center justify-center">
-          <div className="text-white">Loading...</div>
+        <div className="h-[calc(100vh-5rem)] md:h-screen w-full bg-background flex items-center justify-center">
+          <div className="text-foreground">Loading...</div>
         </div>
       </Layout>
     );
@@ -151,8 +151,8 @@ export default function Shorts() {
       )}
 
       {!shorts || shorts.length === 0 ? (
-        <div className="h-[calc(100vh-5rem)] md:h-screen w-full bg-black flex flex-col items-center justify-center">
-          <div className="text-white/50 text-center">
+        <div className="h-[calc(100vh-5rem)] md:h-screen w-full bg-background flex flex-col items-center justify-center">
+          <div className="text-muted-foreground text-center">
             <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <p className="text-lg">No shorts available yet</p>
             <p className="text-sm mt-2">Be the first to post a short!</p>
@@ -167,7 +167,7 @@ export default function Shorts() {
         </div>
       ) : (
         <div 
-          className="h-[calc(100vh-5rem)] md:h-screen w-full snap-y snap-mandatory overflow-y-scroll no-scrollbar bg-black"
+          className="h-[calc(100vh-5rem)] md:h-screen w-full snap-y snap-mandatory overflow-y-scroll no-scrollbar bg-background"
           onScroll={handleScroll}
         >
           {shorts.map((short, i) => {
@@ -180,7 +180,7 @@ export default function Shorts() {
             const isLiked = likedShorts[short.id];
 
             return (
-            <div key={short.id} className="h-full w-full snap-start relative flex items-center justify-center bg-gray-900">
+            <div key={short.id} className="h-full w-full snap-start relative flex items-center justify-center bg-card">
               {isVideo ? (
                 <video 
                   src={short.videoUrl}
@@ -199,12 +199,12 @@ export default function Shorts() {
                   data-testid={`img-short-${short.id}`}
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90" />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/90" />
 
               <div className="absolute right-4 bottom-20 flex flex-col items-center gap-6 z-20">
                 <Link href={`/profile/${short.user.id}`}>
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-full border-2 border-white overflow-hidden p-0.5">
+                    <div className="w-12 h-12 rounded-full border-2 border-foreground overflow-hidden p-0.5">
                       <img 
                         src={short.user.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + short.user.username} 
                         className="w-full h-full rounded-full object-cover" 
@@ -221,12 +221,12 @@ export default function Shorts() {
                   <button 
                     onClick={() => user && likeMutation.mutate(short.id)}
                     disabled={!user || likeMutation.isPending}
-                    className="p-3 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors cursor-pointer disabled:opacity-50"
+                    className="p-3 rounded-full bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
                     data-testid={`button-like-${short.id}`}
                   >
-                    <Heart className={`w-7 h-7 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : 'text-white fill-white/20 hover:fill-red-500 hover:text-red-500'}`} />
+                    <Heart className={`w-7 h-7 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : 'text-foreground fill-muted hover:fill-red-500 hover:text-red-500'}`} />
                   </button>
-                  <span className="text-white text-xs font-bold" data-testid={`text-likes-${short.id}`}>
+                  <span className="text-foreground text-xs font-bold" data-testid={`text-likes-${short.id}`}>
                     {formatCount(short.likesCount)}
                   </span>
                 </div>
@@ -234,35 +234,35 @@ export default function Shorts() {
                 <div className="flex flex-col items-center gap-1">
                   <button 
                     onClick={() => setShowComments(short.id)}
-                    className="p-3 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors cursor-pointer"
+                    className="p-3 rounded-full bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors cursor-pointer"
                     data-testid={`button-comments-${short.id}`}
                   >
-                    <MessageCircle className="w-7 h-7 text-white fill-white/20" />
+                    <MessageCircle className="w-7 h-7 text-foreground fill-muted" />
                   </button>
-                  <span className="text-white text-xs font-bold">{formatCount(short.commentsCount)}</span>
+                  <span className="text-foreground text-xs font-bold">{formatCount(short.commentsCount)}</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
-                  <div className="p-3 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors cursor-pointer">
-                    <Share2 className="w-7 h-7 text-white" />
+                  <div className="p-3 rounded-full bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors cursor-pointer">
+                    <Share2 className="w-7 h-7 text-foreground" />
                   </div>
-                  <span className="text-white text-xs font-bold">{formatCount(short.sharesCount)}</span>
+                  <span className="text-foreground text-xs font-bold">{formatCount(short.sharesCount)}</span>
                 </div>
 
                 <div className="mt-2 animate-[spin_5s_linear_infinite]">
-                  <div className="w-12 h-12 rounded-full bg-gray-800 border-4 border-gray-900 flex items-center justify-center relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-card border-4 border-background flex items-center justify-center relative overflow-hidden">
                     <img 
                       src={short.user.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + short.user.username} 
                       className="w-full h-full object-cover opacity-80" 
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Disc className="w-6 h-6 text-white" />
+                      <Disc className="w-6 h-6 text-foreground" />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="absolute bottom-6 left-4 right-16 z-20 text-white">
+              <div className="absolute bottom-6 left-4 right-16 z-20 text-foreground">
                 <Link href={`/profile/${short.user.id}`}>
                   <h3 className="font-bold text-lg mb-2 hover:underline" data-testid={`text-username-${short.id}`}>
                     @{short.user.username}
@@ -271,7 +271,7 @@ export default function Shorts() {
                 <p className="text-sm mb-4 line-clamp-2">{short.description || "Check out this short!"}</p>
                 
                 {short.song && (
-                  <div className="flex items-center gap-2 bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm animate-pulse">
+                  <div className="flex items-center gap-2 bg-muted/50 w-fit px-3 py-1 rounded-full backdrop-blur-sm animate-pulse">
                     <Music2 className="w-3 h-3" />
                     <div className="text-xs overflow-hidden w-32 whitespace-nowrap">
                       <span className="inline-block animate-marquee">{short.song}</span>
@@ -286,23 +286,23 @@ export default function Shorts() {
       )}
 
       {showComments && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center" onClick={() => setShowComments(null)}>
+        <div className="fixed inset-0 bg-background/80 z-50 flex items-end justify-center" onClick={() => setShowComments(null)}>
           <div 
-            className="bg-gray-900 w-full max-w-lg rounded-t-3xl max-h-[70vh] flex flex-col"
+            className="bg-card w-full max-w-lg rounded-t-3xl max-h-[70vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 className="text-white font-bold text-lg">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-foreground font-bold text-lg">
                 {(comments as ShortComment[])?.length || 0} Comments
               </h2>
-              <button onClick={() => setShowComments(null)} className="text-white/60 hover:text-white" data-testid="button-close-comments">
+              <button onClick={() => setShowComments(null)} className="text-muted-foreground hover:text-foreground" data-testid="button-close-comments">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {!comments || (comments as ShortComment[]).length === 0 ? (
-                <div className="text-center py-10 text-white/50">
+                <div className="text-center py-10 text-muted-foreground">
                   <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No comments yet. Be the first to comment!</p>
                 </div>
@@ -319,23 +319,23 @@ export default function Shorts() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <Link href={`/profile/${comment.user.id}`}>
-                            <span className="text-white font-semibold text-sm hover:underline">@{comment.user.username}</span>
+                            <span className="text-foreground font-semibold text-sm hover:underline">@{comment.user.username}</span>
                           </Link>
-                          <span className="text-white/40 text-xs">{formatTime(comment.createdAt)}</span>
+                          <span className="text-muted-foreground text-xs">{formatTime(comment.createdAt)}</span>
                         </div>
-                        <p className="text-white/90 text-sm mt-1">{comment.content}</p>
+                        <p className="text-foreground/90 text-sm mt-1">{comment.content}</p>
                         
                         <div className="flex items-center gap-4 mt-2">
                           <div className="relative">
                             <button 
                               onClick={() => setShowReactionPicker(showReactionPicker === comment.id ? null : comment.id)}
-                              className="text-white/50 text-xs hover:text-white flex items-center gap-1"
+                              className="text-muted-foreground text-xs hover:text-foreground flex items-center gap-1"
                             >
                               <Heart className="w-4 h-4" />
                               <span>{comment.likesCount}</span>
                             </button>
                             {showReactionPicker === comment.id && (
-                              <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-full px-2 py-1 flex gap-1 shadow-lg">
+                              <div className="absolute bottom-full left-0 mb-2 bg-muted rounded-full px-2 py-1 flex gap-1 shadow-lg">
                                 {REACTION_EMOJIS.map((emoji) => (
                                   <button
                                     key={emoji}
@@ -350,7 +350,7 @@ export default function Shorts() {
                           </div>
                           <button 
                             onClick={() => setReplyingTo({ id: comment.id, username: comment.user.username })}
-                            className="text-white/50 text-xs hover:text-white"
+                            className="text-muted-foreground text-xs hover:text-foreground"
                           >
                             Reply
                           </button>
@@ -375,7 +375,7 @@ export default function Shorts() {
                             </button>
                             
                             {expandedReplies[comment.id] && (
-                              <div className="mt-2 space-y-3 pl-4 border-l border-white/10">
+                              <div className="mt-2 space-y-3 pl-4 border-l border-border">
                                 {comment.replies.map((reply) => (
                                   <div key={reply.id} className="flex gap-2">
                                     <Link href={`/profile/${reply.user.id}`}>
@@ -387,22 +387,22 @@ export default function Shorts() {
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2">
                                         <Link href={`/profile/${reply.user.id}`}>
-                                          <span className="text-white font-semibold text-xs hover:underline">@{reply.user.username}</span>
+                                          <span className="text-foreground font-semibold text-xs hover:underline">@{reply.user.username}</span>
                                         </Link>
-                                        <span className="text-white/40 text-xs">{formatTime(reply.createdAt)}</span>
+                                        <span className="text-muted-foreground text-xs">{formatTime(reply.createdAt)}</span>
                                       </div>
-                                      <p className="text-white/90 text-xs mt-1">{reply.content}</p>
+                                      <p className="text-foreground/90 text-xs mt-1">{reply.content}</p>
                                       <div className="flex items-center gap-3 mt-1">
                                         <div className="relative">
                                           <button 
                                             onClick={() => setShowReactionPicker(showReactionPicker === reply.id ? null : reply.id)}
-                                            className="text-white/50 text-xs hover:text-white flex items-center gap-1"
+                                            className="text-muted-foreground text-xs hover:text-foreground flex items-center gap-1"
                                           >
                                             <Heart className="w-3 h-3" />
                                             <span>{reply.likesCount}</span>
                                           </button>
                                           {showReactionPicker === reply.id && (
-                                            <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-full px-2 py-1 flex gap-1 shadow-lg">
+                                            <div className="absolute bottom-full left-0 mb-2 bg-muted rounded-full px-2 py-1 flex gap-1 shadow-lg">
                                               {REACTION_EMOJIS.map((emoji) => (
                                                 <button
                                                   key={emoji}
@@ -439,12 +439,12 @@ export default function Shorts() {
             </div>
 
             {user ? (
-              <div className="p-4 border-t border-white/10">
+              <div className="p-4 border-t border-border">
                 {replyingTo && (
                   <div className="flex items-center gap-2 mb-2 text-sm">
-                    <span className="text-white/50">Replying to</span>
+                    <span className="text-muted-foreground">Replying to</span>
                     <span className="text-purple-400">@{replyingTo.username}</span>
-                    <button onClick={() => setReplyingTo(null)} className="text-white/50 hover:text-white ml-auto">
+                    <button onClick={() => setReplyingTo(null)} className="text-muted-foreground hover:text-foreground ml-auto">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -459,7 +459,7 @@ export default function Shorts() {
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment..."}
-                    className="flex-1 bg-white/10 text-white placeholder:text-white/40 rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-purple-500"
+                    className="flex-1 bg-muted text-foreground placeholder:text-muted-foreground rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-purple-500"
                     onKeyDown={(e) => e.key === 'Enter' && handleSubmitComment()}
                     data-testid="input-comment"
                   />
@@ -474,8 +474,8 @@ export default function Shorts() {
                 </div>
               </div>
             ) : (
-              <div className="p-4 border-t border-white/10 text-center">
-                <p className="text-white/50 text-sm">
+              <div className="p-4 border-t border-border text-center">
+                <p className="text-muted-foreground text-sm">
                   <Link href="/login" className="text-purple-400 hover:underline">Log in</Link> to comment
                 </p>
               </div>
