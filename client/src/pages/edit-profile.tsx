@@ -1,20 +1,55 @@
 import Layout from "@/components/layout";
-import { ChevronRight, Camera, Save } from "lucide-react";
+import { ChevronRight, Camera, Save, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 export default function EditProfile() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { toast } = useToast();
   const [username, setUsername] = useState(user?.username || "");
   const [bio, setBio] = useState(user?.bio || "");
+  const [gender, setGender] = useState(user?.gender || "");
+  const [birthdate, setBirthdate] = useState(
+    user?.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : ""
+  );
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { username?: string; bio?: string; gender?: string; birthdate?: Date }) => 
+      api.updateUser(user!.id, data),
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      toast({ title: "Profile updated successfully!" });
+      setLocation("/profile");
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to update profile", 
+        description: error.message || "Please try again",
+        variant: "destructive" 
+      });
+    },
+  });
 
   const handleSave = () => {
-    toast({ title: "Profile updated successfully!" });
-    setLocation("/profile");
+    const updates: any = {};
+    if (username !== user?.username) updates.username = username;
+    if (bio !== user?.bio) updates.bio = bio;
+    if (gender !== user?.gender) updates.gender = gender;
+    if (birthdate && birthdate !== (user?.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : "")) {
+      updates.birthdate = new Date(birthdate);
+    }
+    
+    if (Object.keys(updates).length === 0) {
+      toast({ title: "No changes to save" });
+      return;
+    }
+    
+    updateMutation.mutate(updates);
   };
 
   return (
@@ -27,9 +62,14 @@ export default function EditProfile() {
             </button>
             <h1 className="text-xl font-bold text-white">Edit Profile</h1>
           </div>
-          <button onClick={handleSave} className="text-primary font-medium flex items-center gap-1">
-            <Save className="w-4 h-4" />
-            Save
+          <button 
+            onClick={handleSave} 
+            disabled={updateMutation.isPending}
+            className="text-primary font-medium flex items-center gap-1 disabled:opacity-50"
+            data-testid="button-save"
+          >
+            {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {updateMutation.isPending ? "Saving..." : "Save"}
           </button>
         </div>
 
@@ -65,7 +105,35 @@ export default function EditProfile() {
               rows={3}
               className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary resize-none"
               placeholder="Tell us about yourself..."
+              data-testid="input-bio"
             />
+          </div>
+          <div>
+            <label className="text-white/50 text-sm mb-2 block">Gender</label>
+            <select 
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary"
+              data-testid="select-gender"
+            >
+              <option value="" className="bg-gray-900">Select gender</option>
+              <option value="male" className="bg-gray-900">Male</option>
+              <option value="female" className="bg-gray-900">Female</option>
+              <option value="non-binary" className="bg-gray-900">Non-binary</option>
+              <option value="other" className="bg-gray-900">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-white/50 text-sm mb-2 block">Date of Birth</label>
+            <input 
+              type="date"
+              value={birthdate}
+              onChange={(e) => setBirthdate(e.target.value)}
+              max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary"
+              data-testid="input-birthdate"
+            />
+            <p className="text-white/30 text-xs mt-1">Must be 18 years or older</p>
           </div>
         </div>
       </div>

@@ -111,6 +111,16 @@ export default function Profile() {
             <BadgesDisplay userId={user.id} size="md" />
           </div>
           <div className="flex items-center gap-2 text-sm text-white/60 mb-4">
+            {user.gender && (
+              <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full text-xs" data-testid="text-gender">
+                {user.gender === 'male' ? '♂️ Male' : user.gender === 'female' ? '♀️ Female' : user.gender === 'non-binary' ? '⚧️ Non-binary' : '🏳️ Other'}
+              </span>
+            )}
+            {user.birthdate && (
+              <span className="text-white/50 text-xs" data-testid="text-age">
+                {Math.floor((Date.now() - new Date(user.birthdate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))} years old
+              </span>
+            )}
             <span>🌍 US</span>
             <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
               👑 Fans
