@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, boolean, timestamp, index, doublePrecision } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -29,6 +29,11 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"), // user, admin, superadmin
   phone: text("phone").unique(),
   phoneVerified: boolean("phone_verified").notNull().default(false),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  city: text("city"),
+  state: text("state"),
+  country: text("country"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   usernameIdx: index("username_idx").on(table.username),
@@ -83,6 +88,11 @@ export const streams = pgTable("streams", {
   groupId: varchar("group_id"),
   slowModeSeconds: integer("slow_mode_seconds").notNull().default(0), // 0 = disabled, otherwise rate limit in seconds
   pinnedMessageId: varchar("pinned_message_id"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  city: text("city"),
+  state: text("state"),
+  country: text("country"),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

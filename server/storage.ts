@@ -1354,6 +1354,54 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
+
+  async updateUserLocation(userId: string, location: { latitude: number; longitude: number; city?: string; state?: string; country?: string }): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set(location)
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  async getNearbyStreams(latitude: number, longitude: number, radiusKm: number = 100): Promise<(Stream & { user: User; distance: number })[]> {
+    // Get all live streams with location
+    const liveStreams = await db
+      .select()
+      .from(streams)
+      .innerJoin(users, eq(streams.userId, users.id))
+      .where(and(
+        eq(streams.isLive, true),
+        sql`${streams.latitude} IS NOT NULL`,
+        sql`${streams.longitude} IS NOT NULL`
+      ));
+
+    // Calculate distance using Haversine formula and filter
+    const R = 6371; // Earth's radius in km
+    const nearbyStreams = liveStreams
+      .map(row => {
+        const streamLat = row.streams.latitude!;
+        const streamLon = row.streams.longitude!;
+        
+        const dLat = (streamLat - latitude) * Math.PI / 180;
+        const dLon = (streamLon - longitude) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(latitude * Math.PI / 180) * Math.cos(streamLat * Math.PI / 180) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distance = R * c;
+
+        return {
+          ...row.streams,
+          user: row.users,
+          distance,
+        };
+      })
+      .filter(s => s.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance);
+
+    return nearbyStreams;
+  }
 }
 
 export const storage = new DatabaseStorage();

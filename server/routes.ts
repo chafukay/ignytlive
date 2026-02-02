@@ -353,6 +353,49 @@ export async function registerRoutes(
     res.json(streams);
   });
 
+  // Get nearby streams based on user location
+  app.get("/api/streams/nearby", async (req, res) => {
+    try {
+      const latitude = parseFloat(req.query.latitude as string);
+      const longitude = parseFloat(req.query.longitude as string);
+      const radius = parseFloat(req.query.radius as string) || 100; // Default 100km
+
+      if (isNaN(latitude) || isNaN(longitude)) {
+        return res.status(400).json({ error: "Valid latitude and longitude are required" });
+      }
+
+      const streams = await storage.getNearbyStreams(latitude, longitude, radius);
+      res.json(streams);
+    } catch (error) {
+      console.error("Nearby streams error:", error);
+      res.status(500).json({ error: "Failed to get nearby streams" });
+    }
+  });
+
+  // Update user location
+  app.post("/api/users/:id/location", async (req, res) => {
+    try {
+      const { latitude, longitude, city, state, country } = req.body;
+
+      if (typeof latitude !== "number" || typeof longitude !== "number") {
+        return res.status(400).json({ error: "Valid latitude and longitude are required" });
+      }
+
+      const user = await storage.updateUserLocation(req.params.id, {
+        latitude,
+        longitude,
+        city,
+        state,
+        country,
+      });
+
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      console.error("Update location error:", error);
+      res.status(500).json({ error: "Failed to update location" });
+    }
+  });
+
   app.get("/api/streams/:id", async (req, res) => {
     const stream = await storage.getStream(req.params.id);
     if (!stream) {

@@ -44,6 +44,23 @@ export const api = {
     return res.json() as Promise<{ user: User }>;
   },
 
+  // Location
+  async updateUserLocation(userId: string, location: { latitude: number; longitude: number; city?: string; state?: string; country?: string }) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/location`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(location),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<User>;
+  },
+
+  async getNearbyStreams(latitude: number, longitude: number, radius: number = 100) {
+    const res = await fetch(`${API_BASE}/api/streams/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<(Stream & { user: User; distance: number })[]>;
+  },
+
   // Users
   async getUser(id: string) {
     const res = await fetch(`${API_BASE}/api/users/${id}`);
