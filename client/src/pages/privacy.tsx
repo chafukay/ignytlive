@@ -1,11 +1,12 @@
 import Layout from "@/components/layout";
-import { ChevronRight, Shield, Eye, UserX, Lock, MessageCircle, Users, MapPin } from "lucide-react";
+import { ChevronRight, Shield, Eye, UserX, Lock, MessageCircle, MapPin } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from "@shared/schema";
 
 interface PrivacySettings {
   privateProfile: boolean;
@@ -43,10 +44,10 @@ export default function Privacy() {
   }, [user]);
 
   const saveMutation = useMutation({
-    mutationFn: () => api.updateUserProfile(user!.id, { 
+    mutationFn: () => api.updateUser(user!.id, { 
       privacySettings: JSON.stringify(settings) 
     }),
-    onSuccess: (updatedUser) => {
+    onSuccess: (updatedUser: User) => {
       setUser(updatedUser);
       setHasChanges(false);
       toast({ title: "Privacy settings saved" });

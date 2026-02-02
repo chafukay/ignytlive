@@ -39,6 +39,9 @@ export const users = pgTable("users", {
   isGuest: boolean("is_guest").notNull().default(false),
   socialProvider: text("social_provider"), // google, apple, github, email, phone
   socialProviderId: text("social_provider_id"), // Provider's unique user ID
+  privacySettings: text("privacy_settings"), // JSON string for privacy settings
+  notificationSettings: text("notification_settings"), // JSON string for notification settings
+  language: text("language").notNull().default("en"), // User's preferred language
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   usernameIdx: index("username_idx").on(table.username),

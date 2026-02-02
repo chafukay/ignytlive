@@ -517,7 +517,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id/profile", async (req, res) => {
     try {
       const userId = req.params.id;
-      const { username, bio, gender, birthdate, avatar } = req.body;
+      const { username, bio, gender, birthdate, avatar, privacySettings, notificationSettings, language } = req.body;
       
       // Check if user exists
       const existingUser = await storage.getUser(userId);
@@ -532,6 +532,9 @@ export async function registerRoutes(
       if (gender !== undefined) updates.gender = gender;
       if (birthdate !== undefined) updates.birthdate = new Date(birthdate);
       if (avatar !== undefined) updates.avatar = avatar;
+      if (privacySettings !== undefined) updates.privacySettings = privacySettings;
+      if (notificationSettings !== undefined) updates.notificationSettings = notificationSettings;
+      if (language !== undefined) updates.language = language;
 
       const user = await storage.updateUser(userId, updates);
       res.json({ ...user, password: undefined });
