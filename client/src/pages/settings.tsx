@@ -184,7 +184,8 @@ export default function Settings() {
     { icon: Bell, label: "Notifications", toggle: true, value: notificationSettings.pushEnabled, onChange: handleNotificationToggle, testId: "toggle-notifications" },
     { icon: Lock, label: "Privacy", href: "/privacy" },
     { icon: Eye, label: "Private Account", toggle: true, value: privateAccount, onChange: handlePrivateAccountToggle, testId: "toggle-private-account" },
-    { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2">{currentLanguage.flag} {currentLanguage.name}</span>, onClick: () => setShowLanguageModal(true), testId: "open-language" },
+    // Language selector hidden for now - only English supported
+    // { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2">{currentLanguage.flag} {currentLanguage.name}</span>, onClick: () => setShowLanguageModal(true), testId: "open-language" },
     { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", onChange: toggleTheme, isTheme: true, testId: "toggle-dark-mode" },
     { icon: HelpCircle, label: "Help & Support", href: "/help" },
     { icon: Info, label: "About", href: "/about" },
