@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { ChevronRight, User, Bell, Lock, Eye, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check } from "lucide-react";
+import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useState, useEffect, type ReactNode } from "react";
@@ -50,8 +50,6 @@ export default function Settings() {
     followerAlerts: true,
   });
   
-  const [privateAccount, setPrivateAccount] = useState(false);
-  
   const [availableForPrivateCall, setAvailableForPrivateCall] = useState(user?.availableForPrivateCall || false);
   const [privateCallRate, setPrivateCallRate] = useState(user?.privateCallRate || 50);
   const [billingMode, setBillingMode] = useState(user?.privateCallBillingMode || "per_minute");
@@ -74,17 +72,6 @@ export default function Settings() {
           setNotificationSettings(prev => ({ ...prev, ...parsed }));
         } catch (e) {
           console.error("Failed to parse notification settings");
-        }
-      }
-      
-      if (user.privacySettings) {
-        try {
-          const parsed = typeof user.privacySettings === 'string' 
-            ? JSON.parse(user.privacySettings) 
-            : user.privacySettings;
-          setPrivateAccount(parsed.privateProfile || false);
-        } catch (e) {
-          console.error("Failed to parse privacy settings");
         }
       }
     }
@@ -131,34 +118,10 @@ export default function Settings() {
     },
   });
 
-  const updatePrivateAccountMutation = useMutation({
-    mutationFn: (isPrivate: boolean) => {
-      const currentSettings = user?.privacySettings 
-        ? (typeof user.privacySettings === 'string' ? JSON.parse(user.privacySettings) : user.privacySettings) 
-        : {};
-      return api.updateUser(user!.id, { 
-        privacySettings: JSON.stringify({ ...currentSettings, privateProfile: isPrivate }) 
-      });
-    },
-    onSuccess: (updatedUser: UserType) => {
-      setUser(updatedUser);
-      toast({ title: privateAccount ? "Account is now private" : "Account is now public" });
-    },
-    onError: () => {
-      toast({ title: "Failed to update account privacy", variant: "destructive" });
-    },
-  });
-
   const handleNotificationToggle = () => {
     const newSettings = { ...notificationSettings, pushEnabled: !notificationSettings.pushEnabled };
     setNotificationSettings(newSettings);
     updateNotificationsMutation.mutate(newSettings);
-  };
-
-  const handlePrivateAccountToggle = () => {
-    const newValue = !privateAccount;
-    setPrivateAccount(newValue);
-    updatePrivateAccountMutation.mutate(newValue);
   };
 
   const currentLanguage = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0];
@@ -178,7 +141,6 @@ export default function Settings() {
     { icon: User, label: "Edit Profile", href: "/edit-profile" },
     { icon: Bell, label: "Notifications", toggle: true, value: notificationSettings.pushEnabled, onChange: handleNotificationToggle, testId: "toggle-notifications" },
     { icon: Lock, label: "Privacy", href: "/privacy" },
-    { icon: Eye, label: "Private Account", toggle: true, value: privateAccount, onChange: handlePrivateAccountToggle, testId: "toggle-private-account" },
     // Language selector hidden for now - only English supported
     // { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2">{currentLanguage.flag} {currentLanguage.name}</span>, onClick: () => setShowLanguageModal(true), testId: "open-language" },
     { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", onChange: toggleTheme, isTheme: true, testId: "toggle-dark-mode" },
