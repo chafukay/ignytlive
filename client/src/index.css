@@ -53,8 +53,41 @@
   }
 }
 
-/* Dark Theme Only for this App Vibe */
+/* Light Theme */
 :root {
+  --background: 0 0% 98%;
+  --foreground: 270 60% 15%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 270 60% 15%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 270 60% 15%;
+
+  --primary: 330 100% 50%; /* Hot Pink */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 270 50% 95%;
+  --secondary-foreground: 270 60% 15%;
+
+  --muted: 270 20% 94%;
+  --muted-foreground: 270 20% 45%;
+
+  --accent: 260 100% 65%; /* Bright Purple */
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 270 20% 88%;
+  --input: 270 20% 88%;
+  --ring: 330 100% 50%;
+
+  --radius: 1rem;
+}
+
+/* Dark Theme */
+.dark {
   --background: 270 60% 8%; /* Deep Violet/Black */
   --foreground: 0 0% 100%;
 
@@ -82,8 +115,6 @@
   --border: 270 30% 20%;
   --input: 270 30% 20%;
   --ring: 330 100% 50%;
-
-  --radius: 1rem;
 }
 
 @layer base {
