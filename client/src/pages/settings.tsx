@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check } from "lucide-react";
+import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check, Globe } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useState, useEffect, type ReactNode } from "react";
@@ -137,12 +137,12 @@ export default function Settings() {
     isTheme?: boolean;
     onClick?: () => void;
     testId?: string;
+    disabled?: boolean;
   }> = [
     { icon: User, label: "Edit Profile", href: "/edit-profile" },
     { icon: Bell, label: "Notifications", toggle: true, value: notificationSettings.pushEnabled, onChange: handleNotificationToggle, testId: "toggle-notifications" },
     { icon: Lock, label: "Privacy", href: "/privacy" },
-    // Language selector hidden for now - only English supported
-    // { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2">{currentLanguage.flag} {currentLanguage.name}</span>, onClick: () => setShowLanguageModal(true), testId: "open-language" },
+    { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2 text-muted-foreground">🇺🇸 English</span>, disabled: true, testId: "language-disabled" },
     { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", onChange: toggleTheme, isTheme: true, testId: "toggle-dark-mode" },
     { icon: HelpCircle, label: "Help & Support", href: "/help" },
     { icon: Info, label: "About", href: "/about" },
@@ -192,6 +192,15 @@ export default function Settings() {
                   <span className="flex-1 text-foreground">{item.label}</span>
                   {item.extra && <span className="text-muted-foreground text-sm">{item.extra}</span>}
                   <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
+                </div>
+              ) : item.disabled ? (
+                <div 
+                  className="flex items-center gap-4 p-4 opacity-60 cursor-not-allowed transition-colors border-b border-border"
+                  data-testid={item.testId}
+                >
+                  <item.icon className="w-5 h-5 text-muted-foreground" />
+                  <span className="flex-1 text-muted-foreground">{item.label}</span>
+                  {item.extra && <span className="text-muted-foreground text-sm">{item.extra}</span>}
                 </div>
               ) : (
                 <div className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border">
