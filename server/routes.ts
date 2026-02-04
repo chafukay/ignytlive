@@ -1006,6 +1006,17 @@ export async function registerRoutes(
     res.json(topStreamers);
   });
 
+  // XP and Level routes
+  app.post("/api/users/:id/daily-login", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const result = await checkDailyLoginBonus(userId);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to check daily login" });
+    }
+  });
+
   // Admin routes
   const adminUpdateSchema = z.object({
     role: z.enum(["user", "admin", "superadmin"]).optional(),
