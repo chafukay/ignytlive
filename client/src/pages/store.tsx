@@ -48,6 +48,14 @@ export default function Store() {
     queryFn: () => api.getStoreItems(selectedType || undefined),
   });
 
+  const { data: userItems = [] } = useQuery({
+    queryKey: ["user-items", user?.id],
+    queryFn: () => api.getUserItems(user!.id),
+    enabled: !!user,
+  });
+
+  const ownedItemIds = new Set(userItems.map((ui: any) => ui.itemId));
+
   const purchaseMutation = useMutation({
     mutationFn: ({ userId, itemId }: { userId: string; itemId: string }) => 
       api.purchaseItem(userId, itemId),
@@ -159,6 +167,7 @@ export default function Store() {
                   isPurchasing={purchaseMutation.isPending}
                   purchaseSuccess={purchaseSuccess === item.id}
                   userCoins={user?.coins || 0}
+                  isOwned={ownedItemIds.has(item.id)}
                 />
               ))}
             </div>
@@ -192,6 +201,7 @@ export default function Store() {
                             isPurchasing={purchaseMutation.isPending}
                             purchaseSuccess={purchaseSuccess === item.id}
                             userCoins={user?.coins || 0}
+                            isOwned={ownedItemIds.has(item.id)}
                           />
                         </div>
                       ))}
@@ -284,25 +294,31 @@ function ItemCard({
   onPurchase, 
   isPurchasing,
   purchaseSuccess,
-  userCoins
+  userCoins,
+  isOwned
 }: { 
   item: StoreItem; 
   onPurchase: (item: StoreItem) => void;
   isPurchasing: boolean;
   purchaseSuccess: boolean;
   userCoins: number;
+  isOwned: boolean;
 }) {
   const canAfford = userCoins >= item.coinCost;
   
   return (
     <div 
       className={`bg-white/5 rounded-2xl p-3 border h-full flex flex-col ${
-        item.isFeatured ? 'border-primary/50' : 'border-white/10'
+        isOwned ? 'border-green-500/50 bg-green-500/5' : item.isFeatured ? 'border-primary/50' : 'border-white/10'
       }`}
       data-testid={`store-item-${item.id}`}
     >
       <div className="h-6 mb-2">
-        {item.isFeatured && (
+        {isOwned ? (
+          <div className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full inline-block">
+            Owned
+          </div>
+        ) : item.isFeatured && (
           <div className="bg-primary text-white text-xs px-2 py-0.5 rounded-full inline-block">
             Featured
           </div>
@@ -332,26 +348,32 @@ function ItemCard({
           <span className="text-yellow-400 font-bold text-sm">{item.coinCost}</span>
         </div>
         
-        <button
-          onClick={() => onPurchase(item)}
-          disabled={isPurchasing || !canAfford || purchaseSuccess}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-            purchaseSuccess
-              ? 'bg-green-500 text-white'
-              : canAfford
-                ? 'bg-primary text-white'
-                : 'bg-white/10 text-white/30'
-          }`}
-          data-testid={`buy-button-${item.id}`}
-        >
-          {purchaseSuccess ? (
+        {isOwned ? (
+          <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/20 text-green-400">
             <Check className="w-4 h-4" />
-          ) : isPurchasing ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            'Buy'
-          )}
-        </button>
+          </span>
+        ) : (
+          <button
+            onClick={() => onPurchase(item)}
+            disabled={isPurchasing || !canAfford || purchaseSuccess}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              purchaseSuccess
+                ? 'bg-green-500 text-white'
+                : canAfford
+                  ? 'bg-primary text-white'
+                  : 'bg-white/10 text-white/30'
+            }`}
+            data-testid={`buy-button-${item.id}`}
+          >
+            {purchaseSuccess ? (
+              <Check className="w-4 h-4" />
+            ) : isPurchasing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              'Buy'
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
