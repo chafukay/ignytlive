@@ -765,5 +765,58 @@ export const insertPrivateCallSchema = createInsertSchema(privateCalls).omit({
 export type InsertPrivateCall = z.infer<typeof insertPrivateCallSchema>;
 export type PrivateCall = typeof privateCalls.$inferSelect;
 
+// Store Items table - catalog of items available for purchase
+export const storeItems = pgTable("store_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  emoji: text("emoji").notNull(),
+  imageUrl: text("image_url"),
+  type: text("type").notNull(), // frame, entrance, badge, chat_bubble, effect, vehicle
+  coinCost: integer("coin_cost").notNull(),
+  diamondCost: integer("diamond_cost").notNull().default(0),
+  durationDays: integer("duration_days"), // null = permanent
+  isActive: boolean("is_active").notNull().default(true),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  requiredVipTier: integer("required_vip_tier").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  typeIdx: index("store_items_type_idx").on(table.type),
+  isActiveIdx: index("store_items_active_idx").on(table.isActive),
+}));
+
+export const insertStoreItemSchema = createInsertSchema(storeItems).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertStoreItem = z.infer<typeof insertStoreItemSchema>;
+export type StoreItem = typeof storeItems.$inferSelect;
+
+// User Items table - items owned by users (inventory)
+export const userItems = pgTable("user_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  itemId: varchar("item_id").notNull().references(() => storeItems.id),
+  isEquipped: boolean("is_equipped").notNull().default(false),
+  expiresAt: timestamp("expires_at"), // null = permanent
+  purchasedAt: timestamp("purchased_at").notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: index("user_items_user_id_idx").on(table.userId),
+  itemIdIdx: index("user_items_item_id_idx").on(table.itemId),
+  equippedIdx: index("user_items_equipped_idx").on(table.isEquipped),
+}));
+
+export const userItemsRelations = relations(userItems, ({ one }) => ({
+  user: one(users, { fields: [userItems.userId], references: [users.id] }),
+  item: one(storeItems, { fields: [userItems.itemId], references: [storeItems.id] }),
+}));
+
+export const insertUserItemSchema = createInsertSchema(userItems).omit({
+  id: true,
+  purchasedAt: true,
+});
+export type InsertUserItem = z.infer<typeof insertUserItemSchema>;
+export type UserItem = typeof userItems.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";
