@@ -6,6 +6,15 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useState } from "react";
 import type { StoreItem } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const itemTypeLabels: Record<string, string> = {
   frame: "Profile Frames",
@@ -60,15 +69,22 @@ export default function Store() {
   });
 
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [confirmItem, setConfirmItem] = useState<StoreItem | null>(null);
 
-  const handlePurchase = (item: StoreItem) => {
+  const handlePurchaseClick = (item: StoreItem) => {
     if (!user) return;
     if (user.coins < item.coinCost) {
       setPurchaseError("Not enough coins!");
       setTimeout(() => setPurchaseError(null), 3000);
       return;
     }
-    purchaseMutation.mutate({ userId: user.id, itemId: item.id });
+    setConfirmItem(item);
+  };
+
+  const confirmPurchase = () => {
+    if (!user || !confirmItem) return;
+    purchaseMutation.mutate({ userId: user.id, itemId: confirmItem.id });
+    setConfirmItem(null);
   };
 
   const groupedItems = itemTypes.reduce((acc, type) => {
@@ -139,7 +155,7 @@ export default function Store() {
                 <ItemCard 
                   key={item.id} 
                   item={item} 
-                  onPurchase={handlePurchase}
+                  onPurchase={handlePurchaseClick}
                   isPurchasing={purchaseMutation.isPending}
                   purchaseSuccess={purchaseSuccess === item.id}
                   userCoins={user?.coins || 0}
@@ -172,7 +188,7 @@ export default function Store() {
                         <div key={item.id} className="flex-shrink-0 w-40">
                           <ItemCard 
                             item={item} 
-                            onPurchase={handlePurchase}
+                            onPurchase={handlePurchaseClick}
                             isPurchasing={purchaseMutation.isPending}
                             purchaseSuccess={purchaseSuccess === item.id}
                             userCoins={user?.coins || 0}
@@ -195,6 +211,70 @@ export default function Store() {
           )}
         </div>
       </div>
+
+      <Dialog open={!!confirmItem} onOpenChange={(open) => !open && setConfirmItem(null)}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirm Purchase</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Are you sure you want to buy this item?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {confirmItem && (
+            <div className="py-4">
+              <div className="flex items-center gap-4 bg-white/5 rounded-xl p-4">
+                <div className="w-16 h-16 rounded-xl bg-white/10 flex items-center justify-center text-3xl">
+                  {itemTypeIcons[confirmItem.type] || "📦"}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-bold">{confirmItem.name}</h3>
+                  <p className="text-white/50 text-sm">{confirmItem.description}</p>
+                  {confirmItem.durationDays && (
+                    <p className="text-yellow-400 text-xs mt-1">{confirmItem.durationDays} days</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-gray-400">Cost</span>
+                <span className="text-yellow-400 flex items-center gap-1 font-bold">
+                  <Coins className="w-4 h-4" />
+                  {confirmItem.coinCost}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span className="text-gray-400">Your Balance</span>
+                <span className="text-white flex items-center gap-1">
+                  <Coins className="w-4 h-4" />
+                  {user?.coins || 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2 pt-2 border-t border-white/10">
+                <span className="text-gray-400">After Purchase</span>
+                <span className="text-green-400 flex items-center gap-1 font-bold">
+                  <Coins className="w-4 h-4" />
+                  {(user?.coins || 0) - confirmItem.coinCost}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmItem(null)} className="border-gray-700">
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmPurchase}
+              className="bg-primary hover:bg-primary/90"
+              disabled={purchaseMutation.isPending}
+              data-testid="confirm-purchase-button"
+            >
+              {purchaseMutation.isPending ? "Purchasing..." : "Confirm Purchase"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
