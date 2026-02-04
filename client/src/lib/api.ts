@@ -931,4 +931,16 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
+
+  async getTopGifters(userId: string, limit: number = 20) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/top-gifters?limit=${limit}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<TopGifter[]>;
+  },
 };
+
+export interface TopGifter {
+  user: User;
+  totalCoins: number;
+  giftCount: number;
+}

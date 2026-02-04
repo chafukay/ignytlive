@@ -137,6 +137,7 @@ export interface IStorage {
   createGift(gift: InsertGift): Promise<Gift>;
   sendGift(transaction: InsertGiftTransaction): Promise<GiftTransaction>;
   getGiftTransactions(userId: string): Promise<GiftTransaction[]>;
+  getTopGifters(receiverId: string, limit?: number): Promise<Array<{ user: User; totalCoins: number; giftCount: number }>>;
   
   // Message operations
   createMessage(message: InsertMessage): Promise<Message>;
@@ -735,6 +736,33 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(giftTransactions.createdAt));
+  }
+
+  async getTopGifters(receiverId: string, limit: number = 20): Promise<Array<{ user: User; totalCoins: number; giftCount: number }>> {
+    const result = await db
+      .select({
+        senderId: giftTransactions.senderId,
+        totalCoins: sql<number>`COALESCE(SUM(${giftTransactions.totalCoins}), 0)::int`,
+        giftCount: sql<number>`COUNT(*)::int`,
+      })
+      .from(giftTransactions)
+      .where(eq(giftTransactions.receiverId, receiverId))
+      .groupBy(giftTransactions.senderId)
+      .orderBy(desc(sql`SUM(${giftTransactions.totalCoins})`))
+      .limit(limit);
+
+    const giftersWithUsers = await Promise.all(
+      result.map(async (row) => {
+        const [user] = await db.select().from(users).where(eq(users.id, row.senderId));
+        return {
+          user,
+          totalCoins: row.totalCoins,
+          giftCount: row.giftCount,
+        };
+      })
+    );
+
+    return giftersWithUsers.filter(g => g.user);
   }
 
   // Message operations

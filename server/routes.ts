@@ -941,6 +941,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/:userId/top-gifters", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const topGifters = await storage.getTopGifters(userId, limit);
+      res.json(topGifters);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to get top gifters" });
+    }
+  });
+
   // Message routes
   app.post("/api/messages", async (req, res) => {
     try {
