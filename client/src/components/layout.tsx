@@ -32,15 +32,17 @@ export default function Layout({ children, hideNav = false }: { children: React.
         {children}
       </main>
 
-      {/* Floating Go Live Button */}
-      <Link href="/go-live">
-        <button 
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 md:bottom-8 md:left-auto md:right-8 md:translate-x-0 w-14 h-14 bg-gradient-to-r from-pink-500 to-primary rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 z-50 hover:scale-110 active:scale-95 transition-transform"
-          data-testid="button-floating-go-live"
-        >
-          <Video className="w-6 h-6 text-white" />
-        </button>
-      </Link>
+      {/* Floating Go Live Button - only on Home and Shorts */}
+      {(location === "/" || location === "/shorts") && (
+        <Link href="/go-live">
+          <button 
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 md:bottom-8 md:left-auto md:right-8 md:translate-x-0 w-14 h-14 bg-gradient-to-r from-pink-500 to-primary rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 z-50 hover:scale-110 active:scale-95 transition-transform"
+            data-testid="button-floating-go-live"
+          >
+            <Video className="w-6 h-6 text-white" />
+          </button>
+        </Link>
+      )}
 
       {/* Bottom Nav (Mobile) / Side Nav (Desktop) */}
       <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:right-auto md:w-20 md:h-screen bg-card/95 backdrop-blur-lg border-t md:border-t-0 md:border-r border-border z-50">
