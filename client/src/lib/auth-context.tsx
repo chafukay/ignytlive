@@ -6,6 +6,7 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   setUser: (user: User) => void;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -61,6 +62,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("user", JSON.stringify(updatedUser));
   };
 
+  const refreshUser = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch(`/api/users/${user.id}`);
+      if (res.ok) {
+        const freshUser = await res.json();
+        setUser(freshUser);
+        localStorage.setItem("user", JSON.stringify(freshUser));
+      }
+    } catch (error) {
+      console.error("Failed to refresh user:", error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -70,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, setUser: updateUser, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, setUser: updateUser, refreshUser, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
