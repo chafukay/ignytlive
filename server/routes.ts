@@ -17,6 +17,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { awardXP, checkDailyLoginBonus } from "./xp-service";
 
 // Helper to check if user is a guest and block write actions
 const checkGuestRestriction = async (userId: string | undefined, res: any, storage: any): Promise<boolean> => {
@@ -869,6 +870,11 @@ export async function registerRoutes(
       if (await checkGuestRestriction(followData.followerId, res, storage)) return;
       
       const follow = await storage.createFollow(followData);
+      
+      // Award XP to both users
+      await awardXP(followData.followerId, "FOLLOW_USER").catch(() => {});
+      await awardXP(followData.followingId, "GET_FOLLOWED").catch(() => {});
+      
       res.json(follow);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to follow" });
@@ -923,6 +929,11 @@ export async function registerRoutes(
       
       const transaction = await storage.sendGift(transactionData);
       
+      // Award XP for sending and receiving gifts
+      const quantity = transactionData.quantity || 1;
+      await awardXP(transactionData.senderId, "SEND_GIFT", quantity).catch(() => {});
+      await awardXP(transactionData.receiverId, "RECEIVE_GIFT", quantity).catch(() => {});
+      
       // Broadcast gift to stream viewers (only if recipient doesn't have DND)
       if (transaction.streamId && !recipientHasDND) {
         const streamWs = streamConnections.get(transaction.streamId);
@@ -967,6 +978,10 @@ export async function registerRoutes(
       }
       
       const message = await storage.createMessage(messageData);
+      
+      // Award XP for sending messages
+      await awardXP(messageData.senderId, "SEND_MESSAGE").catch(() => {});
+      
       res.json(message);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to send message" });
