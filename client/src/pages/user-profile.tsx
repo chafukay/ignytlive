@@ -71,9 +71,12 @@ export default function UserProfile() {
       setLocation(`/private-call/${call.id}`);
     },
     onError: (error: any) => {
+      const description = error?.code === "DND_ENABLED" 
+        ? "This user has Do Not Disturb enabled"
+        : error.message;
       toast({
         title: "Cannot start call",
-        description: error.message,
+        description,
         variant: "destructive",
       });
     },

@@ -917,10 +917,14 @@ export async function registerRoutes(
       // Guest restriction
       if (await checkGuestRestriction(transactionData.senderId, res, storage)) return;
       
+      // Check if recipient has DND enabled (for gift notifications, we still allow the gift but suppress notification)
+      const recipient = await storage.getUser(transactionData.receiverId);
+      const recipientHasDND = recipient?.dndEnabled || false;
+      
       const transaction = await storage.sendGift(transactionData);
       
-      // Broadcast gift to stream viewers
-      if (transaction.streamId) {
+      // Broadcast gift to stream viewers (only if recipient doesn't have DND)
+      if (transaction.streamId && !recipientHasDND) {
         const streamWs = streamConnections.get(transaction.streamId);
         if (streamWs) {
           streamWs.forEach(client => {
@@ -944,6 +948,12 @@ export async function registerRoutes(
       
       // Guest restriction
       if (await checkGuestRestriction(messageData.senderId, res, storage)) return;
+      
+      // Check if recipient has DND enabled
+      const recipient = await storage.getUser(messageData.receiverId);
+      if (recipient?.dndEnabled) {
+        return res.status(403).json({ error: "User has Do Not Disturb enabled", code: "DND_ENABLED" });
+      }
       
       const message = await storage.createMessage(messageData);
       res.json(message);
@@ -1436,6 +1446,12 @@ export async function registerRoutes(
       if (!host) {
         return res.status(404).json({ error: "Host not found" });
       }
+      
+      // Check if host has DND enabled
+      if (host.dndEnabled) {
+        return res.status(403).json({ error: "Host has Do Not Disturb enabled", code: "DND_ENABLED" });
+      }
+      
       if (!host.availableForPrivateCall) {
         return res.status(400).json({ error: "Host is not available for private calls" });
       }

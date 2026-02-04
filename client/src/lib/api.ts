@@ -374,7 +374,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ senderId, receiverId, content }),
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: "Failed to send message" }));
+      const error = new Error(errorData.error || "Failed to send message") as Error & { code?: string };
+      error.code = errorData.code;
+      throw error;
+    }
     return res.json() as Promise<Message>;
   },
 
@@ -677,8 +682,10 @@ export const api = {
       body: JSON.stringify({ viewerId, hostId }),
     });
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || "Failed to request call");
+      const errorData = await res.json().catch(() => ({ error: "Failed to request call" }));
+      const error = new Error(errorData.error || "Failed to request call") as Error & { code?: string };
+      error.code = errorData.code;
+      throw error;
     }
     return res.json();
   },

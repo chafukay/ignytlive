@@ -36,8 +36,16 @@ export default function Conversation() {
       queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
       setMessage("");
     },
-    onError: () => {
-      toast({ title: "Failed to send message", variant: "destructive" });
+    onError: (error: any) => {
+      if (error?.code === "DND_ENABLED") {
+        toast({ 
+          title: "Cannot send message", 
+          description: "This user has Do Not Disturb enabled",
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: "Failed to send message", variant: "destructive" });
+      }
     },
   });
 
