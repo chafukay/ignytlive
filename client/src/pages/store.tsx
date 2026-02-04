@@ -216,16 +216,18 @@ function ItemCard({
   
   return (
     <div 
-      className={`bg-white/5 rounded-2xl p-3 border ${
+      className={`bg-white/5 rounded-2xl p-3 border h-full flex flex-col ${
         item.isFeatured ? 'border-primary/50' : 'border-white/10'
       }`}
       data-testid={`store-item-${item.id}`}
     >
-      {item.isFeatured && (
-        <div className="bg-primary text-white text-xs px-2 py-0.5 rounded-full inline-block mb-2">
-          Featured
-        </div>
-      )}
+      <div className="h-6 mb-2">
+        {item.isFeatured && (
+          <div className="bg-primary text-white text-xs px-2 py-0.5 rounded-full inline-block">
+            Featured
+          </div>
+        )}
+      </div>
       
       <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center text-4xl mb-3">
         {item.imageUrl ? (
@@ -238,11 +240,13 @@ function ItemCard({
       <h3 className="text-white font-bold text-sm truncate">{item.name}</h3>
       <p className="text-white/50 text-xs mb-2 truncate">{item.description}</p>
       
-      {item.durationDays && (
-        <p className="text-yellow-400 text-xs mb-2">{item.durationDays} days</p>
-      )}
+      <div className="h-5 mb-2">
+        {item.durationDays && (
+          <p className="text-yellow-400 text-xs">{item.durationDays} days</p>
+        )}
+      </div>
       
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mt-auto">
         <div className="flex items-center gap-1">
           <Coins className="w-4 h-4 text-yellow-400" />
           <span className="text-yellow-400 font-bold text-sm">{item.coinCost}</span>
