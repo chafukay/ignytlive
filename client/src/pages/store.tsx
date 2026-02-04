@@ -1,73 +1,274 @@
 import Layout from "@/components/layout";
-import { ChevronRight, Gift, Crown, Sparkles, Car, Heart } from "lucide-react";
+import { ChevronRight, ShoppingBag, Coins, Loader2, Check } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
+import { useState } from "react";
+import type { StoreItem } from "@shared/schema";
+
+const itemTypeLabels: Record<string, string> = {
+  frame: "Profile Frames",
+  entrance: "Entrance Effects",
+  badge: "Badges",
+  chat_bubble: "Chat Bubbles",
+  effect: "Visual Effects",
+  vehicle: "Vehicles",
+};
+
+const itemTypeIcons: Record<string, string> = {
+  frame: "🖼️",
+  entrance: "🚀",
+  badge: "🏅",
+  chat_bubble: "💬",
+  effect: "✨",
+  vehicle: "🚗",
+};
+
+const itemTypes = ["frame", "entrance", "badge", "chat_bubble", "effect", "vehicle"];
 
 export default function Store() {
   const [, setLocation] = useLocation();
+  const { user, setUser } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
 
-  const storeItems = [
-    { icon: "🌹", name: "Rose Bundle", price: 99, coins: 100, popular: false },
-    { icon: "💎", name: "Diamond Pack", price: 499, coins: 600, popular: true },
-    { icon: "🚀", name: "Rocket Set", price: 999, coins: 1500, popular: false },
-    { icon: "👑", name: "Crown Collection", price: 1999, coins: 3500, popular: true },
-    { icon: "🏰", name: "Castle Bundle", price: 4999, coins: 10000, popular: false },
-    { icon: "🦄", name: "Unicorn Pack", price: 9999, coins: 25000, popular: false },
-  ];
+  const { data: items = [], isLoading } = useQuery<StoreItem[]>({
+    queryKey: ["store-items", selectedType],
+    queryFn: () => api.getStoreItems(selectedType || undefined),
+  });
 
-  const specialItems = [
-    { icon: Crown, name: "VIP Badge", description: "Show your VIP status", price: 2999 },
-    { icon: Sparkles, name: "Profile Glow", description: "Stand out from the crowd", price: 1499 },
-    { icon: Car, name: "Entrance Effect", description: "Grand entry animation", price: 4999 },
-    { icon: Heart, name: "Special Frame", description: "Exclusive profile frame", price: 999 },
-  ];
+  const purchaseMutation = useMutation({
+    mutationFn: ({ userId, itemId }: { userId: string; itemId: string }) => 
+      api.purchaseItem(userId, itemId),
+    onSuccess: async (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["user-items", user?.id] });
+      if (user) {
+        try {
+          const updatedUser = await api.getUser(user.id);
+          setUser(updatedUser);
+        } catch {}
+      }
+      setPurchaseSuccess(variables.itemId);
+      setTimeout(() => setPurchaseSuccess(null), 2000);
+    },
+    onError: (error: Error) => {
+      setPurchaseError(error.message || "Failed to purchase item");
+      setTimeout(() => setPurchaseError(null), 3000);
+    },
+  });
+
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+  const handlePurchase = (item: StoreItem) => {
+    if (!user) return;
+    if (user.coins < item.coinCost) {
+      setPurchaseError("Not enough coins!");
+      setTimeout(() => setPurchaseError(null), 3000);
+      return;
+    }
+    purchaseMutation.mutate({ userId: user.id, itemId: item.id });
+  };
+
+  const groupedItems = itemTypes.reduce((acc, type) => {
+    acc[type] = items.filter(item => item.type === type);
+    return acc;
+  }, {} as Record<string, StoreItem[]>);
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background p-4">
-        <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => setLocation("/profile")} className="text-white">
-            <ChevronRight className="w-6 h-6 rotate-180" />
-          </button>
-          <h1 className="text-xl font-bold text-white">Store</h1>
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-lg border-b border-white/10 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setLocation("/item-bag")} className="text-white" data-testid="back-button">
+                <ChevronRight className="w-6 h-6 rotate-180" />
+              </button>
+              <h1 className="text-xl font-bold text-white">Store</h1>
+            </div>
+            <div className="flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full">
+              <Coins className="w-5 h-5 text-yellow-400" />
+              <span className="text-yellow-400 font-bold" data-testid="coin-balance">{user?.coins || 0}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+              onClick={() => setSelectedType(null)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
+                selectedType === null
+                  ? 'bg-primary text-white'
+                  : 'bg-white/10 text-white/70'
+              }`}
+              data-testid="filter-all"
+            >
+              All
+            </button>
+            {itemTypes.map(type => (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
+                  selectedType === type
+                    ? 'bg-primary text-white'
+                    : 'bg-white/10 text-white/70'
+                }`}
+                data-testid={`filter-${type}`}
+              >
+                {itemTypeIcons[type]} {itemTypeLabels[type]}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <h2 className="text-white font-bold mb-4">Gift Bundles</h2>
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          {storeItems.map((item) => (
-            <div key={item.name} className="bg-white/5 rounded-2xl p-4 border border-white/10 relative">
-              {item.popular && (
-                <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  Popular
-                </span>
-              )}
-              <div className="text-4xl mb-2">{item.icon}</div>
-              <h3 className="text-white font-bold text-sm">{item.name}</h3>
-              <p className="text-yellow-400 text-xs mb-2">{item.coins.toLocaleString()} coins</p>
-              <button className="w-full bg-primary text-white text-sm font-bold py-2 rounded-xl">
-                ${(item.price / 100).toFixed(2)}
-              </button>
+        <div className="p-4">
+          {purchaseError && (
+            <div className="mb-4 bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-400 text-sm" data-testid="purchase-error">
+              {purchaseError}
             </div>
-          ))}
-        </div>
+          )}
+          
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-white/50" />
+            </div>
+          ) : selectedType ? (
+            <div className="grid grid-cols-2 gap-3">
+              {items.map(item => (
+                <ItemCard 
+                  key={item.id} 
+                  item={item} 
+                  onPurchase={handlePurchase}
+                  isPurchasing={purchaseMutation.isPending}
+                  purchaseSuccess={purchaseSuccess === item.id}
+                  userCoins={user?.coins || 0}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {itemTypes.map(type => {
+                const typeItems = groupedItems[type];
+                if (typeItems.length === 0) return null;
+                
+                return (
+                  <div key={type}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-white font-bold flex items-center gap-2">
+                        <span>{itemTypeIcons[type]}</span>
+                        {itemTypeLabels[type]}
+                      </h2>
+                      <button 
+                        onClick={() => setSelectedType(type)}
+                        className="text-primary text-sm"
+                        data-testid={`see-all-${type}`}
+                      >
+                        See All
+                      </button>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                      {typeItems.slice(0, 4).map(item => (
+                        <div key={item.id} className="flex-shrink-0 w-40">
+                          <ItemCard 
+                            item={item} 
+                            onPurchase={handlePurchase}
+                            isPurchasing={purchaseMutation.isPending}
+                            purchaseSuccess={purchaseSuccess === item.id}
+                            userCoins={user?.coins || 0}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-        <h2 className="text-white font-bold mb-4">Special Items</h2>
-        <div className="space-y-3">
-          {specialItems.map((item) => (
-            <div key={item.name} className="flex items-center gap-4 bg-white/5 rounded-2xl p-4 border border-white/10">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                <item.icon className="w-6 h-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-bold">{item.name}</h3>
-                <p className="text-white/50 text-sm">{item.description}</p>
-              </div>
-              <button className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl">
-                ${(item.price / 100).toFixed(2)}
-              </button>
+          {!isLoading && items.length === 0 && (
+            <div className="text-center py-12">
+              <ShoppingBag className="w-16 h-16 text-white/20 mx-auto mb-4" />
+              <p className="text-white/50">No items available</p>
+              <p className="text-white/30 text-sm">Check back later for new items!</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </Layout>
+  );
+}
+
+function ItemCard({ 
+  item, 
+  onPurchase, 
+  isPurchasing,
+  purchaseSuccess,
+  userCoins
+}: { 
+  item: StoreItem; 
+  onPurchase: (item: StoreItem) => void;
+  isPurchasing: boolean;
+  purchaseSuccess: boolean;
+  userCoins: number;
+}) {
+  const canAfford = userCoins >= item.coinCost;
+  
+  return (
+    <div 
+      className={`bg-white/5 rounded-2xl p-3 border ${
+        item.isFeatured ? 'border-primary/50' : 'border-white/10'
+      }`}
+      data-testid={`store-item-${item.id}`}
+    >
+      {item.isFeatured && (
+        <div className="bg-primary text-white text-xs px-2 py-0.5 rounded-full inline-block mb-2">
+          Featured
+        </div>
+      )}
+      
+      <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center text-4xl mb-3">
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-contain" />
+        ) : (
+          itemTypeIcons[item.type] || "📦"
+        )}
+      </div>
+      
+      <h3 className="text-white font-bold text-sm truncate">{item.name}</h3>
+      <p className="text-white/50 text-xs mb-2 truncate">{item.description}</p>
+      
+      {item.durationDays && (
+        <p className="text-yellow-400 text-xs mb-2">{item.durationDays} days</p>
+      )}
+      
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <Coins className="w-4 h-4 text-yellow-400" />
+          <span className="text-yellow-400 font-bold text-sm">{item.coinCost}</span>
+        </div>
+        
+        <button
+          onClick={() => onPurchase(item)}
+          disabled={isPurchasing || !canAfford || purchaseSuccess}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+            purchaseSuccess
+              ? 'bg-green-500 text-white'
+              : canAfford
+                ? 'bg-primary text-white'
+                : 'bg-white/10 text-white/30'
+          }`}
+          data-testid={`buy-button-${item.id}`}
+        >
+          {purchaseSuccess ? (
+            <Check className="w-4 h-4" />
+          ) : isPurchasing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            'Buy'
+          )}
+        </button>
+      </div>
+    </div>
   );
 }

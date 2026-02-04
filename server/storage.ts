@@ -27,6 +27,8 @@ import {
   roomBans,
   roomMutes,
   phoneVerificationCodes,
+  storeItems,
+  userItems,
   type PhoneVerificationCode,
   type InsertPhoneVerificationCode,
   type User,
@@ -79,6 +81,10 @@ import {
   type InsertRoomBan,
   type RoomMute,
   type InsertRoomMute,
+  type StoreItem,
+  type InsertStoreItem,
+  type UserItem,
+  type InsertUserItem,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -221,6 +227,18 @@ export interface IStorage {
   getRoomMutes(streamId: string): Promise<(RoomMute & { user: User })[]>;
   isUserMuted(streamId: string, userId: string): Promise<boolean>;
   getActiveMute(streamId: string, userId: string): Promise<RoomMute | undefined>;
+  
+  // Store Item operations
+  getStoreItems(type?: string): Promise<StoreItem[]>;
+  getStoreItem(id: string): Promise<StoreItem | undefined>;
+  createStoreItem(item: InsertStoreItem): Promise<StoreItem>;
+  
+  // User Item (Inventory) operations
+  getUserItems(userId: string): Promise<(UserItem & { item: StoreItem })[]>;
+  purchaseItem(userId: string, itemId: string): Promise<UserItem>;
+  equipItem(userItemId: string): Promise<UserItem | undefined>;
+  unequipItem(userItemId: string): Promise<UserItem | undefined>;
+  getEquippedItems(userId: string): Promise<(UserItem & { item: StoreItem })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1401,6 +1419,134 @@ export class DatabaseStorage implements IStorage {
       .sort((a, b) => a.distance - b.distance);
 
     return nearbyStreams;
+  }
+
+  // Store Item operations
+  async getStoreItems(type?: string): Promise<StoreItem[]> {
+    if (type) {
+      return await db.select().from(storeItems)
+        .where(and(eq(storeItems.isActive, true), eq(storeItems.type, type)))
+        .orderBy(desc(storeItems.isFeatured), storeItems.coinCost);
+    }
+    return await db.select().from(storeItems)
+      .where(eq(storeItems.isActive, true))
+      .orderBy(desc(storeItems.isFeatured), storeItems.coinCost);
+  }
+
+  async getStoreItem(id: string): Promise<StoreItem | undefined> {
+    const [item] = await db.select().from(storeItems).where(eq(storeItems.id, id));
+    return item || undefined;
+  }
+
+  async createStoreItem(item: InsertStoreItem): Promise<StoreItem> {
+    const [created] = await db.insert(storeItems).values(item).returning();
+    return created;
+  }
+
+  // User Item (Inventory) operations
+  async getUserItems(userId: string): Promise<(UserItem & { item: StoreItem })[]> {
+    const results = await db
+      .select()
+      .from(userItems)
+      .innerJoin(storeItems, eq(userItems.itemId, storeItems.id))
+      .where(eq(userItems.userId, userId))
+      .orderBy(desc(userItems.isEquipped), desc(userItems.purchasedAt));
+    
+    return results.map(row => ({
+      ...row.user_items,
+      item: row.store_items,
+    }));
+  }
+
+  async purchaseItem(userId: string, itemId: string): Promise<UserItem> {
+    const item = await this.getStoreItem(itemId);
+    if (!item) throw new Error("Item not found");
+    
+    const user = await this.getUser(userId);
+    if (!user) throw new Error("User not found");
+    if (user.coins < item.coinCost) throw new Error("Insufficient coins");
+    
+    // Deduct coins
+    await db.update(users)
+      .set({ coins: user.coins - item.coinCost })
+      .where(eq(users.id, userId));
+    
+    // Calculate expiration if item has duration
+    const expiresAt = item.durationDays 
+      ? new Date(Date.now() + item.durationDays * 24 * 60 * 60 * 1000)
+      : null;
+    
+    // Create user item
+    const [userItem] = await db.insert(userItems).values({
+      userId,
+      itemId,
+      expiresAt,
+    }).returning();
+    
+    return userItem;
+  }
+
+  async equipItem(userItemId: string): Promise<UserItem | undefined> {
+    // First get the item to find its type
+    const [userItemData] = await db
+      .select()
+      .from(userItems)
+      .innerJoin(storeItems, eq(userItems.itemId, storeItems.id))
+      .where(eq(userItems.id, userItemId));
+    
+    if (!userItemData) return undefined;
+    
+    const itemType = userItemData.store_items.type;
+    const userId = userItemData.user_items.userId;
+    
+    // Unequip any other items of the same type for this user
+    const userOtherItems = await db
+      .select()
+      .from(userItems)
+      .innerJoin(storeItems, eq(userItems.itemId, storeItems.id))
+      .where(and(
+        eq(userItems.userId, userId),
+        eq(storeItems.type, itemType),
+        eq(userItems.isEquipped, true)
+      ));
+    
+    for (const otherItem of userOtherItems) {
+      await db.update(userItems)
+        .set({ isEquipped: false })
+        .where(eq(userItems.id, otherItem.user_items.id));
+    }
+    
+    // Equip the requested item
+    const [updated] = await db
+      .update(userItems)
+      .set({ isEquipped: true })
+      .where(eq(userItems.id, userItemId))
+      .returning();
+    
+    return updated;
+  }
+
+  async unequipItem(userItemId: string): Promise<UserItem | undefined> {
+    const [updated] = await db
+      .update(userItems)
+      .set({ isEquipped: false })
+      .where(eq(userItems.id, userItemId))
+      .returning();
+    
+    return updated || undefined;
+  }
+
+  async getEquippedItems(userId: string): Promise<(UserItem & { item: StoreItem })[]> {
+    const results = await db
+      .select()
+      .from(userItems)
+      .innerJoin(storeItems, eq(userItems.itemId, storeItems.id))
+      .where(and(eq(userItems.userId, userId), eq(userItems.isEquipped, true)));
+    
+    return results.map(row => ({
+      ...row.user_items,
+      item: row.store_items,
+    }));
   }
 }
 

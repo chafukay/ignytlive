@@ -6,7 +6,7 @@ import Layout from "@/components/layout";
 import UserAvatar from "@/components/user-avatar";
 import BadgesDisplay from "@/components/badges-display";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Clock } from "lucide-react";
+import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Clock, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -17,6 +17,9 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import type { UserItem, StoreItem } from "@shared/schema";
+
+type UserItemWithItem = UserItem & { item: StoreItem };
 
 export default function UserProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -42,6 +45,16 @@ export default function UserProfile() {
     queryFn: () => api.isFollowing(currentUser!.id, userId!),
     enabled: !!currentUser && !!userId && currentUser.id !== userId,
   });
+
+  const { data: equippedItems = [] } = useQuery<UserItemWithItem[]>({
+    queryKey: ['equipped-items', userId],
+    queryFn: () => api.getEquippedItems(userId!),
+    enabled: !!userId,
+  });
+
+  const equippedFrame = equippedItems.find(item => item.item.type === 'frame');
+  const equippedBadge = equippedItems.find(item => item.item.type === 'badge');
+  const equippedEffect = equippedItems.find(item => item.item.type === 'effect');
 
   const isLive = liveStreams?.some(stream => stream.userId === userId) ?? false;
   const liveStream = liveStreams?.find(stream => stream.userId === userId);
@@ -148,6 +161,17 @@ export default function UserProfile() {
         <div className="px-4 -mt-16">
           <div className="flex flex-col items-center">
             <div className="relative">
+              {equippedFrame && (
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 p-0.5 animate-pulse z-0">
+                  <div className="w-full h-full rounded-full bg-gray-900" />
+                </div>
+              )}
+              {equippedEffect && (
+                <div className="absolute -inset-4 flex items-center justify-center z-0">
+                  <Sparkles className="w-8 h-8 text-yellow-400 absolute -top-2 -right-2 animate-pulse" />
+                  <Sparkles className="w-6 h-6 text-pink-400 absolute -bottom-1 -left-2 animate-pulse delay-75" />
+                </div>
+              )}
               <UserAvatar
                 userId={profileUser.id}
                 username={profileUser.username}
@@ -157,11 +181,16 @@ export default function UserProfile() {
                 size="lg"
                 showStatus={true}
                 linkToProfile={false}
-                className="w-28 h-28"
+                className="w-28 h-28 relative z-10"
               />
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-20">
                 {profileUser.level}
               </span>
+              {equippedBadge && (
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-20" data-testid="equipped-badge">
+                  {equippedBadge.item.name}
+                </span>
+              )}
             </div>
 
             <div className="mt-4 text-center">

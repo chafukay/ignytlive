@@ -879,4 +879,56 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
+
+  // Store & Inventory
+  async getStoreItems(type?: string) {
+    const url = type ? `${API_BASE}/api/store/items?type=${type}` : `${API_BASE}/api/store/items`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getStoreItem(id: string) {
+    const res = await fetch(`${API_BASE}/api/store/items/${id}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async purchaseItem(userId: string, itemId: string) {
+    const res = await fetch(`${API_BASE}/api/store/purchase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, itemId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getUserItems(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/items`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getEquippedItems(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/equipped-items`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async equipItem(userItemId: string) {
+    const res = await fetch(`${API_BASE}/api/user-items/${userItemId}/equip`, {
+      method: "PATCH",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async unequipItem(userItemId: string) {
+    const res = await fetch(`${API_BASE}/api/user-items/${userItemId}/unequip`, {
+      method: "PATCH",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 };

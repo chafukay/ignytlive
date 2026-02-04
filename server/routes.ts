@@ -2011,5 +2011,93 @@ export async function registerRoutes(
     }
   });
 
+  // ========== Store & Inventory API Routes ==========
+  
+  // Get all store items (optionally filter by type)
+  app.get("/api/store/items", async (req, res) => {
+    try {
+      const type = req.query.type as string | undefined;
+      const items = await storage.getStoreItems(type);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch store items" });
+    }
+  });
+
+  // Get single store item
+  app.get("/api/store/items/:id", async (req, res) => {
+    try {
+      const item = await storage.getStoreItem(req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch item" });
+    }
+  });
+
+  // Purchase item
+  app.post("/api/store/purchase", async (req, res) => {
+    try {
+      const { userId, itemId } = req.body;
+      
+      if (!userId || !itemId) {
+        return res.status(400).json({ error: "userId and itemId are required" });
+      }
+      
+      const userItem = await storage.purchaseItem(userId, itemId);
+      res.json(userItem);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to purchase item" });
+    }
+  });
+
+  // Get user's inventory
+  app.get("/api/users/:id/items", async (req, res) => {
+    try {
+      const items = await storage.getUserItems(req.params.id);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user items" });
+    }
+  });
+
+  // Get user's equipped items
+  app.get("/api/users/:id/equipped-items", async (req, res) => {
+    try {
+      const items = await storage.getEquippedItems(req.params.id);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch equipped items" });
+    }
+  });
+
+  // Equip item
+  app.patch("/api/user-items/:id/equip", async (req, res) => {
+    try {
+      const userItem = await storage.equipItem(req.params.id);
+      if (!userItem) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+      res.json(userItem);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to equip item" });
+    }
+  });
+
+  // Unequip item
+  app.patch("/api/user-items/:id/unequip", async (req, res) => {
+    try {
+      const userItem = await storage.unequipItem(req.params.id);
+      if (!userItem) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+      res.json(userItem);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to unequip item" });
+    }
+  });
+
   return httpServer;
 }
