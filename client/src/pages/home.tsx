@@ -63,9 +63,9 @@ export default function Home() {
     !s.isLive && !streamingUserIds.has(s.id) && followedUserIds.has(s.id)
   ) || [];
 
-  // Suggested users to follow = users we're NOT following (excluding ourselves)
+  // Suggested users to follow = users we're NOT following (excluding ourselves and guests)
   const suggestedUsers = streamers?.filter(s => 
-    user && s.id !== user.id && !followedUserIds.has(s.id)
+    user && s.id !== user.id && !followedUserIds.has(s.id) && !s.isGuest
   ).slice(0, 10) || [];
 
   // Notify when a followed user goes live
