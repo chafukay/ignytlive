@@ -2250,12 +2250,12 @@ export async function registerRoutes(
         maxMembers: 50,
       });
 
-      // Add owner as first member
+      // Add owner as first member (don't increment count since family starts with memberCount: 1)
       await storage.addFamilyMember({
         familyId: family.id,
         userId: ownerId,
         role: "owner",
-      });
+      }, true); // skipIncrement = true
 
       res.status(201).json(family);
     } catch (error: any) {

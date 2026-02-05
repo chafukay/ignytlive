@@ -259,7 +259,7 @@ export interface IStorage {
   deleteFamily(id: string): Promise<boolean>;
   
   // Family Member operations
-  addFamilyMember(member: InsertFamilyMember): Promise<FamilyMember>;
+  addFamilyMember(member: InsertFamilyMember, skipIncrement?: boolean): Promise<FamilyMember>;
   removeFamilyMember(familyId: string, userId: string): Promise<boolean>;
   getFamilyMembers(familyId: string): Promise<(FamilyMember & { user: User })[]>;
   getUserFamily(userId: string): Promise<(FamilyMember & { family: Family }) | undefined>;
@@ -1662,11 +1662,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Family Member operations
-  async addFamilyMember(member: InsertFamilyMember): Promise<FamilyMember> {
+  async addFamilyMember(member: InsertFamilyMember, skipIncrement: boolean = false): Promise<FamilyMember> {
     const [created] = await db.insert(familyMembers).values(member).returning();
-    await db.update(families)
-      .set({ memberCount: sql`${families.memberCount} + 1` })
-      .where(eq(families.id, member.familyId));
+    if (!skipIncrement) {
+      await db.update(families)
+        .set({ memberCount: sql`${families.memberCount} + 1` })
+        .where(eq(families.id, member.familyId));
+    }
     return created;
   }
 
