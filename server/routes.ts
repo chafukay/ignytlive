@@ -2175,5 +2175,338 @@ export async function registerRoutes(
     }
   });
 
+  // ========== FAMILIES ==========
+  
+  // Get all families (leaderboard)
+  app.get("/api/families", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const families = await storage.getFamilies(limit);
+      res.json(families);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get families" });
+    }
+  });
+
+  // Search families
+  app.get("/api/families/search", async (req, res) => {
+    try {
+      const query = req.query.q as string || "";
+      const families = await storage.searchFamilies(query);
+      res.json(families);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to search families" });
+    }
+  });
+
+  // Get current user's family
+  app.get("/api/families/my", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required" });
+      }
+      const membership = await storage.getUserFamily(userId);
+      res.json(membership || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get user family" });
+    }
+  });
+
+  // Get specific family
+  app.get("/api/families/:id", async (req, res) => {
+    try {
+      const family = await storage.getFamily(req.params.id);
+      if (!family) {
+        return res.status(404).json({ error: "Family not found" });
+      }
+      res.json(family);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get family" });
+    }
+  });
+
+  // Create family
+  app.post("/api/families", async (req, res) => {
+    try {
+      const { name, description, ownerId, isPublic, minLevel } = req.body;
+      
+      if (!name || !ownerId) {
+        return res.status(400).json({ error: "Name and owner required" });
+      }
+
+      // Check if user already has a family
+      const existingMembership = await storage.getUserFamily(ownerId);
+      if (existingMembership) {
+        return res.status(400).json({ error: "You must leave your current family first" });
+      }
+
+      const family = await storage.createFamily({
+        name,
+        description: description || null,
+        ownerId,
+        isPublic: isPublic !== false,
+        minLevel: minLevel || 1,
+        maxMembers: 50,
+      });
+
+      // Add owner as first member
+      await storage.addFamilyMember({
+        familyId: family.id,
+        userId: ownerId,
+        role: "owner",
+      });
+
+      res.status(201).json(family);
+    } catch (error: any) {
+      if (error.code === "23505") {
+        return res.status(400).json({ error: "Family name already taken" });
+      }
+      res.status(400).json({ error: "Failed to create family" });
+    }
+  });
+
+  // Update family
+  app.patch("/api/families/:id", async (req, res) => {
+    try {
+      const { userId, name, description, isPublic, minLevel, maxMembers } = req.body;
+      
+      const family = await storage.getFamily(req.params.id);
+      if (!family) {
+        return res.status(404).json({ error: "Family not found" });
+      }
+
+      // Check if user is owner or admin
+      const members = await storage.getFamilyMembers(family.id);
+      const member = members.find(m => m.userId === userId);
+      if (!member || (member.role !== "owner" && member.role !== "admin")) {
+        return res.status(403).json({ error: "Only owners and admins can edit family" });
+      }
+
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description;
+      if (isPublic !== undefined) updates.isPublic = isPublic;
+      if (minLevel !== undefined) updates.minLevel = minLevel;
+      if (maxMembers !== undefined && member.role === "owner") updates.maxMembers = maxMembers;
+
+      const updated = await storage.updateFamily(family.id, updates);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update family" });
+    }
+  });
+
+  // Delete family
+  app.delete("/api/families/:id", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      const family = await storage.getFamily(req.params.id);
+      
+      if (!family) {
+        return res.status(404).json({ error: "Family not found" });
+      }
+
+      if (family.ownerId !== userId) {
+        return res.status(403).json({ error: "Only the owner can delete the family" });
+      }
+
+      await storage.deleteFamily(family.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to delete family" });
+    }
+  });
+
+  // Get family members
+  app.get("/api/families/:id/members", async (req, res) => {
+    try {
+      const members = await storage.getFamilyMembers(req.params.id);
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get family members" });
+    }
+  });
+
+  // Join family
+  app.post("/api/families/:id/join", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const familyId = req.params.id;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required" });
+      }
+
+      // Check if user already has a family
+      const existingMembership = await storage.getUserFamily(userId);
+      if (existingMembership) {
+        return res.status(400).json({ error: "You must leave your current family first" });
+      }
+
+      const family = await storage.getFamily(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Family not found" });
+      }
+
+      if (!family.isPublic) {
+        return res.status(403).json({ error: "This family is private" });
+      }
+
+      if (family.memberCount >= family.maxMembers) {
+        return res.status(400).json({ error: "Family is full" });
+      }
+
+      // Check user level requirement
+      const user = await storage.getUser(userId);
+      if (!user || user.level < family.minLevel) {
+        return res.status(403).json({ error: `Requires level ${family.minLevel} to join` });
+      }
+
+      const member = await storage.addFamilyMember({
+        familyId,
+        userId,
+        role: "member",
+      });
+
+      res.status(201).json(member);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to join family" });
+    }
+  });
+
+  // Leave family
+  app.post("/api/families/:id/leave", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const familyId = req.params.id;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required" });
+      }
+
+      const family = await storage.getFamily(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Family not found" });
+      }
+
+      if (family.ownerId === userId) {
+        return res.status(400).json({ error: "Owner cannot leave. Transfer ownership or delete the family." });
+      }
+
+      await storage.removeFamilyMember(familyId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to leave family" });
+    }
+  });
+
+  // Promote/demote member
+  app.patch("/api/families/:id/members/:memberId", async (req, res) => {
+    try {
+      const { userId, role } = req.body;
+      const familyId = req.params.id;
+      const memberId = req.params.memberId;
+      
+      const family = await storage.getFamily(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Family not found" });
+      }
+
+      // Only owner can promote/demote
+      if (family.ownerId !== userId) {
+        return res.status(403).json({ error: "Only the owner can change roles" });
+      }
+
+      if (role !== "admin" && role !== "member") {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+
+      const updated = await storage.updateFamilyMember(familyId, memberId, { role });
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update member role" });
+    }
+  });
+
+  // Kick member
+  app.delete("/api/families/:id/members/:memberId", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      const familyId = req.params.id;
+      const memberId = req.params.memberId;
+      
+      const family = await storage.getFamily(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Family not found" });
+      }
+
+      const members = await storage.getFamilyMembers(familyId);
+      const actor = members.find(m => m.userId === userId);
+      const target = members.find(m => m.userId === memberId);
+
+      if (!actor || !target) {
+        return res.status(404).json({ error: "Member not found" });
+      }
+
+      if (actor.role !== "owner" && actor.role !== "admin") {
+        return res.status(403).json({ error: "Only owners and admins can kick members" });
+      }
+
+      if (target.role === "owner") {
+        return res.status(403).json({ error: "Cannot kick the owner" });
+      }
+
+      if (target.role === "admin" && actor.role !== "owner") {
+        return res.status(403).json({ error: "Only owners can kick admins" });
+      }
+
+      await storage.removeFamilyMember(familyId, memberId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to kick member" });
+    }
+  });
+
+  // Get family messages
+  app.get("/api/families/:id/messages", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const messages = await storage.getFamilyMessages(req.params.id, limit);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get messages" });
+    }
+  });
+
+  // Send family message
+  app.post("/api/families/:id/messages", async (req, res) => {
+    try {
+      const { userId, content } = req.body;
+      const familyId = req.params.id;
+      
+      if (!userId || !content) {
+        return res.status(400).json({ error: "User ID and content required" });
+      }
+
+      // Verify user is a member
+      const membership = await storage.getUserFamily(userId);
+      if (!membership || membership.familyId !== familyId) {
+        return res.status(403).json({ error: "You must be a member to send messages" });
+      }
+
+      const message = await storage.createFamilyMessage({
+        familyId,
+        userId,
+        content,
+      });
+
+      const user = await storage.getUser(userId);
+      res.status(201).json({ ...message, user });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to send message" });
+    }
+  });
+
   return httpServer;
 }
