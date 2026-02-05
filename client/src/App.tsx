@@ -36,6 +36,8 @@ import UserProfile from "@/pages/user-profile";
 import PostShort from "@/pages/post-short";
 import MyPosts from "@/pages/my-posts";
 import VIPPlans from "@/pages/vip-plans";
+import Families from "@/pages/families";
+import FamilyDetail from "@/pages/family-detail";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -80,6 +82,8 @@ function Router() {
       <Route path="/privacy">{() => <ProtectedRoute component={Privacy} />}</Route>
       <Route path="/help">{() => <ProtectedRoute component={Help} />}</Route>
       <Route path="/about">{() => <ProtectedRoute component={About} />}</Route>
+      <Route path="/families">{() => <ProtectedRoute component={Families} />}</Route>
+      <Route path="/families/:id">{() => <ProtectedRoute component={FamilyDetail} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

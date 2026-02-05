@@ -197,10 +197,20 @@ export default function Leaderboard() {
         )}
 
         {mainTab === 'families' && (
-          <div className="p-4 text-center py-12">
-            <Users className="w-16 h-16 text-white/20 mx-auto mb-4" />
-            <p className="text-white font-medium mb-2">Families Leaderboard</p>
-            <p className="text-white/50 text-sm">Join or create a family to compete!</p>
+          <div className="p-4">
+            <Link href="/families">
+              <button 
+                className="w-full py-3 bg-primary text-white font-medium rounded-xl mb-4 hover:bg-primary/80"
+                data-testid="button-view-families"
+              >
+                View All Families
+              </button>
+            </Link>
+            <div className="text-center py-8">
+              <Users className="w-16 h-16 text-white/20 mx-auto mb-4" />
+              <p className="text-white font-medium mb-2">Families Leaderboard</p>
+              <p className="text-white/50 text-sm">Join or create a family to compete!</p>
+            </div>
           </div>
         )}
 
