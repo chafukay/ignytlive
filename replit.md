@@ -78,6 +78,16 @@ Core data models include:
 - Authorization-protected endpoints for initiating/accepting calls
 - Earnings tracking for hosts
 
+### Families (Social Groups)
+- **Social Groups**: Users can create and join families (clans/guilds)
+- **Membership**: Users can only belong to one family at a time
+- **Roles**: Owner, Admin, Member hierarchy with different permissions
+- **Leaderboard**: Families ranked by total gifts received
+- **Requirements**: Families can set minimum level requirements to join
+- **Group Chat**: Real-time messaging for family members
+- **Management**: Owners can promote/demote admins, kick members
+- **Privacy**: Public or private family options
+
 ## External Dependencies
 
 ### Database
