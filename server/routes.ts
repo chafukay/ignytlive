@@ -2508,5 +2508,122 @@ export async function registerRoutes(
     }
   });
 
+  // ========== ACHIEVEMENTS ==========
+
+  // Get all achievements
+  app.get("/api/achievements", async (req, res) => {
+    try {
+      const achievementsList = await storage.getAchievements();
+      res.json(achievementsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get achievements" });
+    }
+  });
+
+  // Get user's unlocked achievements
+  app.get("/api/users/:userId/achievements", async (req, res) => {
+    try {
+      const userAchievements = await storage.getUserAchievements(req.params.userId);
+      res.json(userAchievements);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get user achievements" });
+    }
+  });
+
+  // ========== PROFILE VIEWS ==========
+
+  // Record profile visit
+  app.post("/api/users/:userId/visit", async (req, res) => {
+    try {
+      const profileId = req.params.userId;
+      const visitorId = req.body.visitorId;
+      
+      // Don't count self-visits
+      if (visitorId !== profileId) {
+        await storage.recordProfileVisit(profileId, visitorId);
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to record visit" });
+    }
+  });
+
+  // Get profile visitors
+  app.get("/api/users/:userId/visitors", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const visitors = await storage.getProfileVisitors(req.params.userId, limit);
+      res.json(visitors);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get visitors" });
+    }
+  });
+
+  // Generate referral code for user
+  app.post("/api/users/:userId/referral-code", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.referralCode) {
+        return res.json({ referralCode: user.referralCode });
+      }
+      
+      // Generate unique referral code
+      const code = user.username.toUpperCase().slice(0, 4) + Math.random().toString(36).substring(2, 6).toUpperCase();
+      
+      await storage.updateUser(userId, { referralCode: code });
+      res.json({ referralCode: code });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to generate referral code" });
+    }
+  });
+
+  // Apply referral code
+  app.post("/api/users/:userId/apply-referral", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const { referralCode } = req.body;
+      
+      if (!referralCode) {
+        return res.status(400).json({ error: "Referral code required" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.referredBy) {
+        return res.status(400).json({ error: "You have already used a referral code" });
+      }
+      
+      // Find referrer
+      const allUsers = await storage.getAllUsers();
+      const referrer = allUsers.find(u => u.referralCode === referralCode);
+      
+      if (!referrer) {
+        return res.status(404).json({ error: "Invalid referral code" });
+      }
+      
+      if (referrer.id === userId) {
+        return res.status(400).json({ error: "Cannot use your own referral code" });
+      }
+      
+      // Apply referral - give both users bonus coins
+      await storage.updateUser(userId, { referredBy: referrer.id, coins: user.coins + 100 });
+      await storage.updateUser(referrer.id, { coins: referrer.coins + 200 });
+      
+      res.json({ success: true, bonusCoins: 100 });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to apply referral code" });
+    }
+  });
+
   return httpServer;
 }

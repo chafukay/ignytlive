@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import BadgesDisplay from "@/components/badges-display";
 import UserAvatar from "@/components/user-avatar";
 import { useState } from "react";
+import { getWealthLevel } from "@shared/wealth-utils";
 
 export default function Profile() {
   const { user, logout, setUser } = useAuth();
@@ -132,6 +133,17 @@ export default function Profile() {
             <h2 className="text-xl font-bold text-foreground" data-testid="text-username">
               {user.username}
             </h2>
+            {user.isVerified && (
+              <span className={`flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full ${
+                user.verificationBadge === 'official' ? 'bg-blue-500 text-white' :
+                user.verificationBadge === 'celebrity' ? 'bg-purple-500 text-white' :
+                user.verificationBadge === 'creator' ? 'bg-pink-500 text-white' :
+                'bg-green-500 text-white'
+              }`} data-testid="badge-verified">
+                <BadgeCheck className="w-3 h-3" />
+                {user.verificationBadge || 'Verified'}
+              </span>
+            )}
             {equippedBadge && (
               <span className="bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs px-2 py-0.5 rounded-full">
                 {equippedBadge.item.emoji} {equippedBadge.item.name}
@@ -151,8 +163,16 @@ export default function Profile() {
               </span>
             )}
             <span>🌍 {user.city || user.country || 'Unknown'}</span>
-            <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
-              👑 Fans
+            {(() => {
+              const wealthLevel = getWealthLevel(user.totalSpent || 0);
+              return (
+                <span className={`${wealthLevel.color} bg-black/20 px-2 py-0.5 rounded-full text-xs flex items-center gap-1`} data-testid="text-wealth-level">
+                  {wealthLevel.emoji} {wealthLevel.name}
+                </span>
+              );
+            })()}
+            <span className="bg-muted/50 text-muted-foreground px-2 py-0.5 rounded-full text-xs flex items-center gap-1" data-testid="text-profile-views">
+              <Eye className="w-3 h-3" /> {formatNumber(user.profileViews || 0)} views
             </span>
           </div>
           {user.bio && (
@@ -249,23 +269,29 @@ export default function Profile() {
         </Link>
 
         {/* Quick Access */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-4 gap-3 mb-6">
           <Link href="/shorts">
             <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-shorts">
               <Clapperboard className="w-6 h-6 text-pink-400 mx-auto mb-2" />
-              <span className="text-foreground text-sm font-medium">Shorts</span>
+              <span className="text-foreground text-xs font-medium">Shorts</span>
             </div>
           </Link>
           <Link href="/leaderboard">
             <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-leaderboard">
               <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-              <span className="text-foreground text-sm font-medium">Leaderboard</span>
+              <span className="text-foreground text-xs font-medium">Leaderboard</span>
             </div>
           </Link>
           <Link href="/groups">
             <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-groups">
               <Users className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-              <span className="text-foreground text-sm font-medium">Groups</span>
+              <span className="text-foreground text-xs font-medium">Groups</span>
+            </div>
+          </Link>
+          <Link href="/achievements">
+            <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-achievements">
+              <Medal className="w-6 h-6 text-green-400 mx-auto mb-2" />
+              <span className="text-foreground text-xs font-medium">Achievements</span>
             </div>
           </Link>
         </div>

@@ -32,6 +32,9 @@ import {
   families,
   familyMembers,
   familyMessages,
+  achievements,
+  userAchievements,
+  profileVisits,
   type PhoneVerificationCode,
   type InsertPhoneVerificationCode,
   type User,
@@ -94,6 +97,12 @@ import {
   type InsertFamilyMember,
   type FamilyMessage,
   type InsertFamilyMessage,
+  type Achievement,
+  type InsertAchievement,
+  type UserAchievement,
+  type InsertUserAchievement,
+  type ProfileVisit,
+  type InsertProfileVisit,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -268,6 +277,16 @@ export interface IStorage {
   // Family Message operations
   createFamilyMessage(message: InsertFamilyMessage): Promise<FamilyMessage>;
   getFamilyMessages(familyId: string, limit?: number): Promise<(FamilyMessage & { user: User })[]>;
+  
+  // Achievement operations
+  getAchievements(): Promise<Achievement[]>;
+  getUserAchievements(userId: string): Promise<(UserAchievement & { achievement: Achievement })[]>;
+  unlockAchievement(userId: string, achievementId: string): Promise<UserAchievement>;
+  hasAchievement(userId: string, achievementId: string): Promise<boolean>;
+  
+  // Profile Visit operations
+  recordProfileVisit(profileId: string, visitorId?: string): Promise<void>;
+  getProfileVisitors(profileId: string, limit?: number): Promise<(ProfileVisit & { visitor: User | null })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1737,6 +1756,61 @@ export class DatabaseStorage implements IStorage {
       ...row.family_messages,
       user: row.users,
     })).reverse();
+  }
+
+  // Achievement operations
+  async getAchievements(): Promise<Achievement[]> {
+    return await db.select().from(achievements).where(eq(achievements.isActive, true));
+  }
+
+  async getUserAchievements(userId: string): Promise<(UserAchievement & { achievement: Achievement })[]> {
+    const results = await db
+      .select()
+      .from(userAchievements)
+      .innerJoin(achievements, eq(userAchievements.achievementId, achievements.id))
+      .where(eq(userAchievements.userId, userId))
+      .orderBy(desc(userAchievements.unlockedAt));
+
+    return results.map(row => ({
+      ...row.user_achievements,
+      achievement: row.achievements,
+    }));
+  }
+
+  async unlockAchievement(userId: string, achievementId: string): Promise<UserAchievement> {
+    const [created] = await db.insert(userAchievements).values({ userId, achievementId }).returning();
+    return created;
+  }
+
+  async hasAchievement(userId: string, achievementId: string): Promise<boolean> {
+    const [result] = await db
+      .select()
+      .from(userAchievements)
+      .where(and(eq(userAchievements.userId, userId), eq(userAchievements.achievementId, achievementId)));
+    return !!result;
+  }
+
+  // Profile Visit operations
+  async recordProfileVisit(profileId: string, visitorId?: string): Promise<void> {
+    await db.insert(profileVisits).values({ profileId, visitorId: visitorId || null });
+    await db.update(users)
+      .set({ profileViews: sql`${users.profileViews} + 1` })
+      .where(eq(users.id, profileId));
+  }
+
+  async getProfileVisitors(profileId: string, limit: number = 50): Promise<(ProfileVisit & { visitor: User | null })[]> {
+    const results = await db
+      .select()
+      .from(profileVisits)
+      .leftJoin(users, eq(profileVisits.visitorId, users.id))
+      .where(eq(profileVisits.profileId, profileId))
+      .orderBy(desc(profileVisits.visitedAt))
+      .limit(limit);
+
+    return results.map(row => ({
+      ...row.profile_visits,
+      visitor: row.users || null,
+    }));
   }
 }
 

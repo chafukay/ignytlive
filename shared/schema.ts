@@ -44,11 +44,18 @@ export const users = pgTable("users", {
   privacySettings: text("privacy_settings"), // JSON string for privacy settings
   notificationSettings: text("notification_settings"), // JSON string for notification settings
   language: text("language").notNull().default("en"), // User's preferred language
+  isVerified: boolean("is_verified").notNull().default(false),
+  verificationBadge: text("verification_badge"), // official, creator, celebrity, talent
+  totalSpent: integer("total_spent").notNull().default(0), // Total coins spent (for wealth level)
+  profileViews: integer("profile_views").notNull().default(0),
+  referralCode: text("referral_code").unique(),
+  referredBy: varchar("referred_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   usernameIdx: index("username_idx").on(table.username),
   emailIdx: index("email_idx").on(table.email),
   phoneIdx: index("phone_idx").on(table.phone),
+  referralCodeIdx: index("referral_code_idx").on(table.referralCode),
 }));
 
 // Phone verification codes table
@@ -904,6 +911,73 @@ export const insertFamilyMessageSchema = createInsertSchema(familyMessages).omit
 });
 export type InsertFamilyMessage = z.infer<typeof insertFamilyMessageSchema>;
 export type FamilyMessage = typeof familyMessages.$inferSelect;
+
+// Achievements table - unlockable milestones
+export const achievements = pgTable("achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  emoji: text("emoji").notNull(),
+  category: text("category").notNull(), // streaming, social, gifting, spending, leveling
+  requirement: text("requirement").notNull(), // JSON: { type: "followers", value: 100 }
+  rewardXp: integer("reward_xp").notNull().default(0),
+  rewardCoins: integer("reward_coins").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAchievementSchema = createInsertSchema(achievements).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type Achievement = typeof achievements.$inferSelect;
+
+// User Achievements - tracks which achievements users have unlocked
+export const userAchievements = pgTable("user_achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  achievementId: varchar("achievement_id").notNull().references(() => achievements.id),
+  unlockedAt: timestamp("unlocked_at").notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: index("user_achievements_user_id_idx").on(table.userId),
+  achievementIdIdx: index("user_achievements_achievement_id_idx").on(table.achievementId),
+}));
+
+export const userAchievementsRelations = relations(userAchievements, ({ one }) => ({
+  user: one(users, { fields: [userAchievements.userId], references: [users.id] }),
+  achievement: one(achievements, { fields: [userAchievements.achievementId], references: [achievements.id] }),
+}));
+
+export const insertUserAchievementSchema = createInsertSchema(userAchievements).omit({
+  id: true,
+  unlockedAt: true,
+});
+export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
+export type UserAchievement = typeof userAchievements.$inferSelect;
+
+// Profile Visits - tracks who visited whose profile
+export const profileVisits = pgTable("profile_visits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  profileId: varchar("profile_id").notNull().references(() => users.id),
+  visitorId: varchar("visitor_id").references(() => users.id), // null for anonymous
+  visitedAt: timestamp("visited_at").notNull().defaultNow(),
+}, (table) => ({
+  profileIdIdx: index("profile_visits_profile_id_idx").on(table.profileId),
+  visitedAtIdx: index("profile_visits_visited_at_idx").on(table.visitedAt),
+}));
+
+export const profileVisitsRelations = relations(profileVisits, ({ one }) => ({
+  profile: one(users, { fields: [profileVisits.profileId], references: [users.id] }),
+  visitor: one(users, { fields: [profileVisits.visitorId], references: [users.id] }),
+}));
+
+export const insertProfileVisitSchema = createInsertSchema(profileVisits).omit({
+  id: true,
+  visitedAt: true,
+});
+export type InsertProfileVisit = z.infer<typeof insertProfileVisitSchema>;
+export type ProfileVisit = typeof profileVisits.$inferSelect;
 
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";
