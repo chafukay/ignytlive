@@ -299,7 +299,7 @@ export default function Profile() {
             { icon: Star, label: "Families", color: "text-yellow-400", href: "/groups" },
             { icon: Wallet, label: "Purchase Coins", color: "text-yellow-500", href: "/coins" },
             { icon: ShoppingBag, label: "Store", color: "text-blue-400", href: "/store", extra: "Purchase" },
-            { icon: Crown, label: "Millionaire", color: "text-yellow-400", href: "/vip-plans", extra: "Upgrade Now", special: true },
+            { icon: Crown, label: "VIP Plans", color: "text-yellow-400", href: "/vip-plans", extra: user.vipTier === 0 ? "Upgrade Now" : "", special: true, tierName: user.vipTier === 0 ? "FREE" : user.vipTier === 1 ? "BRONZE" : user.vipTier === 2 ? "SILVER" : user.vipTier === 3 ? "GOLD" : user.vipTier === 4 ? "PLATINUM" : "MILLIONAIRE" },
             { icon: Award, label: "User Level", color: "text-purple-400", href: "/user-level" },
             { icon: Gift, label: "Top Gifters", color: "text-pink-400", href: "/top-gifters" },
             { icon: Building2, label: "Agency - Earn Extra Diamonds", color: "text-cyan-400", href: "/leaderboard" },
@@ -314,8 +314,15 @@ export default function Profile() {
                 data-testid={`menu-${item.label.toLowerCase().replace(/ /g, '-')}`}
               >
                 {item.special ? (
-                  <div className="bg-gradient-to-r from-yellow-600 to-yellow-800 text-white text-xs font-bold px-3 py-1 rounded">
-                    MILLIONAIRE
+                  <div className={`text-white text-xs font-bold px-3 py-1 rounded ${
+                    (item as any).tierName === "FREE" ? "bg-gray-600" :
+                    (item as any).tierName === "BRONZE" ? "bg-gradient-to-r from-amber-700 to-amber-900" :
+                    (item as any).tierName === "SILVER" ? "bg-gradient-to-r from-gray-400 to-gray-600" :
+                    (item as any).tierName === "GOLD" ? "bg-gradient-to-r from-yellow-500 to-yellow-700" :
+                    (item as any).tierName === "PLATINUM" ? "bg-gradient-to-r from-cyan-400 to-cyan-600" :
+                    "bg-gradient-to-r from-purple-500 to-pink-500"
+                  }`}>
+                    {(item as any).tierName}
                   </div>
                 ) : (
                   <item.icon className={`w-5 h-5 ${item.color}`} />
