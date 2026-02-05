@@ -272,20 +272,24 @@ export default function Profile() {
 
         {/* VIP Status */}
         {user.vipTier > 0 && (
-          <div className="bg-gradient-to-r from-purple-900/50 to-pink-900/50 rounded-2xl p-4 mb-6 border border-purple-500/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                  <Award className="w-5 h-5 text-white" />
+          <Link href="/vip-plans">
+            <div className="bg-gradient-to-r from-purple-900/50 to-pink-900/50 rounded-2xl p-4 mb-6 border border-purple-500/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-xl">
+                    {user.vipTier === 1 ? "🥉" : user.vipTier === 2 ? "🥈" : user.vipTier === 3 ? "🥇" : user.vipTier === 4 ? "💎" : "👑"}
+                  </div>
+                  <div>
+                    <p className="text-foreground font-bold">
+                      {user.vipTier === 1 ? "Bronze" : user.vipTier === 2 ? "Silver" : user.vipTier === 3 ? "Gold" : user.vipTier === 4 ? "Platinum" : "Millionaire"}
+                    </p>
+                    <p className="text-muted-foreground text-xs">Premium Member</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-foreground font-bold">VIP {user.vipTier}</p>
-                  <p className="text-muted-foreground text-xs">Premium Member</p>
-                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
             </div>
-          </div>
+          </Link>
         )}
 
         {/* Menu Items - SuperLive Style */}
