@@ -29,6 +29,9 @@ import {
   phoneVerificationCodes,
   storeItems,
   userItems,
+  families,
+  familyMembers,
+  familyMessages,
   type PhoneVerificationCode,
   type InsertPhoneVerificationCode,
   type User,
@@ -85,6 +88,12 @@ import {
   type InsertStoreItem,
   type UserItem,
   type InsertUserItem,
+  type Family,
+  type InsertFamily,
+  type FamilyMember,
+  type InsertFamilyMember,
+  type FamilyMessage,
+  type InsertFamilyMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or } from "drizzle-orm";
@@ -240,6 +249,25 @@ export interface IStorage {
   equipItem(userItemId: string): Promise<UserItem | undefined>;
   unequipItem(userItemId: string): Promise<UserItem | undefined>;
   getEquippedItems(userId: string): Promise<(UserItem & { item: StoreItem })[]>;
+  
+  // Family operations
+  createFamily(family: InsertFamily): Promise<Family>;
+  getFamily(id: string): Promise<Family | undefined>;
+  getFamilies(limit?: number): Promise<(Family & { owner: User })[]>;
+  searchFamilies(query: string): Promise<(Family & { owner: User })[]>;
+  updateFamily(id: string, updates: Partial<Family>): Promise<Family | undefined>;
+  deleteFamily(id: string): Promise<boolean>;
+  
+  // Family Member operations
+  addFamilyMember(member: InsertFamilyMember): Promise<FamilyMember>;
+  removeFamilyMember(familyId: string, userId: string): Promise<boolean>;
+  getFamilyMembers(familyId: string): Promise<(FamilyMember & { user: User })[]>;
+  getUserFamily(userId: string): Promise<(FamilyMember & { family: Family }) | undefined>;
+  updateFamilyMember(familyId: string, userId: string, updates: Partial<FamilyMember>): Promise<FamilyMember | undefined>;
+  
+  // Family Message operations
+  createFamilyMessage(message: InsertFamilyMessage): Promise<FamilyMessage>;
+  getFamilyMessages(familyId: string, limit?: number): Promise<(FamilyMessage & { user: User })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1575,6 +1603,138 @@ export class DatabaseStorage implements IStorage {
       ...row.user_items,
       item: row.store_items,
     }));
+  }
+
+  // Family operations
+  async createFamily(family: InsertFamily): Promise<Family> {
+    const [created] = await db.insert(families).values(family).returning();
+    return created;
+  }
+
+  async getFamily(id: string): Promise<Family | undefined> {
+    const [family] = await db.select().from(families).where(eq(families.id, id));
+    return family || undefined;
+  }
+
+  async getFamilies(limit: number = 50): Promise<(Family & { owner: User })[]> {
+    const results = await db
+      .select()
+      .from(families)
+      .innerJoin(users, eq(families.ownerId, users.id))
+      .orderBy(desc(families.totalGifts))
+      .limit(limit);
+
+    return results.map(row => ({
+      ...row.families,
+      owner: row.users,
+    }));
+  }
+
+  async searchFamilies(query: string): Promise<(Family & { owner: User })[]> {
+    const results = await db
+      .select()
+      .from(families)
+      .innerJoin(users, eq(families.ownerId, users.id))
+      .where(sql`LOWER(${families.name}) LIKE LOWER(${'%' + query + '%'})`)
+      .orderBy(desc(families.memberCount))
+      .limit(20);
+
+    return results.map(row => ({
+      ...row.families,
+      owner: row.users,
+    }));
+  }
+
+  async updateFamily(id: string, updates: Partial<Family>): Promise<Family | undefined> {
+    const [updated] = await db
+      .update(families)
+      .set(updates)
+      .where(eq(families.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteFamily(id: string): Promise<boolean> {
+    await db.delete(familyMessages).where(eq(familyMessages.familyId, id));
+    await db.delete(familyMembers).where(eq(familyMembers.familyId, id));
+    const result = await db.delete(families).where(eq(families.id, id));
+    return true;
+  }
+
+  // Family Member operations
+  async addFamilyMember(member: InsertFamilyMember): Promise<FamilyMember> {
+    const [created] = await db.insert(familyMembers).values(member).returning();
+    await db.update(families)
+      .set({ memberCount: sql`${families.memberCount} + 1` })
+      .where(eq(families.id, member.familyId));
+    return created;
+  }
+
+  async removeFamilyMember(familyId: string, userId: string): Promise<boolean> {
+    await db.delete(familyMembers)
+      .where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.userId, userId)));
+    await db.update(families)
+      .set({ memberCount: sql`GREATEST(${families.memberCount} - 1, 0)` })
+      .where(eq(families.id, familyId));
+    return true;
+  }
+
+  async getFamilyMembers(familyId: string): Promise<(FamilyMember & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(familyMembers)
+      .innerJoin(users, eq(familyMembers.userId, users.id))
+      .where(eq(familyMembers.familyId, familyId))
+      .orderBy(desc(familyMembers.contributedGifts));
+
+    return results.map(row => ({
+      ...row.family_members,
+      user: row.users,
+    }));
+  }
+
+  async getUserFamily(userId: string): Promise<(FamilyMember & { family: Family }) | undefined> {
+    const [result] = await db
+      .select()
+      .from(familyMembers)
+      .innerJoin(families, eq(familyMembers.familyId, families.id))
+      .where(eq(familyMembers.userId, userId));
+
+    if (!result) return undefined;
+    return {
+      ...result.family_members,
+      family: result.families,
+    };
+  }
+
+  async updateFamilyMember(familyId: string, userId: string, updates: Partial<FamilyMember>): Promise<FamilyMember | undefined> {
+    const [updated] = await db
+      .update(familyMembers)
+      .set(updates)
+      .where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.userId, userId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Family Message operations
+  async createFamilyMessage(message: InsertFamilyMessage): Promise<FamilyMessage> {
+    const [created] = await db.insert(familyMessages).values(message).returning();
+    return created;
+  }
+
+  async getFamilyMessages(familyId: string, limit: number = 100): Promise<(FamilyMessage & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(familyMessages)
+      .innerJoin(users, eq(familyMessages.userId, users.id))
+      .where(eq(familyMessages.familyId, familyId))
+      .orderBy(desc(familyMessages.createdAt))
+      .limit(limit);
+
+    return results.map(row => ({
+      ...row.family_messages,
+      user: row.users,
+    })).reverse();
   }
 }
 
