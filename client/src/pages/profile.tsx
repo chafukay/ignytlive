@@ -295,7 +295,7 @@ export default function Profile() {
             { icon: Star, label: "Families", color: "text-yellow-400", href: "/groups" },
             { icon: Wallet, label: "Purchase Coins", color: "text-yellow-500", href: "/coins" },
             { icon: ShoppingBag, label: "Store", color: "text-blue-400", href: "/store", extra: "Purchase" },
-            { icon: Crown, label: "Millionaire", color: "text-yellow-400", href: "/coins", extra: "Upgrade Now", special: true },
+            { icon: Crown, label: "Millionaire", color: "text-yellow-400", href: "/vip-plans", extra: "Upgrade Now", special: true },
             { icon: Award, label: "User Level", color: "text-purple-400", href: "/user-level" },
             { icon: Gift, label: "Top Gifters", color: "text-pink-400", href: "/top-gifters" },
             { icon: Building2, label: "Agency - Earn Extra Diamonds", color: "text-cyan-400", href: "/leaderboard" },

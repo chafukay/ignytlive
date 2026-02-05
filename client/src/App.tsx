@@ -35,6 +35,7 @@ import PrivateCall from "@/pages/private-call";
 import UserProfile from "@/pages/user-profile";
 import PostShort from "@/pages/post-short";
 import MyPosts from "@/pages/my-posts";
+import VIPPlans from "@/pages/vip-plans";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -74,6 +75,7 @@ function Router() {
       <Route path="/user-level">{() => <ProtectedRoute component={UserLevel} />}</Route>
       <Route path="/top-gifters">{() => <ProtectedRoute component={TopGifters} />}</Route>
       <Route path="/item-bag">{() => <ProtectedRoute component={ItemBag} />}</Route>
+      <Route path="/vip-plans">{() => <ProtectedRoute component={VIPPlans} />}</Route>
       <Route path="/edit-profile">{() => <ProtectedRoute component={EditProfile} />}</Route>
       <Route path="/privacy">{() => <ProtectedRoute component={Privacy} />}</Route>
       <Route path="/help">{() => <ProtectedRoute component={Help} />}</Route>

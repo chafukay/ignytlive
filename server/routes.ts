@@ -1017,6 +1017,45 @@ export async function registerRoutes(
     }
   });
 
+  // VIP upgrade route
+  const vipUpgradeSchema = z.object({
+    tier: z.number().min(1).max(5),
+    cost: z.number().min(0),
+  });
+
+  app.post("/api/users/:id/upgrade-vip", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { tier, cost } = vipUpgradeSchema.parse(req.body);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.vipTier >= tier) {
+        return res.status(400).json({ error: "You already have this tier or higher" });
+      }
+      
+      if (tier !== user.vipTier + 1) {
+        return res.status(400).json({ error: "You must upgrade to the next tier first" });
+      }
+      
+      if (user.coins < cost) {
+        return res.status(400).json({ error: "Not enough coins" });
+      }
+      
+      const updatedUser = await storage.updateUser(userId, {
+        vipTier: tier,
+        coins: user.coins - cost,
+      });
+      
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to upgrade VIP" });
+    }
+  });
+
   // Admin routes
   const adminUpdateSchema = z.object({
     role: z.enum(["user", "admin", "superadmin"]).optional(),
