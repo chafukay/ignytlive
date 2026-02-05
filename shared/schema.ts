@@ -820,5 +820,90 @@ export const insertUserItemSchema = createInsertSchema(userItems).omit({
 export type InsertUserItem = z.infer<typeof insertUserItemSchema>;
 export type UserItem = typeof userItems.$inferSelect;
 
+// Families table - social groups/clans
+export const families = pgTable("families", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  avatar: text("avatar"),
+  ownerId: varchar("owner_id").notNull().references(() => users.id),
+  memberCount: integer("member_count").notNull().default(1),
+  maxMembers: integer("max_members").notNull().default(50),
+  totalGifts: integer("total_gifts").notNull().default(0),
+  weeklyGifts: integer("weekly_gifts").notNull().default(0),
+  isPublic: boolean("is_public").notNull().default(true),
+  minLevel: integer("min_level").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  nameIdx: index("families_name_idx").on(table.name),
+  ownerIdIdx: index("families_owner_id_idx").on(table.ownerId),
+}));
+
+export const familiesRelations = relations(families, ({ one, many }) => ({
+  owner: one(users, { fields: [families.ownerId], references: [users.id] }),
+  members: many(familyMembers),
+  messages: many(familyMessages),
+}));
+
+export const insertFamilySchema = createInsertSchema(families).omit({
+  id: true,
+  createdAt: true,
+  memberCount: true,
+  totalGifts: true,
+  weeklyGifts: true,
+});
+export type InsertFamily = z.infer<typeof insertFamilySchema>;
+export type Family = typeof families.$inferSelect;
+
+// Family Members table
+export const familyMembers = pgTable("family_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  familyId: varchar("family_id").notNull().references(() => families.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("member"), // owner, admin, member
+  contributedGifts: integer("contributed_gifts").notNull().default(0),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+}, (table) => ({
+  familyIdIdx: index("family_members_family_id_idx").on(table.familyId),
+  userIdIdx: index("family_members_user_id_idx").on(table.userId),
+}));
+
+export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
+  family: one(families, { fields: [familyMembers.familyId], references: [families.id] }),
+  user: one(users, { fields: [familyMembers.userId], references: [users.id] }),
+}));
+
+export const insertFamilyMemberSchema = createInsertSchema(familyMembers).omit({
+  id: true,
+  joinedAt: true,
+  contributedGifts: true,
+});
+export type InsertFamilyMember = z.infer<typeof insertFamilyMemberSchema>;
+export type FamilyMember = typeof familyMembers.$inferSelect;
+
+// Family Messages table - group chat
+export const familyMessages = pgTable("family_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  familyId: varchar("family_id").notNull().references(() => families.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  familyIdIdx: index("family_messages_family_id_idx").on(table.familyId),
+  createdAtIdx: index("family_messages_created_at_idx").on(table.createdAt),
+}));
+
+export const familyMessagesRelations = relations(familyMessages, ({ one }) => ({
+  family: one(families, { fields: [familyMessages.familyId], references: [families.id] }),
+  user: one(users, { fields: [familyMessages.userId], references: [users.id] }),
+}));
+
+export const insertFamilyMessageSchema = createInsertSchema(familyMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertFamilyMessage = z.infer<typeof insertFamilyMessageSchema>;
+export type FamilyMessage = typeof familyMessages.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";
