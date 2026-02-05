@@ -828,7 +828,7 @@ export const families = pgTable("families", {
   avatar: text("avatar"),
   ownerId: varchar("owner_id").notNull().references(() => users.id),
   memberCount: integer("member_count").notNull().default(1),
-  maxMembers: integer("max_members").notNull().default(50),
+  maxMembers: integer("max_members").notNull().default(20),
   totalGifts: integer("total_gifts").notNull().default(0),
   weeklyGifts: integer("weekly_gifts").notNull().default(0),
   isPublic: boolean("is_public").notNull().default(true),

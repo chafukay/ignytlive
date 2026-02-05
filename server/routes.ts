@@ -2247,7 +2247,7 @@ export async function registerRoutes(
         ownerId,
         isPublic: isPublic !== false,
         minLevel: minLevel || 1,
-        maxMembers: 50,
+        maxMembers: 20,
       });
 
       // Add owner as first member (don't increment count since family starts with memberCount: 1)
