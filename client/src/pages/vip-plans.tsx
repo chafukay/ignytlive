@@ -10,7 +10,7 @@ const VIP_TIERS = [
   {
     tier: 1,
     name: "Bronze",
-    price: 5000,
+    price: 500,
     color: "from-amber-700 to-amber-900",
     borderColor: "border-amber-600",
     icon: "🥉",
@@ -24,7 +24,7 @@ const VIP_TIERS = [
   {
     tier: 2,
     name: "Silver",
-    price: 15000,
+    price: 1500,
     color: "from-gray-400 to-gray-600",
     borderColor: "border-gray-400",
     icon: "🥈",
@@ -39,7 +39,7 @@ const VIP_TIERS = [
   {
     tier: 3,
     name: "Gold",
-    price: 50000,
+    price: 5000,
     color: "from-yellow-500 to-yellow-700",
     borderColor: "border-yellow-500",
     icon: "🥇",
@@ -55,7 +55,7 @@ const VIP_TIERS = [
   {
     tier: 4,
     name: "Platinum",
-    price: 150000,
+    price: 15000,
     color: "from-cyan-400 to-cyan-600",
     borderColor: "border-cyan-400",
     icon: "💎",
@@ -72,7 +72,7 @@ const VIP_TIERS = [
   {
     tier: 5,
     name: "Millionaire",
-    price: 500000,
+    price: 50000,
     color: "from-purple-500 via-pink-500 to-red-500",
     borderColor: "border-purple-500",
     icon: "👑",
