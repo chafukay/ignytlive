@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   level: integer("level").notNull().default(1),
   xp: integer("xp").notNull().default(0),
   lastDailyLoginBonus: timestamp("last_daily_login_bonus"),
+  dailyLoginStreak: integer("daily_login_streak").notNull().default(0),
   coins: integer("coins").notNull().default(0),
   diamonds: integer("diamonds").notNull().default(0),
   earnings: integer("earnings").notNull().default(0), // Host earnings from gifts + calls

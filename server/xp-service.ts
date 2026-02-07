@@ -45,9 +45,37 @@ export async function awardXP(userId: string, action: XPAction, multiplier: numb
   };
 }
 
-export async function checkDailyLoginBonus(userId: string): Promise<{ eligible: boolean; xpAwarded?: number; newTotalXP?: number }> {
+const DAILY_REWARDS = [
+  { day: 1, coins: 50, xpMultiplier: 1, emoji: "🎁" },
+  { day: 2, coins: 75, xpMultiplier: 1, emoji: "💰" },
+  { day: 3, coins: 100, xpMultiplier: 1.5, emoji: "🔥" },
+  { day: 4, coins: 150, xpMultiplier: 1.5, emoji: "⭐" },
+  { day: 5, coins: 200, xpMultiplier: 2, emoji: "💎" },
+  { day: 6, coins: 300, xpMultiplier: 2, emoji: "👑" },
+  { day: 7, coins: 500, xpMultiplier: 3, emoji: "🏆" },
+];
+
+export { DAILY_REWARDS };
+
+export interface DailyLoginResult {
+  eligible: boolean;
+  streak?: number;
+  day?: number;
+  coinsAwarded?: number;
+  xpAwarded?: number;
+  newTotalXP?: number;
+  newCoinBalance?: number;
+  rewards?: typeof DAILY_REWARDS;
+}
+
+export async function checkDailyLoginBonus(userId: string): Promise<DailyLoginResult> {
   const [user] = await db
-    .select({ lastDailyLoginBonus: users.lastDailyLoginBonus, xp: users.xp })
+    .select({ 
+      lastDailyLoginBonus: users.lastDailyLoginBonus, 
+      xp: users.xp,
+      coins: users.coins,
+      dailyLoginStreak: users.dailyLoginStreak,
+    })
     .from(users)
     .where(eq(users.id, userId));
   
@@ -66,21 +94,47 @@ export async function checkDailyLoginBonus(userId: string): Promise<{ eligible: 
       lastBonusDate.getUTCDate() === now.getUTCDate();
     
     if (isSameDay) {
-      return { eligible: false };
+      return { eligible: false, streak: user.dailyLoginStreak, rewards: DAILY_REWARDS };
     }
   }
   
-  const result = await awardXP(userId, "DAILY_LOGIN");
+  let newStreak = 1;
+  if (lastBonus) {
+    const lastBonusDate = new Date(lastBonus);
+    const yesterday = new Date(now);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const isConsecutive = 
+      lastBonusDate.getUTCFullYear() === yesterday.getUTCFullYear() &&
+      lastBonusDate.getUTCMonth() === yesterday.getUTCMonth() &&
+      lastBonusDate.getUTCDate() === yesterday.getUTCDate();
+    
+    if (isConsecutive) {
+      newStreak = (user.dailyLoginStreak % 7) + 1;
+    }
+  }
+
+  const dayReward = DAILY_REWARDS[newStreak - 1];
+  const result = await awardXP(userId, "DAILY_LOGIN", dayReward.xpMultiplier);
+  const newCoinBalance = user.coins + dayReward.coins;
   
   await db
     .update(users)
-    .set({ lastDailyLoginBonus: now })
+    .set({ 
+      lastDailyLoginBonus: now,
+      dailyLoginStreak: newStreak,
+      coins: newCoinBalance,
+    })
     .where(eq(users.id, userId));
   
   return {
     eligible: true,
+    streak: newStreak,
+    day: newStreak,
+    coinsAwarded: dayReward.coins,
     xpAwarded: result.xpAwarded,
     newTotalXP: result.newTotalXP,
+    newCoinBalance,
+    rewards: DAILY_REWARDS,
   };
 }
 

@@ -973,6 +973,15 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<ProfileVisitor[]>;
   },
+
+  async claimDailyLogin(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/daily-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<DailyLoginResult>;
+  },
 };
 
 export interface TopGifter {
@@ -992,4 +1001,22 @@ export interface ProfileVisitor {
   visitorId: string;
   visitedAt: string;
   visitor?: User;
+}
+
+export interface DailyReward {
+  day: number;
+  coins: number;
+  xpMultiplier: number;
+  emoji: string;
+}
+
+export interface DailyLoginResult {
+  eligible: boolean;
+  streak?: number;
+  day?: number;
+  coinsAwarded?: number;
+  xpAwarded?: number;
+  newTotalXP?: number;
+  newCoinBalance?: number;
+  rewards?: DailyReward[];
 }
