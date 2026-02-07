@@ -815,15 +815,18 @@ export class DatabaseStorage implements IStorage {
 
   // Message operations
   async createMessage(message: InsertMessage): Promise<Message> {
+    const { encryptMessage } = await import("./encryption");
+    const encryptedMessage = { ...message, content: encryptMessage(message.content) };
     const [newMessage] = await db
       .insert(messages)
-      .values(message)
+      .values(encryptedMessage)
       .returning();
-    return newMessage;
+    return { ...newMessage, content: message.content };
   }
 
   async getConversation(userId1: string, userId2: string): Promise<Message[]> {
-    return await db
+    const { decryptMessage } = await import("./encryption");
+    const results = await db
       .select()
       .from(messages)
       .where(
@@ -839,6 +842,7 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(messages.createdAt);
+    return results.map(msg => ({ ...msg, content: decryptMessage(msg.content) }));
   }
 
   async deleteConversation(userId1: string, userId2: string): Promise<void> {
@@ -859,6 +863,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecentChats(userId: string): Promise<Array<{ user: User; lastMessage: Message }>> {
+    const { decryptMessage } = await import("./encryption");
     const recentMessages = await db
       .select()
       .from(messages)
@@ -875,7 +880,7 @@ export class DatabaseStorage implements IStorage {
     for (const msg of recentMessages) {
       const otherUserId = msg.senderId === userId ? msg.receiverId : msg.senderId;
       if (!chatMap.has(otherUserId)) {
-        chatMap.set(otherUserId, msg);
+        chatMap.set(otherUserId, { ...msg, content: decryptMessage(msg.content) });
       }
     }
     
