@@ -11,7 +11,7 @@ import LiveRoom from "@/pages/live";
 import Explore from "@/pages/explore";
 import GoLive from "@/pages/go-live";
 import Chat from "@/pages/chat";
-import Conversation from "@/pages/conversation";
+
 import Profile from "@/pages/profile";
 import Leaderboard from "@/pages/leaderboard";
 import Shorts from "@/pages/shorts";
@@ -66,7 +66,7 @@ function Router() {
       <Route path="/coins">{() => <ProtectedRoute component={Coins} />}</Route>
       <Route path="/go-live">{() => <ProtectedRoute component={GoLive} />}</Route>
       <Route path="/chat">{() => <ProtectedRoute component={Chat} />}</Route>
-      <Route path="/chat/:userId">{() => <ProtectedRoute component={Conversation} />}</Route>
+      <Route path="/chat/:userId">{() => <ProtectedRoute component={Chat} />}</Route>
       <Route path="/shorts">{() => <ProtectedRoute component={Shorts} />}</Route>
       <Route path="/post-short">{() => <ProtectedRoute component={PostShort} />}</Route>
       <Route path="/my-posts">{() => <ProtectedRoute component={MyPosts} />}</Route>

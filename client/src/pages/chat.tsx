@@ -1,216 +1,313 @@
 import Layout from "@/components/layout";
-import { MessageCircle, Pin, Send, Lock, Mail } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { useLocation, Link } from "wouter";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
+import UserAvatar from "@/components/user-avatar";
+import type { User, Message } from "@shared/schema";
 
 export default function Chat() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<'main' | 'other'>('main');
+  const [, params] = useRoute("/chat/:userId");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [message, setMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [mobileShowConversation, setMobileShowConversation] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: chats, isLoading } = useQuery({
+  const selectedUserId = params?.userId || null;
+
+  const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats', user?.id],
     queryFn: () => api.getRecentChats(user!.id),
     enabled: !!user?.id,
+    refetchInterval: 5000,
   });
 
-  const { data: liveStreams } = useQuery({
-    queryKey: ['liveStreams'],
-    queryFn: () => api.getLiveStreams(),
+  const { data: otherUser } = useQuery({
+    queryKey: ['user', selectedUserId],
+    queryFn: () => api.getUser(selectedUserId!),
+    enabled: !!selectedUserId,
   });
+
+  const { data: messages, isLoading: messagesLoading } = useQuery({
+    queryKey: ['conversation', user?.id, selectedUserId],
+    queryFn: () => api.getConversation(user!.id, selectedUserId!),
+    enabled: !!user?.id && !!selectedUserId,
+    refetchInterval: 3000,
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: (content: string) => api.sendMessage(user!.id, selectedUserId!, content),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', user?.id, selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
+      setMessage("");
+    },
+    onError: (error: any) => {
+      if (error?.code === "DND_ENABLED") {
+        toast({ title: "Cannot send message", description: "This user has Do Not Disturb enabled", variant: "destructive" });
+      } else {
+        toast({ title: "Failed to send message", variant: "destructive" });
+      }
+    },
+  });
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (selectedUserId) {
+      setMobileShowConversation(true);
+    }
+  }, [selectedUserId]);
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || !user || !selectedUserId) return;
+    sendMessageMutation.mutate(message.trim());
+  };
+
+  const selectChat = (userId: string) => {
+    setLocation(`/chat/${userId}`);
+    setMobileShowConversation(true);
+  };
+
+  const goBackToList = () => {
+    setMobileShowConversation(false);
+    setLocation("/chat");
+  };
 
   const formatTime = (date: Date | string) => {
+    const d = typeof date === 'string' ? new Date(date) : date;
     const now = new Date();
-    const messageDate = typeof date === 'string' ? new Date(date) : date;
-    const diff = now.getTime() - messageDate.getTime();
+    const diff = now.getTime() - d.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
     if (isNaN(diff)) return '';
     if (days > 30) {
-      const month = messageDate.toLocaleString('default', { month: 'short' });
-      const day = messageDate.getDate();
-      return `${month} ${day}`;
+      return `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
     }
-    if (days > 0) return `${days}d ago`;
-    return 'Today';
+    if (days > 0) return `${days}d`;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  const filteredChats = chats?.filter(({ user: chatUser }) =>
+    (chatUser.username ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (!user) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <p className="text-muted-foreground">Please log in to see your messages</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <img 
-              src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=User"} 
-              alt="Profile"
-              className="w-10 h-10 rounded-full"
-            />
-            <div className="flex items-center gap-1 bg-yellow-500/20 px-3 py-1.5 rounded-full">
-              <span className="text-yellow-400">💰</span>
-              <span className="text-yellow-400 text-sm font-bold">{user?.coins?.toLocaleString() || 0}</span>
+      <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+        {/* Left Panel - Chat List (30%) */}
+        <div className={`w-full md:w-[30%] md:min-w-[280px] md:max-w-[360px] border-r border-border flex flex-col bg-background ${
+          mobileShowConversation ? 'hidden md:flex' : 'flex'
+        }`}>
+          <div className="p-4 border-b border-border shrink-0">
+            <h1 className="text-xl font-bold text-foreground mb-3" data-testid="text-chat-title">Messages</h1>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search conversations..."
+                className="w-full bg-muted rounded-full py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                data-testid="input-search-chats"
+              />
             </div>
           </div>
-          <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-            <Mail className="w-5 h-5 text-foreground" />
-          </button>
-        </div>
 
-        {/* Live Streamers Row */}
-        {liveStreams && liveStreams.length > 0 && (
-          <div className="p-4 border-b border-border">
-            <div className="flex gap-4 overflow-x-auto no-scrollbar">
-              {liveStreams.slice(0, 8).map((stream) => (
-                <Link key={stream.id} href={`/live/${stream.id}`}>
-                  <div className="flex flex-col items-center min-w-[60px] cursor-pointer">
-                    <div className="relative">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 p-0.5">
-                        <img 
-                          src={stream.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.title}`}
-                          className="w-full h-full rounded-full object-cover"
-                        />
+          <div className="flex-1 overflow-y-auto">
+            {chatsLoading ? (
+              <div className="p-3 space-y-1">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl animate-pulse">
+                    <div className="w-12 h-12 rounded-full bg-muted shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="h-4 w-24 bg-muted rounded mb-2" />
+                      <div className="h-3 w-36 bg-muted rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredChats && filteredChats.length > 0 ? (
+              <div className="p-2">
+                {filteredChats.map(({ user: chatUser, lastMessage }) => (
+                  <div
+                    key={chatUser.id}
+                    onClick={() => selectChat(chatUser.id)}
+                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
+                      selectedUserId === chatUser.id
+                        ? 'bg-primary/10 border border-primary/20'
+                        : 'hover:bg-muted/50'
+                    }`}
+                    data-testid={`chat-${chatUser.id}`}
+                  >
+                    <div className="shrink-0">
+                      <UserAvatar
+                        userId={chatUser.id}
+                        username={chatUser.username}
+                        avatar={chatUser.avatar}
+                        isLive={chatUser.isLive}
+                        isOnline={chatUser.isLive}
+                        size="md"
+                        showStatus={true}
+                        linkToProfile={false}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <h3 className="font-semibold text-foreground text-sm truncate">{chatUser.username}</h3>
+                        <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
+                          {formatTime(lastMessage.createdAt)}
+                        </span>
                       </div>
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-[9px] font-bold px-1.5 rounded-sm">
-                        LIVE
-                      </span>
+                      <p className="text-muted-foreground text-xs truncate">
+                        {lastMessage.senderId === user.id ? 'You: ' : ''}{lastMessage.content}
+                      </p>
                     </div>
-                    <span className="text-foreground text-[10px] mt-2 truncate w-14 text-center">
-                      {stream.user?.username?.slice(0, 8) || 'User'}
-                    </span>
                   </div>
-                </Link>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                <MessageCircle className="w-12 h-12 text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground text-sm">No conversations yet</p>
+                <p className="text-muted-foreground/60 text-xs mt-1">Start chatting with someone!</p>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Send Bulk Media */}
-        <div className="mx-4 mt-4 flex items-center gap-3 p-3 bg-muted rounded-xl hover:bg-muted/80 cursor-pointer transition-colors">
-          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-            <Send className="w-5 h-5 text-blue-400" />
-          </div>
-          <span className="text-foreground font-medium">Send Bulk Media</span>
         </div>
 
-        {/* Main/Other Tabs */}
-        <div className="flex gap-2 mx-4 mt-4">
-          <button 
-            onClick={() => setActiveTab('main')}
-            className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${
-              activeTab === 'main' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            Main
-            <span className="bg-white/20 px-1.5 rounded-full text-xs">+99</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('other')}
-            className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${
-              activeTab === 'other' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            Other
-            <span className="bg-white/20 px-1.5 rounded-full text-xs">27</span>
-          </button>
-        </div>
-
-        {/* Messages List */}
-        <div className="p-4">
-          {!user ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>Please log in to see your messages</p>
-            </div>
-          ) : isLoading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-muted animate-pulse">
-                  <div className="w-14 h-14 rounded-full bg-muted-foreground/20" />
-                  <div className="flex-1">
-                    <div className="h-4 w-24 bg-muted-foreground/20 rounded mb-2" />
-                    <div className="h-3 w-48 bg-muted-foreground/20 rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : chats && chats.length > 0 ? (
-            <div className="space-y-1">
-              {chats.map(({ user: chatUser, lastMessage }) => (
-                <div 
-                  key={chatUser.id} 
-                  onClick={() => setLocation(`/chat/${chatUser.id}`)}
-                  className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/50 cursor-pointer transition-colors"
-                  data-testid={`chat-${chatUser.id}`}
+        {/* Right Panel - Conversation (70%) */}
+        <div className={`w-full md:flex-1 flex flex-col bg-background ${
+          !mobileShowConversation ? 'hidden md:flex' : 'flex'
+        }`}>
+          {selectedUserId && otherUser ? (
+            <>
+              <div className="bg-card/80 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3 shrink-0">
+                <button
+                  onClick={goBackToList}
+                  className="p-2 hover:bg-muted rounded-full transition-colors md:hidden"
+                  data-testid="button-back-to-chats"
                 >
-                  <div className="relative">
-                    <img 
-                      src={chatUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chatUser.username}`} 
-                      className="w-14 h-14 rounded-full object-cover" 
-                    />
-                    {chatUser.isLive && (
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-[8px] font-bold px-1 rounded-sm">
-                        LIVE
-                      </span>
-                    )}
-                    {chatUser.level && (
-                      <span className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-[9px] font-bold px-1.5 rounded-full">
-                        {chatUser.level}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="font-bold text-foreground">{chatUser.username}</h3>
-                      {chatUser.vipTier && chatUser.vipTier > 0 && (
-                        <span className="text-yellow-400">✓</span>
-                      )}
-                    </div>
-                    <p className="text-muted-foreground text-sm truncate flex items-center gap-1">
-                      {lastMessage.content?.includes('Premium') && (
-                        <Lock className="w-3 h-3 text-yellow-400" />
-                      )}
-                      {lastMessage.content}
+                  <ArrowLeft className="w-5 h-5 text-foreground" />
+                </button>
+                <div
+                  onClick={() => setLocation(`/profile/${otherUser.id}`)}
+                  className="flex items-center gap-3 flex-1 cursor-pointer"
+                  data-testid="link-chat-partner-profile"
+                >
+                  <UserAvatar
+                    userId={otherUser.id}
+                    username={otherUser.username}
+                    avatar={otherUser.avatar}
+                    isLive={otherUser.isLive}
+                    isOnline={otherUser.isLive}
+                    size="sm"
+                    showStatus={true}
+                    linkToProfile={false}
+                  />
+                  <div>
+                    <h2 className="font-bold text-foreground text-sm" data-testid="text-chat-partner-username">{otherUser.username}</h2>
+                    <p className="text-xs text-muted-foreground" data-testid="text-chat-partner-status">
+                      {otherUser.isLive ? "Online" : `Level ${otherUser.level}`}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs text-muted-foreground/60">{formatTime(lastMessage.createdAt)}</span>
-                    {Math.random() > 0.5 && (
-                      <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 rounded-full">1</span>
-                    )}
-                  </div>
                 </div>
-              ))}
-            </div>
+                <button className="p-2 hover:bg-muted rounded-full transition-colors" data-testid="button-chat-options">
+                  <MoreVertical className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {messagesLoading ? (
+                  <div className="flex flex-col gap-3">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+                        <div className="h-10 w-48 bg-muted rounded-2xl animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                ) : messages && messages.length > 0 ? (
+                  messages.map((msg: Message) => {
+                    const isOwn = msg.senderId === user.id;
+                    return (
+                      <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        <div
+                          className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
+                            isOwn
+                              ? 'bg-primary text-white rounded-br-sm'
+                              : 'bg-muted text-foreground rounded-bl-sm'
+                          }`}
+                        >
+                          <p className="text-sm">{msg.content}</p>
+                          <p className={`text-[10px] mt-1 ${isOwn ? 'text-white/60' : 'text-muted-foreground'}`}>
+                            {formatTime(msg.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-muted-foreground">
+                      <p className="text-sm">No messages yet</p>
+                      <p className="text-xs mt-1">Say hello! 👋</p>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <form onSubmit={handleSend} className="p-3 border-t border-border bg-card/30 backdrop-blur-sm shrink-0">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-muted border border-border rounded-full py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-colors placeholder:text-muted-foreground"
+                    data-testid="input-message"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!message.trim() || sendMessageMutation.isPending}
+                    className="p-2.5 bg-primary rounded-full text-white disabled:opacity-50 hover:bg-primary/90 transition-colors shrink-0"
+                    data-testid="button-send"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                </div>
+              </form>
+            </>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No messages yet</p>
-              <p className="text-sm mt-1">Start a conversation!</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <MessageCircle className="w-10 h-10 text-primary/40" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">Your Messages</h3>
+              <p className="text-muted-foreground text-sm max-w-[260px]">
+                Select a conversation from the list to start chatting
+              </p>
             </div>
           )}
-
-          {/* System Message */}
-          <div className="mt-4 flex items-center gap-4 p-3 rounded-2xl bg-primary/10 border border-primary/20">
-            <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
-              <MessageCircle className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="font-bold text-foreground">Ignyt Member</h3>
-              </div>
-              <p className="text-muted-foreground text-sm truncate">You saved a video</p>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-xs text-muted-foreground/60">March 15</span>
-              <Pin className="w-4 h-4 text-muted-foreground/40" />
-            </div>
-          </div>
         </div>
       </div>
     </Layout>
