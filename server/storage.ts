@@ -105,7 +105,7 @@ import {
   type InsertProfileVisit,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, or } from "drizzle-orm";
+import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -113,6 +113,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
+  searchUsers(query: string, limit?: number): Promise<User[]>;
   getStreamers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
@@ -309,6 +310,15 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async searchUsers(query: string, limit: number = 20): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(ilike(users.username, `%${query}%`))
+      .orderBy(desc(users.followersCount))
+      .limit(limit);
   }
 
   async getStreamers(): Promise<User[]> {

@@ -30,11 +30,19 @@ export default function Chat() {
 
   const selectedUserId = params?.userId || null;
 
+  const debouncedSearch = searchQuery.trim();
+
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats', user?.id],
     queryFn: () => api.getRecentChats(user!.id),
     enabled: !!user?.id,
     refetchInterval: 5000,
+  });
+
+  const { data: searchResults, isLoading: searchLoading } = useQuery({
+    queryKey: ['searchUsers', debouncedSearch],
+    queryFn: () => api.searchUsers(debouncedSearch),
+    enabled: debouncedSearch.length >= 2,
   });
 
   const { data: otherUser } = useQuery({
@@ -227,7 +235,60 @@ export default function Chat() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {chatsLoading ? (
+            {debouncedSearch.length >= 2 ? (
+              searchLoading ? (
+                <div className="p-3 space-y-1">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl animate-pulse">
+                      <div className="w-12 h-12 rounded-full bg-muted shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="h-4 w-24 bg-muted rounded mb-2" />
+                        <div className="h-3 w-20 bg-muted rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : searchResults && searchResults.length > 0 ? (
+                <div className="p-2">
+                  <p className="text-xs text-muted-foreground px-3 py-1.5">Users</p>
+                  {searchResults.filter(u => u.id !== user.id).map((searchUser) => (
+                    <div
+                      key={searchUser.id}
+                      onClick={() => selectChat(searchUser.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
+                        selectedUserId === searchUser.id
+                          ? 'bg-primary/10 border border-primary/20'
+                          : 'hover:bg-muted/50'
+                      }`}
+                      data-testid={`search-user-${searchUser.id}`}
+                    >
+                      <div className="shrink-0">
+                        <UserAvatar
+                          userId={searchUser.id}
+                          username={searchUser.username}
+                          avatar={searchUser.avatar}
+                          isLive={searchUser.isLive}
+                          isOnline={searchUser.isLive}
+                          size="md"
+                          showStatus={true}
+                          linkToProfile={false}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground text-sm truncate">{searchUser.username}</h3>
+                        <p className="text-muted-foreground text-xs">Level {searchUser.level}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                  <Search className="w-10 h-10 text-muted-foreground/30 mb-3" />
+                  <p className="text-muted-foreground text-sm">No users found</p>
+                  <p className="text-muted-foreground/60 text-xs mt-1">Try a different name</p>
+                </div>
+              )
+            ) : chatsLoading ? (
               <div className="p-3 space-y-1">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-xl animate-pulse">

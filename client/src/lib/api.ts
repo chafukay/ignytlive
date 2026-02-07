@@ -77,6 +77,12 @@ export const api = {
     return res.json() as Promise<User>;
   },
 
+  async searchUsers(query: string) {
+    const res = await fetch(`${API_BASE}/api/users/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<User[]>;
+  },
+
   async getStreamers() {
     const res = await fetch(`${API_BASE}/api/streamers`);
     if (!res.ok) throw new Error(await res.text());

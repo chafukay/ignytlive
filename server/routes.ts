@@ -561,6 +561,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.trim().length < 1) {
+        return res.json([]);
+      }
+      const results = await storage.searchUsers(query.trim());
+      res.json(results.map(u => ({ ...u, password: undefined })));
+    } catch (error) {
+      res.status(500).json({ error: "Search failed" });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     const user = await storage.getUser(req.params.id);
     if (!user) {
