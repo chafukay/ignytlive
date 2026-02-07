@@ -65,7 +65,7 @@ export default function Home() {
 
   // Suggested users to follow = users we're NOT following (excluding ourselves and guests)
   const suggestedUsers = streamers?.filter(s => 
-    user && s.id !== user.id && !followedUserIds.has(s.id) && !s.isGuest
+    user && s.id !== user.id && !followedUserIds.has(s.id) && !s.isGuest && s.role !== 'admin' && s.role !== 'superadmin'
   ).slice(0, 10) || [];
 
   // Notify when a followed user goes live
