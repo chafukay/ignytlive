@@ -40,6 +40,8 @@ import Families from "@/pages/families";
 import FamilyDetail from "@/pages/family-detail";
 import Achievements from "@/pages/achievements";
 import LinkAccount from "@/pages/link-account";
+import Referrals from "@/pages/referrals";
+import ProfileVisitors from "@/pages/profile-visitors";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -88,6 +90,8 @@ function Router() {
       <Route path="/families/:id">{() => <ProtectedRoute component={FamilyDetail} />}</Route>
       <Route path="/achievements">{() => <ProtectedRoute component={Achievements} />}</Route>
       <Route path="/link-account">{() => <ProtectedRoute component={LinkAccount} />}</Route>
+      <Route path="/referrals">{() => <ProtectedRoute component={Referrals} />}</Route>
+      <Route path="/profile-visitors">{() => <ProtectedRoute component={ProfileVisitors} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

@@ -937,10 +937,41 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<TopGifter[]>;
   },
+
+  async generateReferralCode(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/referral-code`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ referralCode: string }>;
+  },
+
+  async applyReferralCode(userId: string, referralCode: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/apply-referral`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referralCode }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ success: boolean; bonusCoins: number }>;
+  },
+
+  async getProfileVisitors(userId: string, limit: number = 20) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/visitors?limit=${limit}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<ProfileVisitor[]>;
+  },
 };
 
 export interface TopGifter {
   user: User;
   totalCoins: number;
   giftCount: number;
+}
+
+export interface ProfileVisitor {
+  id: string;
+  visitorId: string;
+  visitedAt: string;
+  visitor?: User;
 }

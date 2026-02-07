@@ -94,9 +94,41 @@ export default function Profile() {
 
         <div className="flex justify-center gap-2 text-muted-foreground text-sm mb-4">
           <span>ID: {user.id.slice(0, 8)}</span>
-          <button className="p-1 rounded hover:bg-muted"><Eye className="w-4 h-4" /></button>
-          <button className="p-1 rounded hover:bg-muted"><Users className="w-4 h-4" /></button>
-          <button className="p-1 rounded hover:bg-muted"><Share2 className="w-4 h-4" /></button>
+          <button 
+            onClick={() => setLocation("/profile-visitors")} 
+            className="p-1 rounded hover:bg-muted" 
+            title="Profile Visitors"
+            data-testid="button-profile-visitors"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => setLocation("/referrals")} 
+            className="p-1 rounded hover:bg-muted" 
+            title="Invite Friends"
+            data-testid="button-referrals"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({
+                  title: `${user.username} on IgnytLIVE`,
+                  text: `Check out ${user.username}'s profile on IgnytLIVE!`,
+                  url: `${window.location.origin}/profile/${user.id}`,
+                }).catch(() => {});
+              } else {
+                navigator.clipboard.writeText(`${window.location.origin}/profile/${user.id}`);
+                toast({ title: "Profile link copied!" });
+              }
+            }}
+            className="p-1 rounded hover:bg-muted" 
+            title="Share Profile"
+            data-testid="button-share-profile"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
         </div>
 
         <div className="flex flex-col items-center mb-6">
