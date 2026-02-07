@@ -42,7 +42,7 @@ export default function Chat() {
   const { data: searchResults, isLoading: searchLoading } = useQuery({
     queryKey: ['searchUsers', debouncedSearch],
     queryFn: () => api.searchUsers(debouncedSearch),
-    enabled: debouncedSearch.length >= 2,
+    enabled: debouncedSearch.length >= 3,
   });
 
   const { data: otherUser } = useQuery({
@@ -235,7 +235,7 @@ export default function Chat() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {debouncedSearch.length >= 2 ? (
+            {debouncedSearch.length >= 3 ? (
               searchLoading ? (
                 <div className="p-3 space-y-1">
                   {[...Array(4)].map((_, i) => (
