@@ -30,7 +30,17 @@ export default function Chat() {
 
   const selectedUserId = params?.userId || null;
 
-  const debouncedSearch = searchQuery.trim();
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 3) {
+      setDebouncedSearch("");
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedSearch(trimmed), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats', user?.id],
@@ -235,7 +245,7 @@ export default function Chat() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {debouncedSearch.length >= 3 ? (
+            {debouncedSearch.length > 0 ? (
               searchLoading ? (
                 <div className="p-3 space-y-1">
                   {[...Array(4)].map((_, i) => (
