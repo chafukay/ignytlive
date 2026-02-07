@@ -2,7 +2,7 @@ import Layout from "@/components/layout";
 import { X, Check, Sparkles, Gift, CreditCard, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +44,24 @@ export default function Coins() {
   });
 
   const isFirstPurchase = firstPurchaseData?.isFirstPurchase ?? false;
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && user?.id) {
+        fetch(`/api/users/${user.id}`)
+          .then((res) => res.ok ? res.json() : null)
+          .then((data) => {
+            if (data && data.coins !== user.coins) {
+              login(data);
+              queryClient.invalidateQueries({ queryKey: ['firstPurchase'] });
+            }
+          })
+          .catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [user?.id, user?.coins]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -97,7 +115,9 @@ export default function Coins() {
     },
     onSuccess: async (data) => {
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, "_blank");
+        setSelectedPackage(null);
+        toast({ title: "Payment opened", description: "Complete your payment in the new tab. Your coins will appear once payment is confirmed." });
       }
     },
     onError: () => {
