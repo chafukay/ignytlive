@@ -1034,6 +1034,47 @@ export async function registerRoutes(
     res.json(following);
   });
 
+  app.get("/api/users/:id/suggested", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const limit = parseInt(req.query.limit as string) || 15;
+      
+      const myFollowing = await storage.getFollowing(userId);
+      const myFollowingIds = new Set(myFollowing.map(u => u.id));
+      
+      const suggestedMap = new Map<string, { user: any; mutualCount: number; mutualNames: string[] }>();
+      
+      for (const followedUser of myFollowing) {
+        const theirFollowing = await storage.getFollowing(followedUser.id);
+        for (const candidate of theirFollowing) {
+          if (candidate.id === userId || myFollowingIds.has(candidate.id) || candidate.isGuest || candidate.role === 'admin' || candidate.role === 'superadmin') continue;
+          
+          const existing = suggestedMap.get(candidate.id);
+          if (existing) {
+            existing.mutualCount++;
+            if (existing.mutualNames.length < 3) {
+              existing.mutualNames.push(followedUser.username);
+            }
+          } else {
+            suggestedMap.set(candidate.id, {
+              user: { ...candidate, password: undefined },
+              mutualCount: 1,
+              mutualNames: [followedUser.username],
+            });
+          }
+        }
+      }
+      
+      const suggestions = Array.from(suggestedMap.values())
+        .sort((a, b) => b.mutualCount - a.mutualCount)
+        .slice(0, limit);
+      
+      res.json(suggestions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get suggestions" });
+    }
+  });
+
   app.get("/api/follows/check", async (req, res) => {
     const { followerId, followingId } = req.query;
     if (!followerId || !followingId) {

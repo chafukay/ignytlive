@@ -2,7 +2,7 @@ import Layout from "@/components/layout";
 import StreamCard from "@/components/stream-card";
 import UserAvatar from "@/components/user-avatar";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, SuggestedUser } from "@/lib/api";
 import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
@@ -63,10 +63,19 @@ export default function Home() {
     !s.isLive && !streamingUserIds.has(s.id) && followedUserIds.has(s.id)
   ) || [];
 
-  // Suggested users to follow = users we're NOT following (excluding ourselves and guests)
-  const suggestedUsers = streamers?.filter(s => 
-    user && s.id !== user.id && !followedUserIds.has(s.id) && !s.isGuest && s.role !== 'admin' && s.role !== 'superadmin'
+  const { data: followBasedSuggestions = [] } = useQuery<SuggestedUser[]>({
+    queryKey: ['suggested-users', user?.id],
+    queryFn: () => api.getSuggestedUsers(user!.id),
+    enabled: !!user && followedUserIds.size > 0,
+    refetchInterval: 30000,
+  });
+
+  const followBasedIds = new Set(followBasedSuggestions.map(s => s.user.id));
+  const fallbackSuggestions = streamers?.filter(s => 
+    user && s.id !== user.id && !followedUserIds.has(s.id) && !followBasedIds.has(s.id) && !s.isGuest && s.role !== 'admin' && s.role !== 'superadmin'
   ).slice(0, 10) || [];
+
+  const hasFollowBased = followBasedSuggestions.length > 0;
 
   // Notify when a followed user goes live
   useEffect(() => {
@@ -277,17 +286,49 @@ export default function Home() {
           </div>
         )}
 
-        {/* Suggested Users Section - always show at the bottom if there are users to suggest */}
-        {suggestedUsers.length > 0 && (
+        {hasFollowBased && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-pink-400" />
+              <h2 className="text-lg font-bold text-foreground">Based on who you follow</h2>
+            </div>
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+              {followBasedSuggestions.map((suggestion) => (
+                <Link key={suggestion.user.id} href={`/profile/${suggestion.user.id}`}>
+                  <div className="flex flex-col items-center gap-1.5 min-w-[90px] p-3 bg-gradient-to-b from-pink-500/10 to-purple-500/10 border border-pink-500/20 rounded-xl hover:border-pink-500/40 transition-colors cursor-pointer" data-testid={`suggested-follow-${suggestion.user.id}`}>
+                    <UserAvatar 
+                      userId={suggestion.user.id}
+                      username={suggestion.user.username}
+                      avatar={suggestion.user.avatar}
+                      isLive={streamingUserIds.has(suggestion.user.id)}
+                      isOnline={suggestion.user.isLive}
+                      size="lg"
+                      showStatus={true}
+                    />
+                    <span className="text-foreground text-xs truncate max-w-[80px] font-medium">{suggestion.user.username}</span>
+                    <span className="text-pink-400 text-[10px]">
+                      {suggestion.mutualCount} mutual{suggestion.mutualCount > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-muted-foreground text-[9px] truncate max-w-[80px]">
+                      via {suggestion.mutualNames[0]}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {fallbackSuggestions.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-cyan-400" />
               <h2 className="text-lg font-bold text-foreground">People you might like</h2>
             </div>
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-              {suggestedUsers.map((suggestedUser) => (
+              {fallbackSuggestions.map((suggestedUser) => (
                 <Link key={suggestedUser.id} href={`/profile/${suggestedUser.id}`}>
-                  <div className="flex flex-col items-center gap-2 min-w-[80px] p-3 bg-muted rounded-xl hover:bg-muted/80 transition-colors cursor-pointer">
+                  <div className="flex flex-col items-center gap-2 min-w-[80px] p-3 bg-muted rounded-xl hover:bg-muted/80 transition-colors cursor-pointer" data-testid={`suggested-user-${suggestedUser.id}`}>
                     <UserAvatar 
                       userId={suggestedUser.id}
                       username={suggestedUser.username}

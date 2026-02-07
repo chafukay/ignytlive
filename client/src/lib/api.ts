@@ -956,6 +956,12 @@ export const api = {
     return res.json() as Promise<{ success: boolean; bonusCoins: number }>;
   },
 
+  async getSuggestedUsers(userId: string, limit: number = 15) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/suggested?limit=${limit}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<SuggestedUser[]>;
+  },
+
   async getProfileVisitors(userId: string, limit: number = 20) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/visitors?limit=${limit}`);
     if (!res.ok) throw new Error(await res.text());
@@ -967,6 +973,12 @@ export interface TopGifter {
   user: User;
   totalCoins: number;
   giftCount: number;
+}
+
+export interface SuggestedUser {
+  user: User;
+  mutualCount: number;
+  mutualNames: string[];
 }
 
 export interface ProfileVisitor {
