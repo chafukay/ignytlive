@@ -979,5 +979,31 @@ export const insertProfileVisitSchema = createInsertSchema(profileVisits).omit({
 export type InsertProfileVisit = z.infer<typeof insertProfileVisitSchema>;
 export type ProfileVisit = typeof profileVisits.$inferSelect;
 
+// Coin Purchases table - tracks all coin purchases
+export const coinPurchases = pgTable("coin_purchases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  packageCoins: integer("package_coins").notNull(),
+  bonusCoins: integer("bonus_coins").notNull().default(0),
+  totalCoins: integer("total_coins").notNull(),
+  priceUsd: doublePrecision("price_usd").notNull(),
+  isFirstPurchase: boolean("is_first_purchase").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: index("coin_purchases_user_id_idx").on(table.userId),
+  createdAtIdx: index("coin_purchases_created_at_idx").on(table.createdAt),
+}));
+
+export const coinPurchasesRelations = relations(coinPurchases, ({ one }) => ({
+  user: one(users, { fields: [coinPurchases.userId], references: [users.id] }),
+}));
+
+export const insertCoinPurchaseSchema = createInsertSchema(coinPurchases).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCoinPurchase = z.infer<typeof insertCoinPurchaseSchema>;
+export type CoinPurchase = typeof coinPurchases.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";
