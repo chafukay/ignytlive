@@ -18,6 +18,7 @@ export default function Chat() {
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileShowConversation, setMobileShowConversation] = useState(false);
+  const [activeTab, setActiveTab] = useState<"main" | "others">("main");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedUserId = params?.userId || null;
@@ -97,9 +98,20 @@ export default function Chat() {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const filteredChats = chats?.filter(({ user: chatUser }) =>
-    (chatUser.username ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const { data: following } = useQuery({
+    queryKey: ['following', user?.id],
+    queryFn: () => api.getFollowing(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const followingIds = new Set(following?.map((f: User) => f.id) || []);
+
+  const filteredChats = chats?.filter(({ user: chatUser }) => {
+    const matchesSearch = (chatUser.username ?? '').toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (activeTab === "main") return followingIds.has(chatUser.id);
+    return !followingIds.has(chatUser.id);
+  });
 
   if (!user) {
     return (
@@ -131,6 +143,37 @@ export default function Chat() {
                 data-testid="input-search-chats"
               />
             </div>
+          </div>
+
+          <div className="flex border-b border-border shrink-0">
+            <button
+              onClick={() => setActiveTab("main")}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors relative ${
+                activeTab === "main"
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="tab-main"
+            >
+              Main
+              {activeTab === "main" && (
+                <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("others")}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors relative ${
+                activeTab === "others"
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="tab-others"
+            >
+              Others
+              {activeTab === "others" && (
+                <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -188,8 +231,12 @@ export default function Chat() {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center p-6">
                 <MessageCircle className="w-12 h-12 text-muted-foreground/30 mb-3" />
-                <p className="text-muted-foreground text-sm">No conversations yet</p>
-                <p className="text-muted-foreground/60 text-xs mt-1">Start chatting with someone!</p>
+                <p className="text-muted-foreground text-sm">
+                  {activeTab === "main" ? "No conversations with people you follow" : "No other conversations"}
+                </p>
+                <p className="text-muted-foreground/60 text-xs mt-1">
+                  {activeTab === "main" ? "Follow people and start chatting!" : "Messages from others will appear here"}
+                </p>
               </div>
             )}
           </div>
