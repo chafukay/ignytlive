@@ -17,6 +17,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useGuestCheck } from "@/components/guest-gate";
 import type { UserItem, StoreItem } from "@shared/schema";
 
 type UserItemWithItem = UserItem & { item: StoreItem };
@@ -25,6 +26,7 @@ export default function UserProfile() {
   const { userId } = useParams<{ userId: string }>();
   const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
+  const { isGuest, requireAccount } = useGuestCheck();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showCallDialog, setShowCallDialog] = useState(false);
@@ -96,6 +98,7 @@ export default function UserProfile() {
   });
 
   const handleFollow = () => {
+    if (isGuest) { requireAccount(); return; }
     if (isFollowing) {
       unfollowMutation.mutate();
     } else {
@@ -104,6 +107,7 @@ export default function UserProfile() {
   };
 
   const handlePrivateCall = () => {
+    if (isGuest) { requireAccount(); return; }
     if (!profileUser?.availableForPrivateCall) {
       toast({
         title: "Not Available",
@@ -242,7 +246,7 @@ export default function UserProfile() {
                 </Button>
                 
                 <Button
-                  onClick={() => setLocation(`/chat/${userId}`)}
+                  onClick={() => { if (isGuest) { requireAccount(); return; } setLocation(`/chat/${userId}`); }}
                   variant="outline"
                   className="border-gray-600"
                   data-testid="btn-message"

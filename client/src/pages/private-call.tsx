@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { GuestGate } from "@/components/guest-gate";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -186,14 +187,17 @@ export default function PrivateCallPage() {
 
   if (!call) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Loading call...</div>
-      </div>
+      <GuestGate>
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="text-white">Loading call...</div>
+        </div>
+      </GuestGate>
     );
   }
 
   if (call.status === "pending" && isHost) {
     return (
+      <GuestGate>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex flex-col items-center justify-center p-6">
         <div className="text-center mb-8">
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 mx-auto mb-4 animate-pulse" />
@@ -227,11 +231,13 @@ export default function PrivateCallPage() {
           </Button>
         </div>
       </div>
+      </GuestGate>
     );
   }
 
   if (call.status === "pending" && isViewer) {
     return (
+      <GuestGate>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex flex-col items-center justify-center p-6">
         <div className="text-center">
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 mx-auto mb-4 animate-pulse" />
@@ -256,10 +262,12 @@ export default function PrivateCallPage() {
           <PhoneOff className="w-6 h-6" />
         </Button>
       </div>
+      </GuestGate>
     );
   }
 
   return (
+    <GuestGate>
     <div className="min-h-screen bg-black relative">
       <div ref={remoteVideoRef} className="absolute inset-0 bg-gray-900" data-testid="remote-video" />
       
@@ -311,5 +319,6 @@ export default function PrivateCallPage() {
         </Button>
       </div>
     </div>
+    </GuestGate>
   );
 }

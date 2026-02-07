@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { Users, ChevronLeft, Plus, Search, Crown, Shield, User, Trophy, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -144,6 +145,7 @@ export default function Families() {
   };
 
   return (
+    <GuestGate>
     <Layout>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -347,5 +349,6 @@ export default function Families() {
         </Dialog>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ChevronRight, Camera, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -53,6 +54,7 @@ export default function EditProfile() {
   };
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-background p-4">
         <div className="flex items-center mb-6">
@@ -143,5 +145,6 @@ export default function EditProfile() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

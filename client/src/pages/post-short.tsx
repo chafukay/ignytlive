@@ -1,3 +1,4 @@
+import { GuestGate } from "@/components/guest-gate";
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -236,15 +237,18 @@ export default function PostShort() {
 
   if (!user) {
     return (
+      <GuestGate>
       <div className="h-screen w-full bg-black flex items-center justify-center">
         <div className="text-white text-center">
           <p>Please log in to post shorts</p>
         </div>
       </div>
+      </GuestGate>
     );
   }
 
   return (
+    <GuestGate>
     <div className="h-screen w-full bg-black relative overflow-hidden">
       {/* Close Button */}
       <button 
@@ -416,5 +420,6 @@ export default function PostShort() {
         </>
       )}
     </div>
+    </GuestGate>
   );
 }

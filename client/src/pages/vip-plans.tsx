@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ChevronRight, Crown, Check, Star, Zap, Shield, Gift, MessageSquare, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -122,6 +123,7 @@ export default function VIPPlans() {
   const currentTierInfo = getCurrentTierInfo();
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-background p-4 pb-24">
         <div className="flex items-center gap-4 mb-6">
@@ -254,5 +256,6 @@ export default function VIPPlans() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

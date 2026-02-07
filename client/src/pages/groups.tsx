@@ -1,3 +1,4 @@
+import { GuestGate } from "@/components/guest-gate";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -118,16 +119,19 @@ export default function Groups() {
 
   if (!user) {
     return (
+      <GuestGate>
       <Layout>
         <div className="flex items-center justify-center h-full">
           <p className="text-white/60">Please log in to view groups</p>
         </div>
       </Layout>
+      </GuestGate>
     );
   }
 
   if (selectedGroup) {
     return (
+      <GuestGate>
       <Layout hideNav>
         <div className="flex flex-col h-full bg-gradient-to-b from-violet-950 to-black">
           <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -347,10 +351,12 @@ export default function Groups() {
           </Dialog>
         </div>
       </Layout>
+      </GuestGate>
     );
   }
 
   return (
+    <GuestGate>
     <Layout>
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
@@ -429,6 +435,7 @@ export default function Groups() {
         )}
       </div>
     </Layout>
+    </GuestGate>
   );
 }
 

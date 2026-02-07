@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { Users, ChevronLeft, Crown, Shield, User, Settings, LogOut, Send, MessageCircle, Trophy, UserMinus, UserPlus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -265,6 +266,7 @@ export default function FamilyDetail() {
 
   if (isLoading) {
     return (
+      <GuestGate>
       <Layout>
         <div className="max-w-2xl mx-auto p-4">
           <div className="animate-pulse space-y-4">
@@ -274,11 +276,13 @@ export default function FamilyDetail() {
           </div>
         </div>
       </Layout>
+      </GuestGate>
     );
   }
 
   if (!family) {
     return (
+      <GuestGate>
       <Layout>
         <div className="max-w-2xl mx-auto p-4 text-center">
           <Users className="w-16 h-16 mx-auto mb-4 text-white/30" />
@@ -288,10 +292,12 @@ export default function FamilyDetail() {
           </Link>
         </div>
       </Layout>
+      </GuestGate>
     );
   }
 
   return (
+    <GuestGate>
     <Layout>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -581,5 +587,6 @@ export default function FamilyDetail() {
         </Dialog>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

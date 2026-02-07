@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useGuestCheck } from "@/components/guest-gate";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
@@ -32,6 +33,7 @@ export default function Shorts() {
   const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({});
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const { user } = useAuth();
+  const { isGuest, requireAccount } = useGuestCheck();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -118,6 +120,7 @@ export default function Shorts() {
   };
 
   const handleSubmitComment = () => {
+    if (isGuest) { requireAccount(); return; }
     if (!commentText.trim() || !showComments) return;
     commentMutation.mutate({
       shortId: showComments,
@@ -219,7 +222,7 @@ export default function Shorts() {
 
                 <div className="flex flex-col items-center gap-1">
                   <button 
-                    onClick={() => user && likeMutation.mutate(short.id)}
+                    onClick={() => { if (isGuest) { requireAccount(); return; } user && likeMutation.mutate(short.id); }}
                     disabled={!user || likeMutation.isPending}
                     className="p-3 rounded-full bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
                     data-testid={`button-like-${short.id}`}
@@ -339,7 +342,7 @@ export default function Shorts() {
                                 {REACTION_EMOJIS.map((emoji) => (
                                   <button
                                     key={emoji}
-                                    onClick={() => user && reactMutation.mutate({ commentId: comment.id, reaction: emoji })}
+                                    onClick={() => { if (isGuest) { requireAccount(); return; } user && reactMutation.mutate({ commentId: comment.id, reaction: emoji }); }}
                                     className="hover:scale-125 transition-transform text-lg"
                                   >
                                     {emoji}
@@ -406,7 +409,7 @@ export default function Shorts() {
                                               {REACTION_EMOJIS.map((emoji) => (
                                                 <button
                                                   key={emoji}
-                                                  onClick={() => user && reactMutation.mutate({ commentId: reply.id, reaction: emoji })}
+                                                  onClick={() => { if (isGuest) { requireAccount(); return; } user && reactMutation.mutate({ commentId: reply.id, reaction: emoji }); }}
                                                   className="hover:scale-125 transition-transform text-lg"
                                                 >
                                                   {emoji}

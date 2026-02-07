@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { X, Check, Sparkles, Gift, CreditCard, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
@@ -165,6 +166,7 @@ export default function Coins() {
   );
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white dark:from-gray-900 dark:to-gray-800">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -325,5 +327,6 @@ export default function Coins() {
         </div>
       )}
     </Layout>
+    </GuestGate>
   );
 }

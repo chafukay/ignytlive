@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check, Globe } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
@@ -149,6 +150,7 @@ export default function Settings() {
   ];
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-background p-4">
         <div className="flex items-center gap-4 mb-6">
@@ -335,5 +337,6 @@ export default function Settings() {
         </div>
       )}
     </Layout>
+    </GuestGate>
   );
 }

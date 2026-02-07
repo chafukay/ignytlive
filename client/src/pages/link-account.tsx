@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ArrowLeft, Mail, Phone, Shield, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
@@ -134,6 +135,7 @@ export default function LinkAccount() {
 
   if (!user) {
     return (
+      <GuestGate>
       <Layout>
         <div className="p-4 flex flex-col items-center justify-center min-h-[60vh]">
           <Shield className="w-16 h-16 text-muted-foreground mb-4" />
@@ -141,10 +143,12 @@ export default function LinkAccount() {
           <p className="text-muted-foreground">Log in to manage your linked accounts</p>
         </div>
       </Layout>
+      </GuestGate>
     );
   }
 
   return (
+    <GuestGate>
     <Layout>
       <div className="p-4 pb-24 max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
@@ -379,5 +383,6 @@ export default function LinkAccount() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

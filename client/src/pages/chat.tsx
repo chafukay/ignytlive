@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, UserPlus, UserMinus, Flag, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
@@ -183,15 +184,18 @@ export default function Chat() {
 
   if (!user) {
     return (
+      <GuestGate>
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <p className="text-muted-foreground">Please log in to see your messages</p>
         </div>
       </Layout>
+      </GuestGate>
     );
   }
 
   return (
+    <GuestGate>
     <Layout>
       <div className="flex h-[calc(100vh-64px)] overflow-hidden">
         {/* Left Panel - Chat List (30%) */}
@@ -526,5 +530,6 @@ export default function Chat() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

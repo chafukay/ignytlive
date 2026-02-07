@@ -1,3 +1,4 @@
+import { GuestGate } from "@/components/guest-gate";
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { ArrowLeft, Send, MoreVertical } from "lucide-react";
@@ -66,13 +67,16 @@ export default function Conversation() {
 
   if (!user) {
     return (
+      <GuestGate>
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Please log in to view messages</p>
       </div>
+      </GuestGate>
     );
   }
 
   return (
+    <GuestGate>
     <div className="min-h-screen bg-background flex flex-col">
       <div className="bg-card/50 backdrop-blur-md border-b border-border p-4 flex items-center gap-4">
         <button 
@@ -179,5 +183,6 @@ export default function Conversation() {
         </div>
       </form>
     </div>
+    </GuestGate>
   );
 }

@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ChevronRight, Star, Trophy, Gift, Zap, MessageSquare, UserPlus, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -69,6 +70,7 @@ export default function UserLevel() {
   ];
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-background p-4">
         <div className="flex items-center gap-4 mb-6">
@@ -167,5 +169,6 @@ export default function UserLevel() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

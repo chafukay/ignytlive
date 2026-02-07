@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ChevronRight, Package, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -82,6 +83,7 @@ export default function ItemBag() {
   });
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-background p-4">
         <div className="flex items-center gap-4 mb-6">
@@ -182,5 +184,6 @@ export default function ItemBag() {
         )}
       </div>
     </Layout>
+    </GuestGate>
   );
 }

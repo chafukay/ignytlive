@@ -16,6 +16,7 @@ import BadgesDisplay from "@/components/badges-display";
 import CallButton from "@/components/call-button";
 import ModerationPanel, { UserActionMenu } from "@/components/moderation-panel";
 import { useToast } from "@/hooks/use-toast";
+import { useGuestCheck } from "@/components/guest-gate";
 import type { Gift as GiftType, StreamGoal } from "@shared/schema";
 
 interface Comment {
@@ -32,6 +33,7 @@ export default function LiveRoom() {
   const [, params] = useRoute("/live/:id");
   const [, setLocation] = useLocation();
   const { user, setUser } = useAuth();
+  const { isGuest, requireAccount } = useGuestCheck();
   const streamId = params?.id;
   
   const [comments, setComments] = useState<Comment[]>([
@@ -471,6 +473,7 @@ export default function LiveRoom() {
   
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isGuest) { requireAccount(); return; }
     if (!inputValue.trim() || !user || !streamId) return;
     
     const messageText = inputValue;
@@ -511,6 +514,7 @@ export default function LiveRoom() {
   };
 
   const handleSendGift = async (gift: GiftType) => {
+    if (isGuest) { requireAccount(); return; }
     if (!user || !streamerUser || !streamId) {
       toast({ title: "Please log in to send gifts", variant: "destructive" });
       return;
@@ -556,6 +560,7 @@ export default function LiveRoom() {
   };
 
   const handleLike = () => {
+    if (isGuest) { requireAccount(); return; }
     setLikes(prev => prev + 1);
   };
 
@@ -774,7 +779,7 @@ export default function LiveRoom() {
           </div>
           {!isBroadcaster && (
             <button 
-              onClick={() => followMutation.mutate()}
+              onClick={() => { if (isGuest) { requireAccount(); return; } followMutation.mutate(); }}
               disabled={followMutation.isPending}
               className={cn(
                 "text-[10px] font-bold px-3 py-1 rounded-full ml-1 transition-colors disabled:opacity-50",
@@ -816,7 +821,7 @@ export default function LiveRoom() {
           {/* Join Video Button (for viewers only) */}
           {user && streamerUser && user.id !== streamerUser.id && (
             <button 
-              onClick={() => joinVideoMutation.mutate()}
+              onClick={() => { if (isGuest) { requireAccount(); return; } joinVideoMutation.mutate(); }}
               disabled={joinVideoMutation.isPending}
               className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
               data-testid="button-join-video"
@@ -1125,7 +1130,7 @@ export default function LiveRoom() {
                 </form>
 
                 <button 
-                  onClick={() => setShowSpinWheel(true)}
+                  onClick={() => { if (isGuest) { requireAccount(); return; } setShowSpinWheel(true); }}
                   className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
                   data-testid="button-spin-wheel"
                 >
@@ -1133,7 +1138,7 @@ export default function LiveRoom() {
                 </button>
 
                 <button 
-                  onClick={() => setShowWishlist(true)}
+                  onClick={() => { if (isGuest) { requireAccount(); return; } setShowWishlist(true); }}
                   className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all"
                   data-testid="button-wishlist"
                 >
@@ -1141,7 +1146,7 @@ export default function LiveRoom() {
                 </button>
 
                 <button 
-                  onClick={() => setShowGiftMenu(!showGiftMenu)}
+                  onClick={() => { if (isGuest) { requireAccount(); return; } setShowGiftMenu(!showGiftMenu); }}
                   className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-orange-500/30"
                   data-testid="button-gift"
                 >

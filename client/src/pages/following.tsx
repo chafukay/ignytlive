@@ -1,3 +1,4 @@
+import { GuestGate } from "@/components/guest-gate";
 import Layout from "@/components/layout";
 import StreamCard from "@/components/stream-card";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ export default function Following() {
   });
 
   return (
+    <GuestGate>
     <Layout>
       <div className="p-4 max-w-7xl mx-auto">
         {/* Header */}
@@ -81,5 +83,6 @@ export default function Following() {
         )}
       </div>
     </Layout>
+    </GuestGate>
   );
 }

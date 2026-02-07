@@ -1,3 +1,4 @@
+import { GuestGate } from "@/components/guest-gate";
 import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
@@ -165,6 +166,7 @@ export default function GoLive() {
   const categories = ['Chat', 'Music', 'Gaming', 'Dance', 'Talent', 'Chill'];
 
   return (
+    <GuestGate>
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Camera Preview */}
       <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black">
@@ -399,5 +401,6 @@ export default function GoLive() {
         </div>
       </div>
     </div>
+    </GuestGate>
   );
 }

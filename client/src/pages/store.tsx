@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ChevronRight, ShoppingBag, Coins, Loader2, Check } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -101,6 +102,7 @@ export default function Store() {
   }, {} as Record<string, StoreItem[]>);
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-background">
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-lg border-b border-white/10 p-4">
@@ -286,6 +288,7 @@ export default function Store() {
         </DialogContent>
       </Dialog>
     </Layout>
+    </GuestGate>
   );
 }
 

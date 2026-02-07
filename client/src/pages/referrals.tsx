@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -56,6 +57,7 @@ export default function Referrals() {
   const alreadyReferred = !!user.referredBy;
 
   return (
+    <GuestGate>
     <Layout>
       <div className="min-h-screen bg-background p-4 pb-24 max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
@@ -167,5 +169,6 @@ export default function Referrals() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }

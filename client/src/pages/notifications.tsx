@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { ChevronLeft, ChevronRight, UserPlus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -44,6 +45,7 @@ export default function Notifications() {
   ];
 
   return (
+    <GuestGate>
     <Layout>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -141,5 +143,6 @@ export default function Notifications() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }
