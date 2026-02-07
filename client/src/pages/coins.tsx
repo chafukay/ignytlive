@@ -1,7 +1,11 @@
 import Layout from "@/components/layout";
-import { X } from "lucide-react";
+import { X, Check, Sparkles, Gift } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const coinPackages = [
   { coins: 3875, price: 24.99, originalPrice: 38.99, image: "💰" },
@@ -18,116 +22,236 @@ const bestOffers = [
   { coins: 2000, price: 9.99, originalPrice: 19.99, image: "💰💰💰", tag: "Best Value" },
 ];
 
+type CoinPackage = { coins: number; price: number; originalPrice: number; image: string; tag?: string };
+
 export default function Coins() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [lastPurchase, setLastPurchase] = useState<{ totalCoins: number; bonusCoins: number } | null>(null);
+
+  const { data: firstPurchaseData } = useQuery({
+    queryKey: ['firstPurchase', user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/coins/first-purchase/${user!.id}`);
+      if (!res.ok) throw new Error("Failed to check");
+      return res.json() as Promise<{ isFirstPurchase: boolean }>;
+    },
+    enabled: !!user?.id,
+  });
+
+  const isFirstPurchase = firstPurchaseData?.isFirstPurchase ?? false;
+
+  const purchaseMutation = useMutation({
+    mutationFn: async (pkg: CoinPackage) => {
+      const res = await fetch('/api/coins/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user!.id,
+          packageCoins: pkg.coins,
+          priceUsd: pkg.price,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: (data) => {
+      login(data.user);
+      setLastPurchase({ totalCoins: data.purchase.totalCoins, bonusCoins: data.purchase.bonusCoins });
+      setSelectedPackage(null);
+      setShowSuccess(true);
+      queryClient.invalidateQueries({ queryKey: ['firstPurchase'] });
+      setTimeout(() => setShowSuccess(false), 3000);
+    },
+    onError: () => {
+      toast({ title: "Purchase failed", description: "Something went wrong. Please try again.", variant: "destructive" });
+      setSelectedPackage(null);
+    },
+  });
+
+  const handleBuy = (pkg: CoinPackage) => {
+    setSelectedPackage(pkg);
+  };
+
+  const confirmPurchase = () => {
+    if (selectedPackage) {
+      purchaseMutation.mutate(selectedPackage);
+    }
+  };
+
+  const bonusCoins = selectedPackage ? Math.floor(selectedPackage.coins * 0.5) : 0;
+
+  const renderPackageCard = (pkg: CoinPackage, tagColor: string = "bg-pink-500") => (
+    <div
+      onClick={() => handleBuy(pkg)}
+      className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl p-4 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer active:scale-95"
+      data-testid={`package-${pkg.coins}`}
+    >
+      {pkg.tag && (
+        <span className={`absolute -top-2 right-2 ${tagColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-full`}>
+          {pkg.tag}
+        </span>
+      )}
+      {isFirstPurchase && (
+        <span className="absolute -top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+          +50%
+        </span>
+      )}
+      <div className="flex items-center justify-center gap-1 mb-2">
+        <span className="text-yellow-500">💰</span>
+        <span className="font-bold text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
+      </div>
+      <div className="text-4xl mb-2">{pkg.image}</div>
+      <div className="font-bold text-gray-900 dark:text-white">${pkg.price}</div>
+      <div className="text-sm text-gray-400 line-through">${pkg.originalPrice}</div>
+    </div>
+  );
 
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white dark:from-gray-900 dark:to-gray-800">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2 bg-yellow-100 dark:bg-yellow-900/30 px-4 py-2 rounded-full">
             <span className="text-yellow-600 dark:text-yellow-400 text-lg">💰</span>
-            <span className="font-bold text-gray-900 dark:text-white">{user?.coins?.toLocaleString() || 0}</span>
+            <span className="font-bold text-gray-900 dark:text-white" data-testid="text-coin-balance">{user?.coins?.toLocaleString() || 0}</span>
           </div>
-          <button 
+          <button
             onClick={() => setLocation("/")}
             className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center"
+            data-testid="button-close-coins"
           >
             <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
 
         <div className="p-4 space-y-8">
-          {/* Best Offers */}
+          {isFirstPurchase && (
+            <section>
+              <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl p-6 text-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-white/10 animate-pulse" />
+                <div className="relative z-10">
+                  <Gift className="w-8 h-8 text-white mx-auto mb-2" />
+                  <p className="text-white font-bold text-xl mb-1">First Purchase Bonus!</p>
+                  <p className="text-white/90">Get <span className="font-bold text-white">50% extra coins</span> on your first purchase</p>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offers</h2>
             <div className="grid grid-cols-3 gap-3">
               {coinPackages.slice(0, 3).map((pkg, i) => (
-                <div 
-                  key={i}
-                  className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl p-4 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer"
-                >
-                  {pkg.tag && (
-                    <span className="absolute -top-2 right-2 bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      {pkg.tag}
-                    </span>
-                  )}
-                  <div className="flex items-center justify-center gap-1 mb-2">
-                    <span className="text-yellow-500">💰</span>
-                    <span className="font-bold text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
-                  </div>
-                  <div className="text-4xl mb-2">{pkg.image}</div>
-                  <div className="font-bold text-gray-900 dark:text-white">${pkg.price}</div>
-                  <div className="text-sm text-gray-400 line-through">${pkg.originalPrice}</div>
-                </div>
+                <div key={i}>{renderPackageCard(pkg)}</div>
               ))}
             </div>
           </section>
 
-          {/* More Packages */}
           <section>
             <div className="grid grid-cols-3 gap-3">
               {coinPackages.slice(3).map((pkg, i) => (
-                <div 
-                  key={i}
-                  className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl p-4 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer"
-                >
-                  {pkg.tag && (
-                    <span className="absolute -top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      {pkg.tag}
-                    </span>
-                  )}
-                  <div className="flex items-center justify-center gap-1 mb-2">
-                    <span className="text-yellow-500">💰</span>
-                    <span className="font-bold text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
-                  </div>
-                  <div className="text-4xl mb-2">{pkg.image}</div>
-                  <div className="font-bold text-gray-900 dark:text-white">${pkg.price}</div>
-                  <div className="text-sm text-gray-400 line-through">${pkg.originalPrice}</div>
-                </div>
+                <div key={i}>{renderPackageCard(pkg, "bg-orange-500")}</div>
               ))}
             </div>
           </section>
 
-          {/* Best Offer For You */}
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offer For You</h2>
             <div className="grid grid-cols-3 gap-3">
               {bestOffers.map((pkg, i) => (
-                <div 
-                  key={i}
-                  className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl p-4 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer"
-                >
-                  <span className={`absolute -top-2 right-2 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    pkg.tag === 'Popular' ? 'bg-pink-500' :
-                    pkg.tag === 'Hot' ? 'bg-orange-500' : 'bg-blue-500'
-                  }`}>
-                    {pkg.tag}
-                  </span>
-                  <div className="flex items-center justify-center gap-1 mb-2">
-                    <span className="text-yellow-500">💰</span>
-                    <span className="font-bold text-gray-900 dark:text-white">{pkg.coins}</span>
-                  </div>
-                  <div className="text-4xl mb-2">{pkg.image}</div>
-                  <div className="font-bold text-gray-900 dark:text-white">${pkg.price}</div>
-                  <div className="text-sm text-gray-400 line-through">${pkg.originalPrice}</div>
-                </div>
+                <div key={i}>{renderPackageCard(pkg, pkg.tag === 'Popular' ? 'bg-pink-500' : pkg.tag === 'Hot' ? 'bg-orange-500' : 'bg-blue-500')}</div>
               ))}
             </div>
           </section>
 
-          {/* Best Deals */}
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Deals</h2>
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl p-6 text-center">
-              <p className="text-white font-bold text-xl mb-2">First Purchase Bonus!</p>
-              <p className="text-white/90">Get 50% extra coins on your first purchase</p>
-            </div>
-          </section>
+          {!isFirstPurchase && (
+            <section>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Deals</h2>
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 text-center">
+                <Sparkles className="w-8 h-8 text-white mx-auto mb-2" />
+                <p className="text-white font-bold text-xl mb-1">Keep the streak going!</p>
+                <p className="text-white/90">Purchase coins to send gifts and support your favorite streamers</p>
+              </div>
+            </section>
+          )}
         </div>
       </div>
+
+      {selectedPackage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => !purchaseMutation.isPending && setSelectedPackage(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-4">Confirm Purchase</h3>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-4 text-center">
+              <div className="text-5xl mb-3">{selectedPackage.image}</div>
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <span className="text-yellow-500 text-lg">💰</span>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">{selectedPackage.coins.toLocaleString()}</span>
+              </div>
+              {isFirstPurchase && (
+                <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg px-3 py-1.5 mt-2 text-sm font-semibold inline-flex items-center gap-1">
+                  <Gift className="w-4 h-4" />
+                  +{bonusCoins.toLocaleString()} bonus coins (50% first purchase bonus)
+                </div>
+              )}
+              <div className="mt-3 text-sm text-muted-foreground">
+                Total: <span className="font-bold text-foreground">{(selectedPackage.coins + (isFirstPurchase ? bonusCoins : 0)).toLocaleString()} coins</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-6 px-2">
+              <span className="text-gray-500 dark:text-gray-400">Price</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">${selectedPackage.price}</span>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSelectedPackage(null)}
+                disabled={purchaseMutation.isPending}
+                className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                data-testid="button-cancel-purchase"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPurchase}
+                disabled={purchaseMutation.isPending}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                data-testid="button-confirm-purchase"
+              >
+                {purchaseMutation.isPending ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>Buy Now</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSuccess && lastPurchase && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowSuccess(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center animate-in zoom-in-95">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-600 dark:text-green-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Purchase Successful!</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-1">
+              You received <span className="font-bold text-yellow-600">{lastPurchase.totalCoins.toLocaleString()}</span> coins
+            </p>
+            {lastPurchase.bonusCoins > 0 && (
+              <p className="text-green-600 dark:text-green-400 text-sm font-semibold">
+                Includes {lastPurchase.bonusCoins.toLocaleString()} bonus coins!
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

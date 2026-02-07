@@ -35,6 +35,7 @@ import {
   achievements,
   userAchievements,
   profileVisits,
+  coinPurchases,
   type PhoneVerificationCode,
   type InsertPhoneVerificationCode,
   type User,
@@ -103,6 +104,8 @@ import {
   type InsertUserAchievement,
   type ProfileVisit,
   type InsertProfileVisit,
+  type CoinPurchase,
+  type InsertCoinPurchase,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -289,6 +292,12 @@ export interface IStorage {
   // Profile Visit operations
   recordProfileVisit(profileId: string, visitorId?: string): Promise<void>;
   getProfileVisitors(profileId: string, limit?: number): Promise<(ProfileVisit & { visitor: User | null })[]>;
+
+  // Coin Purchase operations
+  hasUserPurchasedCoins(userId: string): Promise<boolean>;
+  createCoinPurchase(purchase: InsertCoinPurchase): Promise<CoinPurchase>;
+  getCoinPurchaseHistory(userId: string, limit?: number): Promise<CoinPurchase[]>;
+  purchaseCoins(userId: string, packageCoins: number, priceUsd: number): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1844,6 +1853,65 @@ export class DatabaseStorage implements IStorage {
       ...row.profile_visits,
       visitor: row.users || null,
     }));
+  }
+
+  // Coin Purchase operations
+  async hasUserPurchasedCoins(userId: string): Promise<boolean> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(coinPurchases)
+      .where(eq(coinPurchases.userId, userId));
+    return Number(result[0]?.count || 0) > 0;
+  }
+
+  async createCoinPurchase(purchase: InsertCoinPurchase): Promise<CoinPurchase> {
+    const [created] = await db.insert(coinPurchases).values(purchase).returning();
+    return created;
+  }
+
+  async getCoinPurchaseHistory(userId: string, limit: number = 50): Promise<CoinPurchase[]> {
+    return await db
+      .select()
+      .from(coinPurchases)
+      .where(eq(coinPurchases.userId, userId))
+      .orderBy(desc(coinPurchases.createdAt))
+      .limit(limit);
+  }
+
+  async purchaseCoins(userId: string, packageCoins: number, priceUsd: number): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }> {
+    return await db.transaction(async (tx) => {
+      const countResult = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(coinPurchases)
+        .where(eq(coinPurchases.userId, userId));
+      const isFirstPurchase = Number(countResult[0]?.count || 0) === 0;
+
+      const bonusCoins = isFirstPurchase ? Math.floor(packageCoins * 0.5) : 0;
+      const totalCoins = packageCoins + bonusCoins;
+
+      const [purchase] = await tx.insert(coinPurchases).values({
+        userId,
+        packageCoins,
+        bonusCoins,
+        totalCoins,
+        priceUsd,
+        isFirstPurchase,
+      }).returning();
+
+      const [currentUser] = await tx.select().from(users).where(eq(users.id, userId));
+      const [updatedUser] = await tx
+        .update(users)
+        .set({ coins: (currentUser.coins || 0) + totalCoins })
+        .where(eq(users.id, userId))
+        .returning();
+
+      return {
+        purchase,
+        user: updatedUser,
+        bonusApplied: isFirstPurchase,
+        bonusCoins,
+      };
+    });
   }
 }
 

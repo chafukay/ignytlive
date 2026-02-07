@@ -2286,6 +2286,66 @@ export async function registerRoutes(
   // ========== Store & Inventory API Routes ==========
   
   // Get all store items (optionally filter by type)
+  // Coin Purchase - check if user has made a purchase before (for first purchase bonus)
+  app.get("/api/coins/first-purchase/:userId", async (req, res) => {
+    try {
+      const hasPurchased = await storage.hasUserPurchasedCoins(req.params.userId);
+      res.json({ isFirstPurchase: !hasPurchased });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check purchase status" });
+    }
+  });
+
+  // Valid coin packages (server-side source of truth)
+  const VALID_COIN_PACKAGES = [
+    { coins: 380, price: 1.99 },
+    { coins: 975, price: 4.99 },
+    { coins: 2000, price: 9.99 },
+    { coins: 3875, price: 24.99 },
+    { coins: 5100, price: 29.99 },
+    { coins: 8750, price: 49.99 },
+    { coins: 14400, price: 79.99 },
+    { coins: 18500, price: 99.99 },
+    { coins: 57000, price: 299.99 },
+  ];
+
+  // Coin Purchase - buy a coin package
+  app.post("/api/coins/purchase", async (req, res) => {
+    try {
+      const { userId, packageCoins, priceUsd } = req.body;
+
+      if (!userId || !packageCoins || !priceUsd) {
+        return res.status(400).json({ error: "userId, packageCoins, and priceUsd are required" });
+      }
+
+      const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === packageCoins && p.price === priceUsd);
+      if (!validPkg) {
+        return res.status(400).json({ error: "Invalid coin package" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const result = await storage.purchaseCoins(userId, validPkg.coins, validPkg.price);
+
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to process purchase" });
+    }
+  });
+
+  // Coin Purchase - history
+  app.get("/api/coins/purchases/:userId", async (req, res) => {
+    try {
+      const purchases = await storage.getCoinPurchaseHistory(req.params.userId);
+      res.json(purchases);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch purchase history" });
+    }
+  });
+
   app.get("/api/store/items", async (req, res) => {
     try {
       const type = req.query.type as string | undefined;
