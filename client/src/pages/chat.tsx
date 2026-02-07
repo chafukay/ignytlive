@@ -152,9 +152,13 @@ export default function Chat() {
 
   const followingIds = new Set(following?.map((f: User) => f.id) || []);
 
-  const filteredChats = chats?.filter(({ user: chatUser }) => {
-    const matchesSearch = (chatUser.username ?? '').toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
+  const filteredChats = chats?.filter(({ user: chatUser, lastMessage }) => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = (chatUser.username ?? '').toLowerCase().includes(q);
+      const messageMatch = (lastMessage.content ?? '').toLowerCase().includes(q);
+      if (!nameMatch && !messageMatch) return false;
+    }
     if (activeTab === "main") return followingIds.has(chatUser.id);
     return !followingIds.has(chatUser.id);
   });
