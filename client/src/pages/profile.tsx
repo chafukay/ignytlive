@@ -241,6 +241,7 @@ export default function Profile() {
               </div>
             </div>
             <button 
+              onClick={() => setLocation("/coins")}
               className="bg-yellow-500 text-black font-bold px-4 py-2 rounded-full hover:scale-105 transition-transform"
               data-testid="button-topup"
             >
