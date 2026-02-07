@@ -215,12 +215,24 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6 flex items-center justify-between">
-          <p className="text-foreground text-sm">Please verify your email address for privacy.</p>
-          <button className="bg-muted text-primary px-4 py-2 rounded-full text-sm font-medium">
-            Link Account
-          </button>
-        </div>
+        {(!user.phone || !user.phoneVerified || !user.email || user.email.includes('@phone.ignyt.live')) && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6 flex items-center justify-between" data-testid="card-link-account">
+            <p className="text-foreground text-sm">
+              {!user.email || user.email.includes('@phone.ignyt.live') 
+                ? "Link your email to secure your account." 
+                : !user.phone || !user.phoneVerified 
+                  ? "Add a phone number for extra security."
+                  : "Link additional accounts for security."}
+            </p>
+            <button 
+              onClick={() => setLocation("/link-account")}
+              className="bg-muted text-primary px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap"
+              data-testid="button-link-account"
+            >
+              Link Account
+            </button>
+          </div>
+        )}
 
         {/* Wallet Card */}
         <div className="bg-gradient-to-r from-gray-800 to-gray-900 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 mb-6 border border-border relative overflow-hidden">

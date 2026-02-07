@@ -39,6 +39,7 @@ import VIPPlans from "@/pages/vip-plans";
 import Families from "@/pages/families";
 import FamilyDetail from "@/pages/family-detail";
 import Achievements from "@/pages/achievements";
+import LinkAccount from "@/pages/link-account";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -86,6 +87,7 @@ function Router() {
       <Route path="/families">{() => <ProtectedRoute component={Families} />}</Route>
       <Route path="/families/:id">{() => <ProtectedRoute component={FamilyDetail} />}</Route>
       <Route path="/achievements">{() => <ProtectedRoute component={Achievements} />}</Route>
+      <Route path="/link-account">{() => <ProtectedRoute component={LinkAccount} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

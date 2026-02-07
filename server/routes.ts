@@ -428,6 +428,139 @@ export async function registerRoutes(
     }
   });
 
+  // ========== LINK ACCOUNT ==========
+
+  // Link email to existing account
+  app.post("/api/users/:userId/link-email", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: "Please enter a valid email address" });
+      }
+
+      if (typeof password !== 'string' || password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if email is already taken by another user
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({ error: "This email is already in use by another account" });
+      }
+
+      const updated = await storage.updateUser(userId, { 
+        email, 
+        password,
+      });
+
+      res.json({ user: { ...updated, password: undefined } });
+    } catch (error) {
+      console.error("Link email error:", error);
+      res.status(500).json({ error: "Failed to link email" });
+    }
+  });
+
+  // Link phone to existing account - send code
+  app.post("/api/users/:userId/link-phone/send-code", async (req, res) => {
+    try {
+      const { phone } = req.body;
+
+      if (!phone || typeof phone !== "string") {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+
+      // Check if phone is already linked to another user
+      const existingUser = await storage.getUserByPhone(phone);
+      if (existingUser && existingUser.id !== req.params.userId) {
+        return res.status(400).json({ error: "This phone number is already linked to another account" });
+      }
+
+      const { generateVerificationCode, sendVerificationCode, isSmsConfigured } = await import("./sms");
+      const code = generateVerificationCode();
+      await storage.createPhoneVerificationCode(phone, code);
+      const sent = await sendVerificationCode(phone, code);
+
+      res.json({
+        success: true,
+        message: sent ? "Verification code sent" : "Code generated (SMS not configured)",
+        smsConfigured: isSmsConfigured()
+      });
+    } catch (error) {
+      console.error("Link phone send code error:", error);
+      res.status(500).json({ error: "Failed to send verification code" });
+    }
+  });
+
+  // Link phone to existing account - verify code
+  app.post("/api/users/:userId/link-phone/verify", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const { phone, code } = req.body;
+
+      if (!phone || !code) {
+        return res.status(400).json({ error: "Phone and code are required" });
+      }
+
+      const isValid = await storage.verifyPhoneCode(phone, code);
+      if (!isValid) {
+        return res.status(401).json({ error: "Invalid or expired code" });
+      }
+
+      // Re-check phone uniqueness at verification time
+      const existingUser = await storage.getUserByPhone(phone);
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({ error: "This phone number is already linked to another account" });
+      }
+
+      const updated = await storage.updateUser(userId, {
+        phone,
+        phoneVerified: true,
+      });
+
+      res.json({ user: { ...updated, password: undefined } });
+    } catch (error) {
+      console.error("Link phone verify error:", error);
+      res.status(500).json({ error: "Failed to verify phone" });
+    }
+  });
+
+  // Unlink phone from account
+  app.post("/api/users/:userId/unlink-phone", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Must have at least email+password to unlink phone
+      if (!user.email || user.email.includes('@phone.ignyt.live')) {
+        return res.status(400).json({ error: "You must link an email before unlinking your phone" });
+      }
+
+      const updated = await storage.updateUser(userId, {
+        phone: null,
+        phoneVerified: false,
+      });
+
+      res.json({ user: { ...updated, password: undefined } });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to unlink phone" });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     const user = await storage.getUser(req.params.id);
     if (!user) {
