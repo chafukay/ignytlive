@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { GuestGate } from "@/components/guest-gate";
 import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
@@ -83,6 +84,7 @@ export default function Profile() {
   }
 
   return (
+    <GuestGate>
     <Layout>
       <div className="p-4 pb-24 max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
@@ -436,5 +438,6 @@ export default function Profile() {
         </div>
       </div>
     </Layout>
+    </GuestGate>
   );
 }
