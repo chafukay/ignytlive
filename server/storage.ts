@@ -297,7 +297,8 @@ export interface IStorage {
   hasUserPurchasedCoins(userId: string): Promise<boolean>;
   createCoinPurchase(purchase: InsertCoinPurchase): Promise<CoinPurchase>;
   getCoinPurchaseHistory(userId: string, limit?: number): Promise<CoinPurchase[]>;
-  purchaseCoins(userId: string, packageCoins: number, priceUsd: number): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }>;
+  findPurchaseByStripeSessionId(stripeSessionId: string): Promise<CoinPurchase | null>;
+  purchaseCoins(userId: string, packageCoins: number, priceUsd: number, stripeSessionId?: string): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1878,8 +1879,29 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async purchaseCoins(userId: string, packageCoins: number, priceUsd: number): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }> {
+  async findPurchaseByStripeSessionId(stripeSessionId: string): Promise<CoinPurchase | null> {
+    const [purchase] = await db
+      .select()
+      .from(coinPurchases)
+      .where(eq(coinPurchases.stripeSessionId, stripeSessionId))
+      .limit(1);
+    return purchase || null;
+  }
+
+  async purchaseCoins(userId: string, packageCoins: number, priceUsd: number, stripeSessionId?: string): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }> {
     return await db.transaction(async (tx) => {
+      if (stripeSessionId) {
+        const [existing] = await tx
+          .select()
+          .from(coinPurchases)
+          .where(eq(coinPurchases.stripeSessionId, stripeSessionId))
+          .limit(1);
+        if (existing) {
+          const [existingUser] = await tx.select().from(users).where(eq(users.id, userId));
+          return { purchase: existing, user: existingUser, bonusApplied: existing.isFirstPurchase, bonusCoins: existing.bonusCoins };
+        }
+      }
+
       const countResult = await tx
         .select({ count: sql<number>`count(*)` })
         .from(coinPurchases)
@@ -1896,6 +1918,7 @@ export class DatabaseStorage implements IStorage {
         totalCoins,
         priceUsd,
         isFirstPurchase,
+        stripeSessionId: stripeSessionId || null,
       }).returning();
 
       const [currentUser] = await tx.select().from(users).where(eq(users.id, userId));

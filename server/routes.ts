@@ -18,6 +18,11 @@ import {
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-01-28.clover",
+});
 
 // Helper to check if user is a guest and block write actions
 const checkGuestRestriction = async (userId: string | undefined, res: any, storage: any): Promise<boolean> => {
@@ -2309,7 +2314,172 @@ export async function registerRoutes(
     { coins: 57000, price: 299.99 },
   ];
 
-  // Coin Purchase - buy a coin package
+  // Stripe Checkout - create a checkout session for coin purchase
+  app.post("/api/coins/checkout", async (req, res) => {
+    try {
+      const { userId, packageCoins, priceUsd } = req.body;
+
+      if (!userId || !packageCoins || !priceUsd) {
+        return res.status(400).json({ error: "userId, packageCoins, and priceUsd are required" });
+      }
+
+      const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === packageCoins && p.price === priceUsd);
+      if (!validPkg) {
+        return res.status(400).json({ error: "Invalid coin package" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const hasPurchased = await storage.hasUserPurchasedCoins(userId);
+      const bonusCoins = !hasPurchased ? Math.floor(validPkg.coins * 0.5) : 0;
+      const totalCoins = validPkg.coins + bonusCoins;
+
+      const origin = `${req.protocol}://${req.get("host")}`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `${validPkg.coins.toLocaleString()} Coins`,
+                description: bonusCoins > 0
+                  ? `${validPkg.coins.toLocaleString()} coins + ${bonusCoins.toLocaleString()} first-purchase bonus = ${totalCoins.toLocaleString()} total`
+                  : `${validPkg.coins.toLocaleString()} coins for your IgnytLIVE account`,
+              },
+              unit_amount: Math.round(validPkg.price * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${origin}/coins?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/coins`,
+        metadata: {
+          userId,
+          packageCoins: String(validPkg.coins),
+          priceUsd: String(validPkg.price),
+        },
+      });
+
+      res.json({ sessionId: session.id, url: session.url });
+    } catch (error) {
+      console.error("Stripe checkout error:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // Stripe Webhook - handle payment completion
+  app.post("/api/stripe/webhook", async (req, res) => {
+    const sig = req.headers["stripe-signature"] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event: Stripe.Event;
+
+    try {
+      if (webhookSecret) {
+        if (!sig) {
+          return res.status(400).json({ error: "Missing stripe-signature header" });
+        }
+        event = stripe.webhooks.constructEvent(
+          req.rawBody as Buffer,
+          sig,
+          webhookSecret
+        );
+      } else {
+        console.warn("STRIPE_WEBHOOK_SECRET not set — webhook signature verification disabled. Set it in production.");
+        return res.status(400).json({ error: "Webhook not configured" });
+      }
+    } catch (err: any) {
+      console.error("Webhook signature verification failed:", err.message);
+      return res.status(400).json({ error: `Webhook Error: ${err.message}` });
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      if (session.payment_status === "paid" && session.metadata) {
+        const { userId, packageCoins, priceUsd } = session.metadata;
+
+        const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === parseInt(packageCoins) && p.price === parseFloat(priceUsd));
+        if (!validPkg) {
+          console.error("Webhook: invalid coin package in session metadata", session.metadata);
+          return res.status(400).json({ error: "Invalid package in metadata" });
+        }
+
+        try {
+          const result = await storage.purchaseCoins(
+            userId,
+            validPkg.coins,
+            validPkg.price,
+            session.id
+          );
+          console.log(`Webhook: Coins credited: ${result.purchase.totalCoins} coins to user ${userId} (session ${session.id})`);
+        } catch (error) {
+          console.error("Failed to credit coins after payment:", error);
+        }
+      }
+    }
+
+    res.json({ received: true });
+  });
+
+  // Stripe - verify checkout session and credit coins (fallback for webhook)
+  app.post("/api/coins/verify-session/:sessionId", async (req, res) => {
+    try {
+      const { userId: requestingUserId } = req.body;
+      if (!requestingUserId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+
+      if (session.payment_status !== "paid" || !session.metadata) {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      const { userId, packageCoins, priceUsd } = session.metadata;
+
+      if (userId !== requestingUserId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === parseInt(packageCoins) && p.price === parseFloat(priceUsd));
+      if (!validPkg) {
+        return res.status(400).json({ error: "Invalid coin package" });
+      }
+
+      const existingPurchase = await storage.findPurchaseByStripeSessionId(session.id);
+      if (existingPurchase) {
+        const user = await storage.getUser(userId);
+        return res.json({ alreadyCredited: true, user });
+      }
+
+      const result = await storage.purchaseCoins(
+        userId,
+        validPkg.coins,
+        validPkg.price,
+        session.id
+      );
+
+      res.json({
+        alreadyCredited: false,
+        purchase: result.purchase,
+        user: result.user,
+        bonusApplied: result.bonusApplied,
+        bonusCoins: result.bonusCoins,
+      });
+    } catch (error) {
+      console.error("Session verification error:", error);
+      res.status(500).json({ error: "Failed to verify payment session" });
+    }
+  });
+
+  // Legacy direct purchase endpoint (kept for testing)
   app.post("/api/coins/purchase", async (req, res) => {
     try {
       const { userId, packageCoins, priceUsd } = req.body;

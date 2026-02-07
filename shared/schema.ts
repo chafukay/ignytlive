@@ -988,6 +988,7 @@ export const coinPurchases = pgTable("coin_purchases", {
   totalCoins: integer("total_coins").notNull(),
   priceUsd: doublePrecision("price_usd").notNull(),
   isFirstPurchase: boolean("is_first_purchase").notNull().default(false),
+  stripeSessionId: text("stripe_session_id").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("coin_purchases_user_id_idx").on(table.userId),

@@ -88,6 +88,14 @@ Core data models include:
 - **Management**: Owners can promote/demote admins, kick members
 - **Privacy**: Public or private family options
 
+### Coin Purchase System (Stripe Integration)
+- **Stripe Checkout**: Users select a coin package, which creates a Stripe Checkout session
+- **Flow**: Select package → Confirm → Redirect to Stripe → Return to /coins with session_id → Verify session → Credit coins
+- **Endpoints**: POST `/api/coins/checkout` (create session), GET `/api/coins/verify-session/:sessionId` (verify & credit), POST `/api/stripe/webhook` (webhook handler)
+- **First Purchase Bonus**: 50% extra coins on first purchase, detected atomically in DB transaction
+- **Webhook**: Optional `STRIPE_WEBHOOK_SECRET` for signature verification; falls back to session verification on redirect
+- **Secrets**: `STRIPE_SECRET_KEY` (server), `STRIPE_PUBLISHABLE_KEY` (stored but client uses direct URL redirect)
+
 ## External Dependencies
 
 ### Database

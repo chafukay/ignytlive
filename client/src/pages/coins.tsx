@@ -1,25 +1,24 @@
 import Layout from "@/components/layout";
-import { X, Check, Sparkles, Gift } from "lucide-react";
+import { X, Check, Sparkles, Gift, CreditCard, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-
 const coinPackages = [
-  { coins: 3875, price: 24.99, originalPrice: 38.99, image: "💰" },
-  { coins: 5100, price: 29.99, originalPrice: 50.99, image: "🏆", tag: "Popular" },
-  { coins: 8750, price: 49.99, originalPrice: 87.49, image: "📦", tag: "Popular" },
-  { coins: 14400, price: 79.99, originalPrice: 144.99, image: "🧱" },
-  { coins: 18500, price: 99.99, originalPrice: 184.99, image: "🧱🧱", tag: "Hot" },
-  { coins: 57000, price: 299.99, originalPrice: 569.99, image: "📦📦" },
+  { coins: 3875, price: 24.99, originalPrice: 38.99, image: "\u{1F4B0}" },
+  { coins: 5100, price: 29.99, originalPrice: 50.99, image: "\u{1F3C6}", tag: "Popular" },
+  { coins: 8750, price: 49.99, originalPrice: 87.49, image: "\u{1F4E6}", tag: "Popular" },
+  { coins: 14400, price: 79.99, originalPrice: 144.99, image: "\u{1F9F1}" },
+  { coins: 18500, price: 99.99, originalPrice: 184.99, image: "\u{1F9F1}\u{1F9F1}", tag: "Hot" },
+  { coins: 57000, price: 299.99, originalPrice: 569.99, image: "\u{1F4E6}\u{1F4E6}" },
 ];
 
 const bestOffers = [
-  { coins: 380, price: 1.99, originalPrice: 3.79, image: "💰", tag: "Popular" },
-  { coins: 975, price: 4.99, originalPrice: 9.74, image: "💰💰", tag: "Hot" },
-  { coins: 2000, price: 9.99, originalPrice: 19.99, image: "💰💰💰", tag: "Best Value" },
+  { coins: 380, price: 1.99, originalPrice: 3.79, image: "\u{1F4B0}", tag: "Popular" },
+  { coins: 975, price: 4.99, originalPrice: 9.74, image: "\u{1F4B0}\u{1F4B0}", tag: "Hot" },
+  { coins: 2000, price: 9.99, originalPrice: 19.99, image: "\u{1F4B0}\u{1F4B0}\u{1F4B0}", tag: "Best Value" },
 ];
 
 type CoinPackage = { coins: number; price: number; originalPrice: number; image: string; tag?: string };
@@ -32,6 +31,7 @@ export default function Coins() {
   const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastPurchase, setLastPurchase] = useState<{ totalCoins: number; bonusCoins: number } | null>(null);
+  const [verifyingSession, setVerifyingSession] = useState(false);
 
   const { data: firstPurchaseData } = useQuery({
     queryKey: ['firstPurchase', user?.id],
@@ -45,9 +45,45 @@ export default function Coins() {
 
   const isFirstPurchase = firstPurchaseData?.isFirstPurchase ?? false;
 
-  const purchaseMutation = useMutation({
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (sessionId && user?.id && !verifyingSession) {
+      setVerifyingSession(true);
+      window.history.replaceState({}, "", "/coins");
+
+      fetch(`/api/coins/verify-session/${sessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user!.id }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.user) {
+            login(data.user);
+          }
+          if (data.alreadyCredited) {
+            toast({ title: "Coins already credited", description: "This payment was already processed." });
+          } else if (data.purchase) {
+            setLastPurchase({
+              totalCoins: data.purchase.totalCoins,
+              bonusCoins: data.purchase.bonusCoins || 0,
+            });
+            setShowSuccess(true);
+            queryClient.invalidateQueries({ queryKey: ['firstPurchase'] });
+            setTimeout(() => setShowSuccess(false), 4000);
+          }
+        })
+        .catch(() => {
+          toast({ title: "Verification failed", description: "We couldn't verify your payment. If charged, coins will be credited shortly.", variant: "destructive" });
+        })
+        .finally(() => setVerifyingSession(false));
+    }
+  }, [user?.id]);
+
+  const checkoutMutation = useMutation({
     mutationFn: async (pkg: CoinPackage) => {
-      const res = await fetch('/api/coins/purchase', {
+      const res = await fetch('/api/coins/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,18 +93,15 @@ export default function Coins() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      return res.json() as Promise<{ sessionId: string; url: string }>;
     },
-    onSuccess: (data) => {
-      login(data.user);
-      setLastPurchase({ totalCoins: data.purchase.totalCoins, bonusCoins: data.purchase.bonusCoins });
-      setSelectedPackage(null);
-      setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ['firstPurchase'] });
-      setTimeout(() => setShowSuccess(false), 3000);
+    onSuccess: async (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
     },
     onError: () => {
-      toast({ title: "Purchase failed", description: "Something went wrong. Please try again.", variant: "destructive" });
+      toast({ title: "Checkout failed", description: "Something went wrong. Please try again.", variant: "destructive" });
       setSelectedPackage(null);
     },
   });
@@ -79,7 +112,7 @@ export default function Coins() {
 
   const confirmPurchase = () => {
     if (selectedPackage) {
-      purchaseMutation.mutate(selectedPackage);
+      checkoutMutation.mutate(selectedPackage);
     }
   };
 
@@ -102,7 +135,7 @@ export default function Coins() {
         </span>
       )}
       <div className="flex items-center justify-center gap-1 mb-2">
-        <span className="text-yellow-500">💰</span>
+        <span className="text-yellow-500">{"\u{1F4B0}"}</span>
         <span className="font-bold text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
       </div>
       <div className="text-4xl mb-2">{pkg.image}</div>
@@ -116,7 +149,7 @@ export default function Coins() {
       <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white dark:from-gray-900 dark:to-gray-800">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2 bg-yellow-100 dark:bg-yellow-900/30 px-4 py-2 rounded-full">
-            <span className="text-yellow-600 dark:text-yellow-400 text-lg">💰</span>
+            <span className="text-yellow-600 dark:text-yellow-400 text-lg">{"\u{1F4B0}"}</span>
             <span className="font-bold text-gray-900 dark:text-white" data-testid="text-coin-balance">{user?.coins?.toLocaleString() || 0}</span>
           </div>
           <button
@@ -127,6 +160,13 @@ export default function Coins() {
             <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
+
+        {verifyingSession && (
+          <div className="p-6 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400 font-medium">Verifying your payment...</p>
+          </div>
+        )}
 
         <div className="p-4 space-y-8">
           {isFirstPurchase && (
@@ -178,18 +218,25 @@ export default function Coins() {
               </div>
             </section>
           )}
+
+          <section className="pb-4">
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+              <CreditCard className="w-4 h-4" />
+              <span>Secure payments powered by Stripe</span>
+            </div>
+          </section>
         </div>
       </div>
 
       {selectedPackage && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => !purchaseMutation.isPending && setSelectedPackage(null)}>
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => !checkoutMutation.isPending && setSelectedPackage(null)}>
           <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-4">Confirm Purchase</h3>
 
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-4 text-center">
               <div className="text-5xl mb-3">{selectedPackage.image}</div>
               <div className="flex items-center justify-center gap-2 mb-1">
-                <span className="text-yellow-500 text-lg">💰</span>
+                <span className="text-yellow-500 text-lg">{"\u{1F4B0}"}</span>
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">{selectedPackage.coins.toLocaleString()}</span>
               </div>
               {isFirstPurchase && (
@@ -203,15 +250,20 @@ export default function Coins() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between mb-6 px-2">
+            <div className="flex items-center justify-between mb-4 px-2">
               <span className="text-gray-500 dark:text-gray-400">Price</span>
               <span className="text-2xl font-bold text-gray-900 dark:text-white">${selectedPackage.price}</span>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+              <CreditCard className="w-4 h-4 shrink-0" />
+              <span>You'll be redirected to Stripe for secure payment</span>
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => setSelectedPackage(null)}
-                disabled={purchaseMutation.isPending}
+                disabled={checkoutMutation.isPending}
                 className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 data-testid="button-cancel-purchase"
               >
@@ -219,14 +271,14 @@ export default function Coins() {
               </button>
               <button
                 onClick={confirmPurchase}
-                disabled={purchaseMutation.isPending}
+                disabled={checkoutMutation.isPending}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                 data-testid="button-confirm-purchase"
               >
-                {purchaseMutation.isPending ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                {checkoutMutation.isPending ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <>Buy Now</>
+                  <>Pay ${selectedPackage.price}</>
                 )}
               </button>
             </div>
