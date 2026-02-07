@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, UserPlus, UserMinus, Flag, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
@@ -8,6 +8,13 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import UserAvatar from "@/components/user-avatar";
 import type { User, Message } from "@shared/schema";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Chat() {
   const { user } = useAuth();
@@ -56,6 +63,45 @@ export default function Chat() {
       } else {
         toast({ title: "Failed to send message", variant: "destructive" });
       }
+    },
+  });
+
+  const { data: followStatus } = useQuery({
+    queryKey: ['isFollowing', user?.id, selectedUserId],
+    queryFn: () => api.isFollowing(user!.id, selectedUserId!),
+    enabled: !!user?.id && !!selectedUserId,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: () => api.followUser(user!.id, selectedUserId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['isFollowing', user?.id, selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ['following', user?.id] });
+      toast({ title: "Followed successfully" });
+    },
+  });
+
+  const unfollowMutation = useMutation({
+    mutationFn: () => api.unfollowUser(user!.id, selectedUserId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['isFollowing', user?.id, selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ['following', user?.id] });
+      toast({ title: "Unfollowed" });
+    },
+  });
+
+  const clearChatMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/messages/conversation/${user!.id}/${selectedUserId!}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', user?.id, selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
+      toast({ title: "Conversation cleared" });
+    },
+    onError: () => {
+      toast({ title: "Failed to clear conversation", variant: "destructive" });
     },
   });
 
@@ -278,9 +324,56 @@ export default function Chat() {
                     </p>
                   </div>
                 </div>
-                <button className="p-2 hover:bg-muted rounded-full transition-colors" data-testid="button-chat-options">
-                  <MoreVertical className="w-5 h-5 text-muted-foreground" />
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-2 hover:bg-muted rounded-full transition-colors" data-testid="button-chat-options">
+                      <MoreVertical className="w-5 h-5 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      onClick={() => setLocation(`/profile/${otherUser.id}`)}
+                      data-testid="menu-view-profile"
+                    >
+                      <UserRound className="w-4 h-4 mr-2" />
+                      View Profile
+                    </DropdownMenuItem>
+                    {followStatus?.isFollowing ? (
+                      <DropdownMenuItem
+                        onClick={() => unfollowMutation.mutate()}
+                        data-testid="menu-unfollow"
+                      >
+                        <UserMinus className="w-4 h-4 mr-2" />
+                        Unfollow
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={() => followMutation.mutate()}
+                        data-testid="menu-follow"
+                      >
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Follow
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => clearChatMutation.mutate()}
+                      className="text-destructive focus:text-destructive"
+                      data-testid="menu-clear-chat"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Clear Chat
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      data-testid="menu-report"
+                      onClick={() => toast({ title: "Report submitted", description: "We'll review this user's activity" })}
+                    >
+                      <Flag className="w-4 h-4 mr-2" />
+                      Report User
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-2">

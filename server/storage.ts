@@ -160,6 +160,7 @@ export interface IStorage {
   // Message operations
   createMessage(message: InsertMessage): Promise<Message>;
   getConversation(userId1: string, userId2: string): Promise<Message[]>;
+  deleteConversation(userId1: string, userId2: string): Promise<void>;
   getRecentChats(userId: string): Promise<Array<{ user: User; lastMessage: Message }>>;
   
   // Stream comment operations
@@ -838,6 +839,23 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(messages.createdAt);
+  }
+
+  async deleteConversation(userId1: string, userId2: string): Promise<void> {
+    await db
+      .delete(messages)
+      .where(
+        or(
+          and(
+            eq(messages.senderId, userId1),
+            eq(messages.receiverId, userId2)
+          ),
+          and(
+            eq(messages.senderId, userId2),
+            eq(messages.receiverId, userId1)
+          )
+        )
+      );
   }
 
   async getRecentChats(userId: string): Promise<Array<{ user: User; lastMessage: Message }>> {

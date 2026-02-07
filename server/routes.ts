@@ -1168,6 +1168,15 @@ export async function registerRoutes(
     res.json(messages);
   });
 
+  app.delete("/api/messages/conversation/:userId1/:userId2", async (req, res) => {
+    try {
+      await storage.deleteConversation(req.params.userId1, req.params.userId2);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear conversation" });
+    }
+  });
+
   app.get("/api/users/:id/chats", async (req, res) => {
     const chats = await storage.getRecentChats(req.params.id);
     res.json(chats);
