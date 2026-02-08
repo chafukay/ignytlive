@@ -1,7 +1,6 @@
 import Layout from "@/components/layout";
 import SearchOverlay from "@/components/search-overlay";
-import { Search, Flame, MapPin, Loader2, Eye, Volume2, VolumeX } from "lucide-react";
-import StreamCard from "@/components/stream-card";
+import { Search, Flame, MapPin, Loader2, Eye } from "lucide-react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -90,36 +89,28 @@ const formatViewers = (count: number) => {
   return count.toString();
 };
 
-type GridSize = 'large' | 'medium' | 'small';
+function isFeatured(index: number): boolean {
+  return index % 7 === 0;
+}
 
-const GRID_PATTERN: GridSize[] = [
-  'large', 'small', 'small',
-  'small', 'small', 'large',
-  'medium', 'medium', 'medium',
-  'small', 'large', 'small',
-  'large', 'small', 'small',
-];
-
-function ExploreStreamCard({ stream, size, rank }: { stream: Stream & { user: User }; size: GridSize; rank?: number }) {
-  const aspectClass = size === 'large' ? 'row-span-2' : '';
-
+function ExploreStreamCard({ stream, featured, rank }: { stream: Stream & { user: User }; featured: boolean; rank?: number }) {
   return (
-    <Link href={`/live/${stream.id}`} className={`block ${aspectClass}`}>
+    <Link href={`/live/${stream.id}`} className={`block ${featured ? 'col-span-2' : ''}`}>
       <div
-        className="relative group cursor-pointer overflow-hidden rounded-2xl bg-muted h-full"
+        className={`relative group cursor-pointer overflow-hidden rounded-xl bg-muted ${featured ? 'aspect-[4/3]' : 'aspect-[3/4]'}`}
         data-testid={`card-stream-${stream.id}`}
       >
         <img
           src={stream.thumbnail || stream.user.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${stream.id}`}
           alt={stream.title || stream.user.username}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           data-testid={`img-stream-${stream.id}`}
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
         {stream.isLive && (
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
             <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
               LIVE
@@ -132,25 +123,25 @@ function ExploreStreamCard({ stream, size, rank }: { stream: Stream & { user: Us
         )}
 
         {rank && rank <= 3 && (
-          <div className="absolute top-2.5 right-2.5 z-10">
-            <span className={`text-lg ${rank === 1 ? '' : rank === 2 ? '' : ''}`}>
+          <div className="absolute top-2 right-2 z-10">
+            <span className="text-lg">
               {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
             </span>
           </div>
         )}
 
         {stream.isPKBattle && (
-          <div className="absolute top-2.5 right-2.5 bg-orange-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-10 flex items-center gap-1">
+          <div className="absolute top-2 right-2 bg-orange-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-10 flex items-center gap-1">
             ⚔️ BATTLE
           </div>
         )}
 
         <div className="absolute bottom-0 left-0 right-0 p-2.5 z-10">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2">
             <div className="relative flex-shrink-0">
               <img
                 src={stream.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.user.username}`}
-                className={`rounded-full border-2 ${stream.user.vipTier >= 3 ? 'border-purple-400' : stream.user.vipTier >= 2 ? 'border-yellow-400' : 'border-pink-500'} ${size === 'large' ? 'w-8 h-8' : 'w-6 h-6'}`}
+                className={`rounded-full border-2 ${stream.user.vipTier >= 3 ? 'border-purple-400' : stream.user.vipTier >= 2 ? 'border-yellow-400' : 'border-pink-500'} ${featured ? 'w-8 h-8' : 'w-6 h-6'}`}
                 alt={stream.user.username}
               />
               {stream.user.level && (
@@ -160,18 +151,18 @@ function ExploreStreamCard({ stream, size, rank }: { stream: Stream & { user: Us
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`font-bold text-white truncate ${size === 'large' ? 'text-sm' : 'text-xs'}`} data-testid={`text-username-${stream.id}`}>
+              <p className={`font-bold text-white truncate ${featured ? 'text-sm' : 'text-xs'}`} data-testid={`text-username-${stream.id}`}>
                 {stream.user.username}
-                {stream.user.isVerified && <span className="ml-1">✓</span>}
+                {stream.user.isVerified && <span className="ml-1 text-blue-400">✓</span>}
               </p>
-              {size === 'large' && stream.title && (
-                <p className="text-white/70 text-[10px] truncate">{stream.title}</p>
+              {featured && stream.title && (
+                <p className="text-white/70 text-[11px] truncate">{stream.title}</p>
               )}
             </div>
           </div>
 
-          {size !== 'small' && stream.category && (
-            <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-0.5 rounded-full mt-1">
+          {stream.category && (
+            <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-0.5 rounded-full mt-1.5">
               {stream.category}
             </span>
           )}
@@ -387,16 +378,13 @@ export default function Explore() {
         {!(activeTab === 'nearby' && (locationError || locationLoading)) && (
           <>
             {isLoading ? (
-              <div className="grid grid-cols-3 gap-2.5 auto-rows-[180px]">
-                {[...Array(9)].map((_, i) => {
-                  const pattern = GRID_PATTERN[i % GRID_PATTERN.length];
-                  return (
-                    <div
-                      key={i}
-                      className={`rounded-2xl bg-muted animate-pulse ${pattern === 'large' ? 'row-span-2' : ''}`}
-                    />
-                  );
-                })}
+              <div className="grid grid-cols-3 gap-2">
+                {[...Array(9)].map((_, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-xl bg-muted animate-pulse ${isFeatured(i) ? 'col-span-2 aspect-[4/3]' : 'aspect-[3/4]'}`}
+                  />
+                ))}
               </div>
             ) : (
               <>
@@ -405,15 +393,14 @@ export default function Explore() {
                     <p className="text-muted-foreground/60 text-xs text-center">Preview with sample streams</p>
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-2.5 auto-rows-[180px]">
+                <div className="grid grid-cols-3 gap-2">
                   {displayStreams.map((stream, index) => {
-                    const sizePattern = GRID_PATTERN[index % GRID_PATTERN.length];
                     const popularRank = activeTab === 'popular' ? index + 1 : undefined;
                     return (
                       <ExploreStreamCard
                         key={stream.id}
                         stream={stream}
-                        size={sizePattern}
+                        featured={isFeatured(index)}
                         rank={popularRank}
                       />
                     );
