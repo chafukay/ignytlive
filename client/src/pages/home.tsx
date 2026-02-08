@@ -1,11 +1,12 @@
 import Layout from "@/components/layout";
 import StreamCard from "@/components/stream-card";
 import UserAvatar from "@/components/user-avatar";
+import SearchOverlay from "@/components/search-overlay";
 import { useQuery } from "@tanstack/react-query";
 import { api, SuggestedUser } from "@/lib/api";
-import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2, X } from "lucide-react";
+import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,35 +22,11 @@ const STREAM_TABS = [
 
 export default function Home() {
   const { user, login } = useAuth();
-  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('popular');
   const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const previousLiveStreamersRef = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    const trimmed = searchQuery.trim();
-    if (trimmed.length < 3) {
-      setDebouncedSearch("");
-      return;
-    }
-    const timer = setTimeout(() => setDebouncedSearch(trimmed), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (showSearch) searchInputRef.current?.focus();
-  }, [showSearch]);
-
-  const { data: searchResults, isLoading: searchLoading } = useQuery({
-    queryKey: ['searchUsers', debouncedSearch],
-    queryFn: () => api.searchUsers(debouncedSearch),
-    enabled: debouncedSearch.length >= 3,
-  });
-  
   const { data: liveStreams, isLoading } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
@@ -152,7 +129,7 @@ export default function Home() {
             </div>
             <button 
               data-testid="button-search"
-              onClick={() => { setShowSearch(true); setSearchQuery(""); setDebouncedSearch(""); }}
+              onClick={() => setShowSearch(true)}
               className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
             >
               <Search className="w-5 h-5 text-foreground" />
@@ -165,94 +142,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Global Search Overlay */}
-        {showSearch && (
-          <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
-            <div className="max-w-lg mx-auto p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search users..."
-                    data-testid="input-global-search"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-full bg-muted border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-                <button
-                  onClick={() => { setShowSearch(false); setSearchQuery(""); setDebouncedSearch(""); }}
-                  data-testid="button-close-search"
-                  className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
-                >
-                  <X className="w-5 h-5 text-foreground" />
-                </button>
-              </div>
-
-              <div className="overflow-y-auto max-h-[calc(100vh-100px)]">
-                {searchQuery.trim().length > 0 && searchQuery.trim().length < 3 && (
-                  <p className="text-muted-foreground text-sm text-center py-8">Type at least 3 characters to search</p>
-                )}
-                {searchLoading && debouncedSearch.length >= 3 && (
-                  <div className="space-y-2">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl animate-pulse">
-                        <div className="w-12 h-12 rounded-full bg-muted shrink-0" />
-                        <div className="flex-1">
-                          <div className="h-4 w-28 bg-muted rounded mb-2" />
-                          <div className="h-3 w-20 bg-muted rounded" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {debouncedSearch.length >= 3 && !searchLoading && searchResults && searchResults.filter(u => u.id !== user?.id).length > 0 && (
-                  <div className="space-y-1">
-                    {searchResults.filter(u => u.id !== user?.id).map((result) => (
-                      <div
-                        key={result.id}
-                        onClick={() => { setShowSearch(false); setSearchQuery(""); setLocation(`/profile/${result.id}`); }}
-                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors"
-                        data-testid={`search-result-${result.id}`}
-                      >
-                        <UserAvatar
-                          userId={result.id}
-                          username={result.username}
-                          avatar={result.avatar}
-                          isLive={result.isLive}
-                          isOnline={result.isLive}
-                          size="md"
-                          showStatus={true}
-                          linkToProfile={false}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground text-sm truncate">{result.username}</h3>
-                          <p className="text-muted-foreground text-xs">Level {result.level} {result.isLive ? '• Live now' : ''}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {debouncedSearch.length >= 3 && !searchLoading && searchResults && searchResults.filter(u => u.id !== user?.id).length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Search className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                    <p className="text-muted-foreground text-sm">No users found</p>
-                    <p className="text-muted-foreground/60 text-xs mt-1">Try a different name</p>
-                  </div>
-                )}
-                {searchQuery.trim().length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Search className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                    <p className="text-muted-foreground text-sm">Search for users</p>
-                    <p className="text-muted-foreground/60 text-xs mt-1">Find anyone on the platform</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <SearchOverlay open={showSearch} onClose={() => setShowSearch(false)} />
 
         {/* SuperLive-style Horizontal Tabs */}
         <div className="flex gap-4 overflow-x-auto no-scrollbar mb-6 pb-2 border-b border-border">

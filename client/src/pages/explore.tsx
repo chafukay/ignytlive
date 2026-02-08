@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import SearchOverlay from "@/components/search-overlay";
 import { Search, Flame, Calendar } from "lucide-react";
 import StreamCard from "@/components/stream-card";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { Link } from "wouter";
 export default function Explore() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'new' | 'nearby' | 'popular'>('new');
+  const [showSearch, setShowSearch] = useState(false);
   
   const { data: liveStreams, isLoading } = useQuery({
     queryKey: ['liveStreams'],
@@ -33,7 +35,11 @@ export default function Explore() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80">
+            <button
+              onClick={() => setShowSearch(true)}
+              data-testid="button-search"
+              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
+            >
               <Search className="w-5 h-5 text-foreground" />
             </button>
             <Link href="/leaderboard">
@@ -46,6 +52,8 @@ export default function Explore() {
             </button>
           </div>
         </div>
+
+        <SearchOverlay open={showSearch} onClose={() => setShowSearch(false)} />
 
         {/* Promo Banner */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-4 mb-6 flex items-center justify-between">
