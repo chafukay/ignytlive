@@ -93,17 +93,16 @@ const formatViewers = (count: number) => {
 type GridSize = 'large' | 'medium' | 'small';
 
 const GRID_PATTERN: GridSize[] = [
-  'large', 'small',
-  'small', 'large',
-  'medium', 'medium',
-  'large', 'small',
-  'small', 'large',
-  'medium', 'medium',
+  'large', 'small', 'small',
+  'small', 'small', 'large',
+  'medium', 'medium', 'medium',
+  'small', 'large', 'small',
+  'large', 'small', 'small',
 ];
 
 function ExploreStreamCard({ stream, size, rank }: { stream: Stream & { user: User }; size: GridSize; rank?: number }) {
   const aspectClass = size === 'large' ? 'row-span-2' : '';
-  const heightClass = size === 'large' ? 'min-h-[420px]' : size === 'medium' ? 'min-h-[240px]' : 'min-h-[200px]';
+  const heightClass = size === 'large' ? 'min-h-[380px]' : size === 'medium' ? 'min-h-[220px]' : 'min-h-[180px]';
 
   return (
     <Link href={`/live/${stream.id}`}>
@@ -389,8 +388,8 @@ export default function Explore() {
         {!(activeTab === 'nearby' && (locationError || locationLoading)) && (
           <>
             {isLoading ? (
-              <div className="grid grid-cols-2 gap-3 auto-rows-[200px]">
-                {[...Array(8)].map((_, i) => {
+              <div className="grid grid-cols-3 gap-2.5 auto-rows-[180px]">
+                {[...Array(9)].map((_, i) => {
                   const pattern = GRID_PATTERN[i % GRID_PATTERN.length];
                   return (
                     <div
@@ -407,7 +406,7 @@ export default function Explore() {
                     <p className="text-muted-foreground/60 text-xs text-center">Preview with sample streams</p>
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-1.5 auto-rows-[160px]">
+                <div className="grid grid-cols-3 gap-2.5 auto-rows-[180px]">
                   {displayStreams.map((stream, index) => {
                     const sizePattern = GRID_PATTERN[index % GRID_PATTERN.length];
                     const popularRank = activeTab === 'popular' ? index + 1 : undefined;
