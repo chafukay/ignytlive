@@ -18,13 +18,13 @@ export default function Profile() {
   const [dndEnabled, setDndEnabled] = useState(user?.dndEnabled || false);
 
   // Check if user is currently live streaming
-  const { data: liveStreams } = useQuery({
+  const { data: liveStreamsData } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
     enabled: !!user,
   });
   
-  const isUserLive = liveStreams?.some(stream => stream.userId === user?.id) ?? false;
+  const isUserLive = liveStreamsData?.streams?.some(stream => stream.userId === user?.id) ?? false;
 
   // Fetch equipped items for profile display
   const { data: equippedItems = [] } = useQuery<UserItemWithItem[]>({

@@ -27,11 +27,12 @@ export default function Home() {
   const { toast } = useToast();
   const previousLiveStreamersRef = useRef<Set<string>>(new Set());
 
-  const { data: liveStreams, isLoading } = useQuery({
+  const { data: liveStreamsData, isLoading } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
-    refetchInterval: 5000, // Poll every 5 seconds to catch new streams
+    refetchInterval: 5000,
   });
+  const liveStreams = liveStreamsData?.streams;
 
   // Get all streamers sorted by live status
   const { data: streamers } = useQuery({

@@ -37,10 +37,11 @@ export default function UserProfile() {
     enabled: !!userId,
   });
 
-  const { data: liveStreams } = useQuery({
+  const { data: liveStreamsData } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
   });
+  const liveStreams = liveStreamsData?.streams;
 
   const { data: isFollowingData } = useQuery({
     queryKey: ['isFollowing', currentUser?.id, userId],

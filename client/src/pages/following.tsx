@@ -10,10 +10,11 @@ import { Link } from "wouter";
 export default function Following() {
   const { user } = useAuth();
 
-  const { data: liveStreams, isLoading } = useQuery({
+  const { data: liveStreamsData, isLoading } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
   });
+  const liveStreams = liveStreamsData?.streams;
 
   return (
     <GuestGate>

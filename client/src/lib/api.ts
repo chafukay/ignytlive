@@ -161,10 +161,12 @@ export const api = {
   },
 
   // Streams
-  async getLiveStreams(limit = 50, sort = "popular") {
-    const res = await fetch(`${API_BASE}/api/streams/live?limit=${limit}&sort=${sort}`);
+  async getLiveStreams(limit = 20, sort = "popular", cursor?: string) {
+    const params = new URLSearchParams({ limit: String(limit), sort });
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`${API_BASE}/api/streams/live?${params}`);
     if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<Array<Stream & { user: User }>>;
+    return res.json() as Promise<{ streams: Array<Stream & { user: User }>; nextCursor: string | null }>;
   },
 
   async getStream(id: string) {

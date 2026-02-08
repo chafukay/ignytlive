@@ -2,10 +2,10 @@ import Layout from "@/components/layout";
 import SearchOverlay from "@/components/search-overlay";
 import { Search, Flame, MapPin, Loader2 } from "lucide-react";
 import StreamCard from "@/components/stream-card";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "wouter";
 
 export default function Explore() {
@@ -15,6 +15,7 @@ export default function Explore() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (activeTab === 'nearby' && !userLocation && !locationError) {
@@ -33,15 +34,31 @@ export default function Explore() {
     }
   }, [activeTab, userLocation, locationError]);
 
-  const { data: newStreams, isLoading: newLoading } = useQuery({
+  const {
+    data: newData,
+    isLoading: newLoading,
+    fetchNextPage: fetchNextNew,
+    hasNextPage: hasNextNew,
+    isFetchingNextPage: isFetchingNextNew,
+  } = useInfiniteQuery({
     queryKey: ['liveStreams', 'new'],
-    queryFn: () => api.getLiveStreams(50, 'new'),
+    queryFn: ({ pageParam }) => api.getLiveStreams(20, 'new', pageParam as string | undefined),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    initialPageParam: undefined as string | undefined,
     enabled: activeTab === 'new',
   });
 
-  const { data: popularStreams, isLoading: popularLoading } = useQuery({
+  const {
+    data: popularData,
+    isLoading: popularLoading,
+    fetchNextPage: fetchNextPopular,
+    hasNextPage: hasNextPopular,
+    isFetchingNextPage: isFetchingNextPopular,
+  } = useInfiniteQuery({
     queryKey: ['liveStreams', 'popular'],
-    queryFn: () => api.getLiveStreams(50, 'popular'),
+    queryFn: ({ pageParam }) => api.getLiveStreams(20, 'popular', pageParam as string | undefined),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    initialPageParam: undefined as string | undefined,
     enabled: activeTab === 'popular',
   });
 
@@ -51,6 +68,9 @@ export default function Explore() {
     enabled: activeTab === 'nearby' && !!userLocation,
   });
 
+  const newStreams = newData?.pages.flatMap(p => p.streams) ?? [];
+  const popularStreams = popularData?.pages.flatMap(p => p.streams) ?? [];
+
   const currentStreams = activeTab === 'new' ? newStreams
     : activeTab === 'popular' ? popularStreams
     : nearbyStreams;
@@ -58,6 +78,33 @@ export default function Explore() {
   const isLoading = activeTab === 'new' ? newLoading
     : activeTab === 'popular' ? popularLoading
     : nearbyLoading || locationLoading;
+
+  const hasNextPage = activeTab === 'new' ? hasNextNew
+    : activeTab === 'popular' ? hasNextPopular
+    : false;
+
+  const isFetchingNextPage = activeTab === 'new' ? isFetchingNextNew
+    : activeTab === 'popular' ? isFetchingNextPopular
+    : false;
+
+  const fetchNextPage = activeTab === 'new' ? fetchNextNew
+    : activeTab === 'popular' ? fetchNextPopular
+    : undefined;
+
+  const observerCallback = useCallback((entries: IntersectionObserverEntry[]) => {
+    const [entry] = entries;
+    if (entry.isIntersecting && hasNextPage && !isFetchingNextPage && fetchNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(observerCallback, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [observerCallback]);
 
   return (
     <Layout>
@@ -183,6 +230,12 @@ export default function Explore() {
                 )}
               </div>
             )}
+
+            <div ref={loadMoreRef} className="py-4 flex justify-center">
+              {isFetchingNextPage && (
+                <Loader2 className="w-6 h-6 text-primary animate-spin" />
+              )}
+            </div>
           </>
         )}
       </div>

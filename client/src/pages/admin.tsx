@@ -29,11 +29,12 @@ export default function Admin() {
     enabled: (user?.role === 'admin' || user?.role === 'superadmin') && !!user?.id,
   });
 
-  const { data: liveStreams } = useQuery({
+  const { data: liveStreamsData } = useQuery({
     queryKey: ['admin', 'streams'],
     queryFn: () => api.getLiveStreams(),
     enabled: user?.role === 'admin' || user?.role === 'superadmin',
   });
+  const liveStreams = liveStreamsData?.streams;
 
   const updateUserMutation = useMutation({
     mutationFn: (data: { userId: string; updates: Partial<User> }) => 

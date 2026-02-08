@@ -591,7 +591,7 @@ export async function registerRoutes(
   app.get("/api/streamers", async (req, res) => {
     try {
       const users = await storage.getStreamers();
-      const liveStreams = await storage.getLiveStreams(100);
+      const { streams: liveStreams } = await storage.getLiveStreams(100);
       
       // Build a set of user IDs who have active live streams
       const liveUserIds = new Set(liveStreams.map(s => s.userId));
@@ -617,10 +617,11 @@ export async function registerRoutes(
 
   // Stream routes
   app.get("/api/streams/live", async (req, res) => {
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query.limit as string) || 20;
     const sort = (req.query.sort as string) || "popular";
-    const streams = await storage.getLiveStreams(limit, sort);
-    res.json(streams);
+    const cursor = (req.query.cursor as string) || undefined;
+    const result = await storage.getLiveStreams(limit, sort, cursor);
+    res.json(result);
   });
 
   // Get nearby streams based on user location

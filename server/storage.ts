@@ -123,7 +123,7 @@ export interface IStorage {
   
   // Stream operations
   getStream(id: string): Promise<Stream | undefined>;
-  getLiveStreams(limit?: number, sort?: string): Promise<(Stream & { user: User })[]>;
+  getLiveStreams(limit?: number, sort?: string, cursor?: string): Promise<{ streams: (Stream & { user: User })[]; nextCursor: string | null }>;
   getUserStreams(userId: string): Promise<Stream[]>;
   createStream(stream: InsertStream): Promise<Stream>;
   updateStream(id: string, updates: Partial<Stream>): Promise<Stream | undefined>;
@@ -362,17 +362,45 @@ export class DatabaseStorage implements IStorage {
     return stream || undefined;
   }
 
-  async getLiveStreams(limit: number = 50, sort: string = "popular"): Promise<(Stream & { user: User })[]> {
-    const orderClause = sort === "new" ? desc(streams.createdAt) : desc(streams.viewersCount);
+  async getLiveStreams(limit: number = 20, sort: string = "popular", cursor?: string): Promise<{ streams: (Stream & { user: User })[]; nextCursor: string | null }> {
+    const conditions: any[] = [eq(streams.isLive, true)];
+
+    if (cursor) {
+      if (sort === "new") {
+        const cursorDate = new Date(cursor);
+        conditions.push(sql`${streams.createdAt} < ${cursorDate}`);
+      } else {
+        const [countStr, id] = cursor.split("_");
+        const count = parseInt(countStr);
+        conditions.push(
+          sql`(${streams.viewersCount} < ${count} OR (${streams.viewersCount} = ${count} AND ${streams.id} < ${id}))`
+        );
+      }
+    }
+
     const results = await db
       .select()
       .from(streams)
       .innerJoin(users, eq(streams.userId, users.id))
-      .where(eq(streams.isLive, true))
-      .orderBy(orderClause)
-      .limit(limit);
-    
-    return results.map(r => ({ ...r.streams, user: r.users }));
+      .where(and(...conditions))
+      .orderBy(
+        sort === "new" ? desc(streams.createdAt) : desc(streams.viewersCount),
+        desc(streams.id)
+      )
+      .limit(limit + 1);
+
+    const hasMore = results.length > limit;
+    const items = results.slice(0, limit).map(r => ({ ...r.streams, user: r.users }));
+
+    let nextCursor: string | null = null;
+    if (hasMore && items.length > 0) {
+      const last = items[items.length - 1];
+      nextCursor = sort === "new"
+        ? last.createdAt.toISOString()
+        : `${last.viewersCount}_${last.id}`;
+    }
+
+    return { streams: items, nextCursor };
   }
 
   async getUserStreams(userId: string): Promise<Stream[]> {
