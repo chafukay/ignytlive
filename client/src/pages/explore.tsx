@@ -102,12 +102,11 @@ const GRID_PATTERN: GridSize[] = [
 
 function ExploreStreamCard({ stream, size, rank }: { stream: Stream & { user: User }; size: GridSize; rank?: number }) {
   const aspectClass = size === 'large' ? 'row-span-2' : '';
-  const heightClass = size === 'large' ? 'min-h-[380px]' : size === 'medium' ? 'min-h-[220px]' : 'min-h-[180px]';
 
   return (
-    <Link href={`/live/${stream.id}`}>
+    <Link href={`/live/${stream.id}`} className={`block ${aspectClass}`}>
       <div
-        className={`relative group cursor-pointer overflow-hidden rounded-2xl bg-muted ${aspectClass} ${heightClass}`}
+        className="relative group cursor-pointer overflow-hidden rounded-2xl bg-muted h-full"
         data-testid={`card-stream-${stream.id}`}
       >
         <img
