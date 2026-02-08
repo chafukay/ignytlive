@@ -124,3 +124,6 @@ Core data models include:
 ### Fonts
 - **DM Sans**: Primary body font
 - **Outfit**: Display/heading font
+
+## Feature Roadmap (Pending)
+- **Event Scheduling System**: Calendar-based feature for Explore page allowing creators to schedule upcoming streams and platform events. Users can browse, RSVP, and get reminders for scheduled streams/events.

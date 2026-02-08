@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import SearchOverlay from "@/components/search-overlay";
-import { Search, Flame, Calendar } from "lucide-react";
+import { Search, Flame } from "lucide-react";
 import StreamCard from "@/components/stream-card";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -47,9 +47,6 @@ export default function Explore() {
                 <Flame className="w-5 h-5 text-orange-400" />
               </button>
             </Link>
-            <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80">
-              <Calendar className="w-5 h-5 text-foreground" />
-            </button>
           </div>
         </div>
 
