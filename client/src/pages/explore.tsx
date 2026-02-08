@@ -97,7 +97,7 @@ function ExploreStreamCard({ stream, featured, rank }: { stream: Stream & { user
   return (
     <Link href={`/live/${stream.id}`} className={`block ${featured ? 'col-span-2' : ''}`}>
       <div
-        className={`relative group cursor-pointer overflow-hidden rounded-xl bg-muted ${featured ? 'aspect-[4/3]' : 'aspect-[3/4]'}`}
+        className={`relative group cursor-pointer overflow-hidden rounded-xl bg-muted ${featured ? 'aspect-[5/4]' : 'aspect-[3/4]'}`}
         data-testid={`card-stream-${stream.id}`}
       >
         <img
@@ -378,11 +378,11 @@ export default function Explore() {
         {!(activeTab === 'nearby' && (locationError || locationLoading)) && (
           <>
             {isLoading ? (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 lg:grid-cols-4 gap-2">
                 {[...Array(9)].map((_, i) => (
                   <div
                     key={i}
-                    className={`rounded-xl bg-muted animate-pulse ${isFeatured(i) ? 'col-span-2 aspect-[4/3]' : 'aspect-[3/4]'}`}
+                    className={`rounded-xl bg-muted animate-pulse ${isFeatured(i) ? 'col-span-2 aspect-[5/4]' : 'aspect-[3/4]'}`}
                   />
                 ))}
               </div>
@@ -393,7 +393,7 @@ export default function Explore() {
                     <p className="text-muted-foreground/60 text-xs text-center">Preview with sample streams</p>
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 lg:grid-cols-4 gap-2">
                   {displayStreams.map((stream, index) => {
                     const popularRank = activeTab === 'popular' ? index + 1 : undefined;
                     return (
