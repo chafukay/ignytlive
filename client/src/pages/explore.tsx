@@ -93,16 +93,17 @@ const formatViewers = (count: number) => {
 type GridSize = 'large' | 'medium' | 'small';
 
 const GRID_PATTERN: GridSize[] = [
-  'large', 'small', 'small',
-  'small', 'small', 'large',
+  'large', 'small',
+  'small', 'large',
   'medium', 'medium',
-  'small', 'large', 'small',
-  'large', 'small', 'small',
+  'large', 'small',
+  'small', 'large',
+  'medium', 'medium',
 ];
 
 function ExploreStreamCard({ stream, size, rank }: { stream: Stream & { user: User }; size: GridSize; rank?: number }) {
-  const aspectClass = size === 'large' ? 'row-span-2' : size === 'medium' ? '' : '';
-  const heightClass = size === 'large' ? 'min-h-[320px]' : size === 'medium' ? 'min-h-[200px]' : 'min-h-[160px]';
+  const aspectClass = size === 'large' ? 'row-span-2' : '';
+  const heightClass = size === 'large' ? 'min-h-[420px]' : size === 'medium' ? 'min-h-[240px]' : 'min-h-[200px]';
 
   return (
     <Link href={`/live/${stream.id}`}>
@@ -388,8 +389,8 @@ export default function Explore() {
         {!(activeTab === 'nearby' && (locationError || locationLoading)) && (
           <>
             {isLoading ? (
-              <div className="grid grid-cols-3 gap-1.5 auto-rows-[160px]">
-                {[...Array(9)].map((_, i) => {
+              <div className="grid grid-cols-2 gap-3 auto-rows-[200px]">
+                {[...Array(8)].map((_, i) => {
                   const pattern = GRID_PATTERN[i % GRID_PATTERN.length];
                   return (
                     <div
