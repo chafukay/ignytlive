@@ -93,11 +93,11 @@ function isFeatured(index: number): boolean {
   return index % 7 === 0;
 }
 
-function ExploreStreamCard({ stream, featured, rank }: { stream: Stream & { user: User }; featured: boolean; rank?: number }) {
+function ExploreStreamCard({ stream, featured, rank, stretch }: { stream: Stream & { user: User }; featured: boolean; rank?: number; stretch?: boolean }) {
   return (
     <Link href={`/live/${stream.id}`} className={`block ${featured ? 'col-span-2' : ''}`}>
       <div
-        className={`relative group cursor-pointer overflow-hidden rounded-xl bg-muted ${featured ? 'aspect-[5/4]' : 'aspect-[3/4]'}`}
+        className={`relative group cursor-pointer overflow-hidden rounded-xl bg-muted ${stretch ? 'h-full' : featured ? 'aspect-[5/4]' : 'aspect-[3/4]'}`}
         data-testid={`card-stream-${stream.id}`}
       >
         <img
@@ -396,11 +396,13 @@ export default function Explore() {
                 <div className="grid grid-cols-3 lg:grid-cols-4 gap-2">
                   {displayStreams.map((stream, index) => {
                     const popularRank = activeTab === 'popular' ? index + 1 : undefined;
+                    const isNextToFeatured = index > 0 && isFeatured(index - 1);
                     return (
                       <ExploreStreamCard
                         key={stream.id}
                         stream={stream}
                         featured={isFeatured(index)}
+                        stretch={isNextToFeatured}
                         rank={popularRank}
                       />
                     );
