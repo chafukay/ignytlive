@@ -123,7 +123,7 @@ export interface IStorage {
   
   // Stream operations
   getStream(id: string): Promise<Stream | undefined>;
-  getLiveStreams(limit?: number): Promise<(Stream & { user: User })[]>;
+  getLiveStreams(limit?: number, sort?: string): Promise<(Stream & { user: User })[]>;
   getUserStreams(userId: string): Promise<Stream[]>;
   createStream(stream: InsertStream): Promise<Stream>;
   updateStream(id: string, updates: Partial<Stream>): Promise<Stream | undefined>;
@@ -362,13 +362,14 @@ export class DatabaseStorage implements IStorage {
     return stream || undefined;
   }
 
-  async getLiveStreams(limit: number = 50): Promise<(Stream & { user: User })[]> {
+  async getLiveStreams(limit: number = 50, sort: string = "popular"): Promise<(Stream & { user: User })[]> {
+    const orderClause = sort === "new" ? desc(streams.createdAt) : desc(streams.viewersCount);
     const results = await db
       .select()
       .from(streams)
       .innerJoin(users, eq(streams.userId, users.id))
       .where(eq(streams.isLive, true))
-      .orderBy(desc(streams.viewersCount))
+      .orderBy(orderClause)
       .limit(limit);
     
     return results.map(r => ({ ...r.streams, user: r.users }));

@@ -618,7 +618,8 @@ export async function registerRoutes(
   // Stream routes
   app.get("/api/streams/live", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
-    const streams = await storage.getLiveStreams(limit);
+    const sort = (req.query.sort as string) || "popular";
+    const streams = await storage.getLiveStreams(limit, sort);
     res.json(streams);
   });
 

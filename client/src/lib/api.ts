@@ -161,8 +161,8 @@ export const api = {
   },
 
   // Streams
-  async getLiveStreams(limit = 50) {
-    const res = await fetch(`${API_BASE}/api/streams/live?limit=${limit}`);
+  async getLiveStreams(limit = 50, sort = "popular") {
+    const res = await fetch(`${API_BASE}/api/streams/live?limit=${limit}&sort=${sort}`);
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Array<Stream & { user: User }>>;
   },
