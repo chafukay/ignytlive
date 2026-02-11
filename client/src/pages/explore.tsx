@@ -97,7 +97,7 @@ function ExploreStreamCard({ stream, featured, rank }: { stream: Stream & { user
   return (
     <Link href={`/live/${stream.id}`} className="block">
       <div
-        className={`relative group cursor-pointer overflow-hidden rounded-xl bg-muted ${featured ? 'aspect-[3/5]' : 'aspect-[3/4]'}`}
+        className="relative group cursor-pointer overflow-hidden rounded-xl bg-muted aspect-[3/4]"
         data-testid={`card-stream-${stream.id}`}
       >
         <img
@@ -382,7 +382,7 @@ export default function Explore() {
                 {[...Array(9)].map((_, i) => (
                   <div
                     key={i}
-                    className={`rounded-xl bg-muted animate-pulse ${isFeatured(i) ? 'aspect-[3/5]' : 'aspect-[3/4]'}`}
+                    className="rounded-xl bg-muted animate-pulse aspect-[3/4]"
                   />
                 ))}
               </div>
