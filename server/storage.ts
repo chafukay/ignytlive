@@ -1,3 +1,4 @@
+import { cache, CACHE_KEYS, TTL } from "./cache";
 import {
   users,
   streams,
@@ -304,12 +305,23 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
+    const cacheKey = CACHE_KEYS.userProfile(id);
+    const cached = await cache.get<User>(cacheKey);
+    if (cached !== null) return cached;
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    if (user) await cache.set(cacheKey, user, TTL.USER_PROFILE);
     return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
+    const cacheKey = CACHE_KEYS.userByUsername(username);
+    const cached = await cache.get<User>(cacheKey);
+    if (cached !== null) return cached;
     const [user] = await db.select().from(users).where(eq(users.username, username));
+    if (user) {
+      await cache.set(cacheKey, user, TTL.USER_PROFILE);
+      await cache.set(CACHE_KEYS.userProfile(user.id), user, TTL.USER_PROFILE);
+    }
     return user || undefined;
   }
 
@@ -348,17 +360,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const oldUser = updates.username ? await this.getUser(id) : null;
     const [user] = await db
       .update(users)
       .set(updates)
       .where(eq(users.id, id))
       .returning();
+    if (user) {
+      await cache.delete(CACHE_KEYS.userProfile(id));
+      if (user.username) await cache.delete(CACHE_KEYS.userByUsername(user.username));
+      if (oldUser?.username && oldUser.username !== user.username) {
+        await cache.delete(CACHE_KEYS.userByUsername(oldUser.username));
+      }
+    }
     return user || undefined;
   }
 
   // Stream operations
   async getStream(id: string): Promise<Stream | undefined> {
+    const cacheKey = CACHE_KEYS.stream(id);
+    const cached = await cache.get<Stream>(cacheKey);
+    if (cached !== null) return cached;
     const [stream] = await db.select().from(streams).where(eq(streams.id, id));
+    if (stream) await cache.set(cacheKey, stream, TTL.STREAM);
     return stream || undefined;
   }
 
@@ -425,6 +449,7 @@ export class DatabaseStorage implements IStorage {
       .set(updates)
       .where(eq(streams.id, id))
       .returning();
+    if (stream) await cache.delete(CACHE_KEYS.stream(id));
     return stream || undefined;
   }
 
@@ -819,6 +844,9 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.id, transaction.receiverId));
     }
     
+    await cache.delete(CACHE_KEYS.userProfile(transaction.senderId));
+    await cache.delete(CACHE_KEYS.userProfile(transaction.receiverId));
+    await cache.deletePattern("lb:*");
     return newTransaction;
   }
 
@@ -968,20 +996,25 @@ export class DatabaseStorage implements IStorage {
 
   // Leaderboard operations
   async getTopStreamers(period: 'daily' | 'weekly' | 'alltime'): Promise<User[]> {
-    // For alltime, we return more users and order by diamonds
+    const cacheKey = CACHE_KEYS.leaderboard(`streamers:${period}`);
+    const cached = await cache.get<User[]>(cacheKey);
+    if (cached) return cached;
+    let result: User[];
     if (period === 'alltime') {
-      return await db
+      result = await db
         .select()
         .from(users)
         .orderBy(desc(users.diamonds))
         .limit(20);
+    } else {
+      result = await db
+        .select()
+        .from(users)
+        .orderBy(desc(users.totalLikes))
+        .limit(10);
     }
-    // Daily/weekly returns by total likes
-    return await db
-      .select()
-      .from(users)
-      .orderBy(desc(users.totalLikes))
-      .limit(10);
+    await cache.set(cacheKey, result, TTL.LEADERBOARD);
+    return result;
   }
   
   // Badge operations
@@ -1363,13 +1396,15 @@ export class DatabaseStorage implements IStorage {
   // Moderation operations
   async addRoomModerator(moderator: InsertRoomModerator): Promise<RoomModerator> {
     const [newMod] = await db.insert(roomModerators).values(moderator).returning();
+    await cache.delete(CACHE_KEYS.roomModerator(moderator.streamId, moderator.userId));
     return newMod;
   }
   
   async removeRoomModerator(streamId: string, userId: string): Promise<boolean> {
-    const result = await db
+    await db
       .delete(roomModerators)
       .where(and(eq(roomModerators.streamId, streamId), eq(roomModerators.userId, userId)));
+    await cache.delete(CACHE_KEYS.roomModerator(streamId, userId));
     return true;
   }
   
@@ -1392,6 +1427,7 @@ export class DatabaseStorage implements IStorage {
   
   async createRoomBan(ban: InsertRoomBan): Promise<RoomBan> {
     const [newBan] = await db.insert(roomBans).values(ban).returning();
+    await cache.delete(CACHE_KEYS.userBan(ban.streamId, ban.userId));
     return newBan;
   }
   
@@ -1399,6 +1435,7 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(roomBans)
       .where(and(eq(roomBans.streamId, streamId), eq(roomBans.userId, userId)));
+    await cache.delete(CACHE_KEYS.userBan(streamId, userId));
     return true;
   }
   
@@ -1428,6 +1465,7 @@ export class DatabaseStorage implements IStorage {
   
   async createRoomMute(mute: InsertRoomMute): Promise<RoomMute> {
     const [newMute] = await db.insert(roomMutes).values(mute).returning();
+    await cache.delete(CACHE_KEYS.userMute(mute.streamId, mute.userId));
     return newMute;
   }
   
@@ -1435,6 +1473,7 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(roomMutes)
       .where(and(eq(roomMutes.streamId, streamId), eq(roomMutes.userId, userId)));
+    await cache.delete(CACHE_KEYS.userMute(streamId, userId));
     return true;
   }
   

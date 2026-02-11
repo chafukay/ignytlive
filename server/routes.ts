@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
+import { cache, CACHE_KEYS, TTL } from "./cache";
 import agoraToken from "agora-token";
 const { RtcRole, RtcTokenBuilder } = agoraToken;
 import { 
@@ -162,8 +163,13 @@ export async function registerRoutes(
           if (message.type === 'comment' && message.data?.userId) {
             const userId = message.data.userId;
             
-            // Check if user is banned
-            const isBanned = await storage.isUserBanned(streamId, userId);
+            // Check if user is banned (cached)
+            const banKey = CACHE_KEYS.userBan(streamId, userId);
+            let isBanned = await cache.get<boolean>(banKey);
+            if (isBanned === null) {
+              isBanned = await storage.isUserBanned(streamId, userId);
+              await cache.set(banKey, isBanned, TTL.MODERATION);
+            }
             if (isBanned) {
               ws.send(JSON.stringify({ 
                 type: 'error', 
@@ -172,8 +178,13 @@ export async function registerRoutes(
               return;
             }
             
-            // Check if user is muted
-            const isMuted = await storage.isUserMuted(streamId, userId);
+            // Check if user is muted (cached)
+            const muteKey = CACHE_KEYS.userMute(streamId, userId);
+            let isMuted = await cache.get<boolean>(muteKey);
+            if (isMuted === null) {
+              isMuted = await storage.isUserMuted(streamId, userId);
+              await cache.set(muteKey, isMuted, TTL.MODERATION);
+            }
             if (isMuted) {
               ws.send(JSON.stringify({ 
                 type: 'error', 
@@ -182,10 +193,20 @@ export async function registerRoutes(
               return;
             }
             
-            // Check slow mode (get stream to check settings)
-            const stream = await storage.getStream(streamId);
+            // Check slow mode (stream data cached)
+            const streamKey = CACHE_KEYS.stream(streamId);
+            let stream = await cache.get<any>(streamKey);
+            if (stream === null) {
+              stream = await storage.getStream(streamId);
+              if (stream) await cache.set(streamKey, stream, TTL.STREAM);
+            }
             if (stream?.slowModeSeconds && stream.slowModeSeconds > 0 && stream.userId !== userId) {
-              const isMod = await storage.isRoomModerator(streamId, userId);
+              const modKey = CACHE_KEYS.roomModerator(streamId, userId);
+              let isMod = await cache.get<boolean>(modKey);
+              if (isMod === null) {
+                isMod = await storage.isRoomModerator(streamId, userId);
+                await cache.set(modKey, isMod, TTL.MODERATION);
+              }
               if (!isMod) {
                 // Check last message time from the map
                 if (!lastMessageTimes.has(streamId)) {

@@ -25,9 +25,17 @@ The frontend follows a page-based structure with shared layout components. Key p
 - **Language**: TypeScript with ESM modules
 - **API Design**: RESTful endpoints under `/api/` prefix
 - **Real-time**: WebSocket server (ws library) for live stream interactions
+- **Caching**: In-memory cache service (`server/cache.ts`) with Redis-swappable interface
 - **Build**: esbuild for production bundling with selective dependency bundling for cold start optimization
 
 The server handles API routes, WebSocket connections for real-time features (chat, gifts, viewer counts), and serves the static frontend in production. Development uses Vite's dev server with HMR proxied through Express.
+
+### Caching Layer
+- **Module**: `server/cache.ts` — in-memory cache behind `ICacheService` interface (designed for Redis swap)
+- **TTLs**: Moderation 30s, User profiles 60s, Streams 30s, Leaderboards 120s
+- **Cached Data**: User profiles, stream data, moderation checks (ban/mute/moderator), leaderboard queries
+- **Invalidation**: Automatic cache clearing on mutations (updateUser, updateStream, ban/mute/moderator CRUD, gift transactions)
+- **WebSocket**: Chat moderation checks (ban, mute, moderator, slow mode) are cached to reduce DB queries per message from 3-4 to 0 on cache hits
 
 ### Data Storage
 - **Database**: PostgreSQL via Drizzle ORM
