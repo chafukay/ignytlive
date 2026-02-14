@@ -4,11 +4,67 @@ import UserAvatar from "@/components/user-avatar";
 import SearchOverlay from "@/components/search-overlay";
 import { useQuery } from "@tanstack/react-query";
 import { api, SuggestedUser } from "@/lib/api";
-import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2 } from "lucide-react";
+import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2, ChevronDown, X, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { AnimatePresence, motion } from "framer-motion";
+
+const COUNTRIES = [
+  { code: "US", name: "United States", flag: "🇺🇸", region: "Americas" },
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧", region: "Europe" },
+  { code: "CA", name: "Canada", flag: "🇨🇦", region: "Americas" },
+  { code: "AU", name: "Australia", flag: "🇦🇺", region: "Oceania" },
+  { code: "DE", name: "Germany", flag: "🇩🇪", region: "Europe" },
+  { code: "FR", name: "France", flag: "🇫🇷", region: "Europe" },
+  { code: "JP", name: "Japan", flag: "🇯🇵", region: "Asia" },
+  { code: "KR", name: "South Korea", flag: "🇰🇷", region: "Asia" },
+  { code: "BR", name: "Brazil", flag: "🇧🇷", region: "Americas" },
+  { code: "IN", name: "India", flag: "🇮🇳", region: "Asia" },
+  { code: "MX", name: "Mexico", flag: "🇲🇽", region: "Americas" },
+  { code: "ES", name: "Spain", flag: "🇪🇸", region: "Europe" },
+  { code: "IT", name: "Italy", flag: "🇮🇹", region: "Europe" },
+  { code: "NL", name: "Netherlands", flag: "🇳🇱", region: "Europe" },
+  { code: "SE", name: "Sweden", flag: "🇸🇪", region: "Europe" },
+  { code: "NO", name: "Norway", flag: "🇳🇴", region: "Europe" },
+  { code: "DK", name: "Denmark", flag: "🇩🇰", region: "Europe" },
+  { code: "FI", name: "Finland", flag: "🇫🇮", region: "Europe" },
+  { code: "PL", name: "Poland", flag: "🇵🇱", region: "Europe" },
+  { code: "PT", name: "Portugal", flag: "🇵🇹", region: "Europe" },
+  { code: "RU", name: "Russia", flag: "🇷🇺", region: "Europe" },
+  { code: "CN", name: "China", flag: "🇨🇳", region: "Asia" },
+  { code: "TW", name: "Taiwan", flag: "🇹🇼", region: "Asia" },
+  { code: "TH", name: "Thailand", flag: "🇹🇭", region: "Asia" },
+  { code: "VN", name: "Vietnam", flag: "🇻🇳", region: "Asia" },
+  { code: "PH", name: "Philippines", flag: "🇵🇭", region: "Asia" },
+  { code: "ID", name: "Indonesia", flag: "🇮🇩", region: "Asia" },
+  { code: "MY", name: "Malaysia", flag: "🇲🇾", region: "Asia" },
+  { code: "SG", name: "Singapore", flag: "🇸🇬", region: "Asia" },
+  { code: "AE", name: "UAE", flag: "🇦🇪", region: "Middle East" },
+  { code: "SA", name: "Saudi Arabia", flag: "🇸🇦", region: "Middle East" },
+  { code: "EG", name: "Egypt", flag: "🇪🇬", region: "Africa" },
+  { code: "NG", name: "Nigeria", flag: "🇳🇬", region: "Africa" },
+  { code: "ZA", name: "South Africa", flag: "🇿🇦", region: "Africa" },
+  { code: "KE", name: "Kenya", flag: "🇰🇪", region: "Africa" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷", region: "Americas" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴", region: "Americas" },
+  { code: "CL", name: "Chile", flag: "🇨🇱", region: "Americas" },
+  { code: "PE", name: "Peru", flag: "🇵🇪", region: "Americas" },
+  { code: "TR", name: "Turkey", flag: "🇹🇷", region: "Europe" },
+  { code: "IL", name: "Israel", flag: "🇮🇱", region: "Middle East" },
+  { code: "PK", name: "Pakistan", flag: "🇵🇰", region: "Asia" },
+  { code: "BD", name: "Bangladesh", flag: "🇧🇩", region: "Asia" },
+  { code: "NZ", name: "New Zealand", flag: "🇳🇿", region: "Oceania" },
+  { code: "IE", name: "Ireland", flag: "🇮🇪", region: "Europe" },
+  { code: "CH", name: "Switzerland", flag: "🇨🇭", region: "Europe" },
+  { code: "AT", name: "Austria", flag: "🇦🇹", region: "Europe" },
+  { code: "BE", name: "Belgium", flag: "🇧🇪", region: "Europe" },
+  { code: "GR", name: "Greece", flag: "🇬🇷", region: "Europe" },
+  { code: "RO", name: "Romania", flag: "🇷🇴", region: "Europe" },
+];
+
+const REGIONS = ["All", "Americas", "Europe", "Asia", "Middle East", "Africa", "Oceania"];
 
 const STREAM_TABS = [
   { id: 'popular', label: 'Popular', icon: null },
@@ -24,8 +80,46 @@ export default function Home() {
   const { user, login } = useAuth();
   const [activeTab, setActiveTab] = useState('popular');
   const [showSearch, setShowSearch] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [activeRegion, setActiveRegion] = useState('All');
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
+  const countrySearchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const previousLiveStreamersRef = useRef<Set<string>>(new Set());
+
+  const filteredCountries = useMemo(() => {
+    return COUNTRIES.filter(c => {
+      const matchesRegion = activeRegion === 'All' || c.region === activeRegion;
+      const matchesSearch = !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase());
+      return matchesRegion && matchesSearch;
+    });
+  }, [activeRegion, countrySearch]);
+
+  const toggleCountry = (code: string) => {
+    setSelectedCountries(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+  };
+
+  useEffect(() => {
+    if (showCountryDropdown && countrySearchRef.current) {
+      countrySearchRef.current.focus();
+    }
+  }, [showCountryDropdown]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target as Node)) {
+        setShowCountryDropdown(false);
+      }
+    };
+    if (showCountryDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showCountryDropdown]);
 
   const { data: liveStreamsData, isLoading } = useQuery({
     queryKey: ['liveStreams'],
@@ -110,6 +204,10 @@ export default function Home() {
     if (activeTab === 'popular') return true;
     if (activeTab === 'in-battle') return stream.isPKBattle;
     if (activeTab === 'new') return true;
+    if (activeTab === 'countries') {
+      if (selectedCountries.length === 0) return true;
+      return selectedCountries.includes(stream.country || '');
+    }
     return true;
   });
 
@@ -166,12 +264,147 @@ export default function Home() {
 
         {/* Countries Filter (show when countries tab active) */}
         {activeTab === 'countries' && (
-          <div className="flex items-center justify-between mb-4 bg-muted rounded-xl p-3">
-            <span className="text-muted-foreground text-sm">Selected countries;</span>
-            <button className="flex items-center gap-2 bg-primary/20 text-primary px-3 py-1.5 rounded-full text-sm">
-              <span>🌍</span>
-              <span>+240</span>
-            </button>
+          <div className="relative mb-4" ref={countryDropdownRef}>
+            <div
+              data-testid="button-country-dropdown"
+              role="button"
+              tabIndex={0}
+              onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+              className="w-full flex items-center justify-between bg-muted rounded-xl p-3 hover:bg-muted/80 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Globe className="w-4 h-4 text-primary shrink-0" />
+                {selectedCountries.length === 0 ? (
+                  <span className="text-muted-foreground text-sm">All Countries</span>
+                ) : (
+                  <div className="flex items-center gap-1 overflow-hidden">
+                    {selectedCountries.slice(0, 3).map(code => {
+                      const country = COUNTRIES.find(c => c.code === code);
+                      return country ? (
+                        <span key={code} className="inline-flex items-center gap-1 bg-primary/20 text-primary px-2 py-0.5 rounded-full text-xs shrink-0">
+                          {country.flag} {country.code}
+                        </span>
+                      ) : null;
+                    })}
+                    {selectedCountries.length > 3 && (
+                      <span className="text-muted-foreground text-xs shrink-0">+{selectedCountries.length - 3} more</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {selectedCountries.length > 0 && (
+                  <button
+                    data-testid="button-clear-countries"
+                    onClick={(e) => { e.stopPropagation(); setSelectedCountries([]); }}
+                    className="w-5 h-5 rounded-full bg-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/30"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {showCountryDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden"
+                  style={{ maxHeight: '60vh' }}
+                >
+                  <div className="p-3 border-b border-border">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input
+                        ref={countrySearchRef}
+                        data-testid="input-country-search"
+                        type="text"
+                        placeholder="Search countries..."
+                        value={countrySearch}
+                        onChange={(e) => setCountrySearch(e.target.value)}
+                        className="w-full bg-muted rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-1.5 p-3 overflow-x-auto border-b border-border scrollbar-hide">
+                    {REGIONS.map(region => (
+                      <button
+                        key={region}
+                        data-testid={`button-region-${region.toLowerCase().replace(/\s+/g, '-')}`}
+                        onClick={() => setActiveRegion(region)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                          activeRegion === region
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {region}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="overflow-y-auto" style={{ maxHeight: '40vh' }}>
+                    {filteredCountries.length === 0 ? (
+                      <div className="p-6 text-center text-muted-foreground text-sm">
+                        No countries found
+                      </div>
+                    ) : (
+                      filteredCountries.map(country => {
+                        const isSelected = selectedCountries.includes(country.code);
+                        return (
+                          <button
+                            key={country.code}
+                            data-testid={`button-country-${country.code.toLowerCase()}`}
+                            onClick={() => toggleCountry(country.code)}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/60 transition-colors ${
+                              isSelected ? 'bg-primary/10' : ''
+                            }`}
+                          >
+                            <span className="text-xl">{country.flag}</span>
+                            <span className="flex-1 text-left text-sm text-foreground">{country.name}</span>
+                            <span className="text-xs text-muted-foreground">{country.region}</span>
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+                              isSelected
+                                ? 'bg-primary border-primary'
+                                : 'border-muted-foreground/30'
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {selectedCountries.length > 0 && (
+                    <div className="p-3 border-t border-border flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{selectedCountries.length} selected</span>
+                      <div className="flex gap-2">
+                        <button
+                          data-testid="button-clear-all-countries"
+                          onClick={() => setSelectedCountries([])}
+                          className="text-xs text-destructive hover:underline"
+                        >
+                          Clear all
+                        </button>
+                        <button
+                          data-testid="button-apply-countries"
+                          onClick={() => setShowCountryDropdown(false)}
+                          className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-primary/90"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
