@@ -317,17 +317,35 @@ export default function Home() {
                   style={{ maxHeight: '60vh' }}
                 >
                   <div className="p-3 border-b border-border shrink-0">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        ref={countrySearchRef}
-                        data-testid="input-country-search"
-                        type="text"
-                        placeholder="Search countries..."
-                        value={countrySearch}
-                        onChange={(e) => setCountrySearch(e.target.value)}
-                        className="w-full bg-muted rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          ref={countrySearchRef}
+                          data-testid="input-country-search"
+                          type="text"
+                          placeholder="Search countries..."
+                          value={countrySearch}
+                          onChange={(e) => setCountrySearch(e.target.value)}
+                          className="w-full bg-muted rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
+                        />
+                      </div>
+                      {selectedCountries.length > 0 && (
+                        <button
+                          data-testid="button-clear-all-countries"
+                          onClick={() => setSelectedCountries([])}
+                          className="text-xs text-destructive hover:underline whitespace-nowrap"
+                        >
+                          Clear ({selectedCountries.length})
+                        </button>
+                      )}
+                      <button
+                        data-testid="button-apply-countries"
+                        onClick={() => setShowCountryDropdown(false)}
+                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-medium hover:bg-primary/90 whitespace-nowrap"
+                      >
+                        Apply
+                      </button>
                     </div>
                   </div>
 
@@ -381,27 +399,6 @@ export default function Home() {
                     )}
                   </div>
 
-                  {selectedCountries.length > 0 && (
-                    <div className="p-3 border-t border-border flex items-center justify-between shrink-0">
-                      <span className="text-xs text-muted-foreground">{selectedCountries.length} selected</span>
-                      <div className="flex gap-2">
-                        <button
-                          data-testid="button-clear-all-countries"
-                          onClick={() => setSelectedCountries([])}
-                          className="text-xs text-destructive hover:underline"
-                        >
-                          Clear all
-                        </button>
-                        <button
-                          data-testid="button-apply-countries"
-                          onClick={() => setShowCountryDropdown(false)}
-                          className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-primary/90"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </motion.div>
               )}
             </AnimatePresence>
