@@ -311,574 +311,347 @@ export default function GoLive() {
     { id: "astronaut", name: "Space", icon: "🚀", desc: "Space helmet" },
   ];
 
-  return (
-    <GuestGate>
-    <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Camera Preview */}
-      <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black">
-        {isCameraLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center animate-pulse">
-              <Camera className="w-12 h-12 text-white/20" />
+  const videoPreview = (
+    <div className="relative w-full h-full bg-gradient-to-b from-gray-900 to-black overflow-hidden rounded-none md:rounded-2xl">
+      {isCameraLoading ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="w-24 h-24 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center animate-pulse">
+            <Camera className="w-10 h-10 text-white/20" />
+          </div>
+        </div>
+      ) : cameraError ? (
+        <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
+          <div className="w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500/30 flex items-center justify-center">
+            <VideoOff className="w-8 h-8 text-red-400" />
+          </div>
+          <p className="text-white/70 text-center text-sm max-w-xs">{cameraError}</p>
+          <button onClick={startCamera} className="px-5 py-2 bg-primary rounded-full text-white text-sm font-medium">
+            Try Again
+          </button>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+          style={{ filter: activeFilterCss !== "none" ? activeFilterCss : undefined, transition: "filter 0.4s ease" }}
+        />
+      )}
+      {activeFilterOverlay && (
+        <div className="absolute inset-0 pointer-events-none transition-colors duration-300" style={{ backgroundColor: activeFilterOverlay }} />
+      )}
+      {selectedFilter && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-lg border border-violet-500/30 flex items-center gap-2">
+          <Sparkles className="w-3 h-3 text-violet-400" />
+          <span className="text-white text-xs font-medium">{FILTERS.find(f => f.id === selectedFilter)?.name}</span>
+        </div>
+      )}
+      <div className="absolute top-3 right-3 z-10 flex gap-2">
+        <button
+          onClick={flipCamera}
+          className="p-2 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-white/20 transition-colors"
+          data-testid="button-action-flip"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+        <button
+          onClick={captureThumbnail}
+          disabled={cameraError !== null || isCameraLoading}
+          className="p-2 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-white/20 disabled:opacity-50 transition-colors"
+          data-testid="button-capture-thumbnail"
+        >
+          <ImageIcon className="w-4 h-4" />
+        </button>
+      </div>
+      {thumbnail && (
+        <div className="absolute top-3 left-3 z-10">
+          <div className="relative">
+            <img src={thumbnail} alt="Thumbnail" className="w-14 h-20 object-cover rounded-lg border border-primary shadow-lg" />
+            <button onClick={() => setThumbnail(null)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px]">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+      <canvas ref={canvasRef} className="hidden" />
+    </div>
+  );
+
+  const beautyPanel = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-white font-bold text-sm flex items-center gap-2">
+          <Wand2 className="w-4 h-4 text-pink-400" />
+          Beauty
+        </h3>
+        <button onClick={() => setActivePanel(null)} className="p-1 rounded-full bg-white/10 hover:bg-white/20" data-testid="button-close-beauty">
+          <X className="w-3.5 h-3.5 text-white/70" />
+        </button>
+      </div>
+      <div className="space-y-3">
+        {([
+          { key: "smooth" as const, label: "Smooth Skin", icon: "✨", color: "from-pink-500 to-rose-400" },
+          { key: "slim" as const, label: "Face Slim", icon: "💫", color: "from-violet-500 to-purple-400" },
+          { key: "eyes" as const, label: "Big Eyes", icon: "👁️", color: "from-blue-500 to-cyan-400" },
+          { key: "lipColor" as const, label: "Lip Color", icon: "💋", color: "from-red-500 to-pink-400" },
+          { key: "brightness" as const, label: "Brightness", icon: "☀️", color: "from-amber-500 to-yellow-400" },
+          { key: "contrast" as const, label: "Contrast", icon: "◐", color: "from-gray-400 to-gray-600" },
+        ]).map(({ key, label, icon, color }) => (
+          <div key={key} data-testid={`beauty-slider-${key}`}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-white/70 text-xs flex items-center gap-1.5">
+                <span>{icon}</span> {label}
+              </span>
+              <span className="text-white/40 text-[10px] font-mono">{beautySettings[key]}</span>
+            </div>
+            <div className="relative flex items-center touch-none" style={{ height: 24 }}>
+              <div className="absolute left-0 right-0 h-1.5 bg-white/10 rounded-full overflow-hidden pointer-events-none">
+                <div className={`h-full bg-gradient-to-r ${color} rounded-full`} style={{ width: `${beautySettings[key]}%` }} />
+              </div>
+              <input type="range" min="0" max="100" value={beautySettings[key]} onChange={(e) => updateBeauty(key, parseInt(e.target.value))} className="beauty-slider absolute w-full h-full cursor-pointer" data-testid={`beauty-range-${key}`} />
             </div>
           </div>
-        ) : cameraError ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 p-6">
-            <div className="w-24 h-24 rounded-full bg-red-500/20 border-2 border-red-500/30 flex items-center justify-center">
-              <VideoOff className="w-10 h-10 text-red-400" />
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => setBeautySettings({ smooth: 50, slim: 30, eyes: 40, brightness: 10, contrast: 10, lipColor: 20 })} className="flex-1 py-2 rounded-lg bg-pink-500/15 border border-pink-500/30 text-pink-300 text-xs font-medium" data-testid="button-beauty-preset-natural">Natural</button>
+        <button onClick={() => setBeautySettings({ smooth: 80, slim: 60, eyes: 70, brightness: 20, contrast: 15, lipColor: 50 })} className="flex-1 py-2 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-300 text-xs font-medium" data-testid="button-beauty-preset-glam">Glam</button>
+        <button onClick={() => setBeautySettings({ smooth: 0, slim: 0, eyes: 0, brightness: 0, contrast: 0, lipColor: 0 })} className="flex-1 py-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-xs font-medium" data-testid="button-beauty-reset">Reset</button>
+      </div>
+    </div>
+  );
+
+  const effectsPanel = (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-white font-bold text-sm flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-violet-400" />
+          Effects
+        </h3>
+        <button onClick={() => setActivePanel(null)} className="p-1 rounded-full bg-white/10 hover:bg-white/20" data-testid="button-close-effects">
+          <X className="w-3.5 h-3.5 text-white/70" />
+        </button>
+      </div>
+
+      <div className="flex gap-1 bg-white/5 rounded-lg p-0.5">
+        {([
+          { id: "filters" as const, label: "Filters", Icon: Palette },
+          { id: "frames" as const, label: "Frames", Icon: Frame },
+          { id: "stickers" as const, label: "Stickers", Icon: Sticker },
+          { id: "ar" as const, label: "AR", Icon: Stars },
+        ]).map(({ id, label, Icon }) => (
+          <button key={id} onClick={() => setEffectsTab(id)} className={`flex-1 py-1.5 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 transition-all ${effectsTab === id ? 'bg-violet-500 text-white' : 'text-white/50 hover:text-white/70'}`} data-testid={`button-effects-tab-${id}`}>
+            <Icon className="w-3 h-3" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {effectsTab === "filters" && (
+        <div className="grid grid-cols-4 gap-2" data-testid="effects-filters-grid">
+          {FILTERS.map((filter) => (
+            <button key={filter.id} onClick={() => setSelectedFilter(filter.id === "none" ? null : filter.id)} className="flex flex-col items-center gap-1 group" data-testid={`button-filter-${filter.id}`}>
+              <div className={`w-12 h-12 rounded-xl ${filter.gradient} transition-all ${(selectedFilter === filter.id) || (filter.id === "none" && !selectedFilter) ? 'ring-2 ring-violet-400 ring-offset-1 ring-offset-black scale-110' : 'opacity-60 group-hover:opacity-100'}`} />
+              <span className={`text-[9px] ${(selectedFilter === filter.id) || (filter.id === "none" && !selectedFilter) ? 'text-violet-400 font-medium' : 'text-white/40'}`}>{filter.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {effectsTab === "frames" && (
+        <div className="grid grid-cols-3 gap-2" data-testid="effects-frames-grid">
+          {FRAMES.map((frame) => (
+            <button key={frame.id} onClick={() => setSelectedFrame(frame.id === "none" ? null : frame.id)} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${(selectedFrame === frame.id) || (frame.id === "none" && !selectedFrame) ? 'bg-violet-500/15 border-violet-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`} data-testid={`button-frame-${frame.id}`}>
+              <span className="text-xl">{frame.icon}</span>
+              <span className={`text-[9px] ${(selectedFrame === frame.id) || (frame.id === "none" && !selectedFrame) ? 'text-violet-400 font-medium' : 'text-white/40'}`}>{frame.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {effectsTab === "stickers" && (
+        <div>
+          <div className="grid grid-cols-4 gap-2" data-testid="effects-stickers-grid">
+            {STICKERS.map((sticker) => (
+              <button key={sticker.id} onClick={() => toggleSticker(sticker.id)} className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border transition-all ${selectedSticker.includes(sticker.id) ? 'bg-violet-500/15 border-violet-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`} data-testid={`button-sticker-${sticker.id}`}>
+                <span className="text-xl">{sticker.icon}</span>
+                <span className={`text-[9px] ${selectedSticker.includes(sticker.id) ? 'text-violet-400' : 'text-white/40'}`}>{sticker.name}</span>
+              </button>
+            ))}
+          </div>
+          {selectedSticker.length > 0 && (
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-white/40 text-[10px]">{selectedSticker.length} selected</span>
+              <button onClick={() => setSelectedSticker([])} className="text-[10px] text-red-400" data-testid="button-clear-stickers">Clear</button>
             </div>
-            <p className="text-white/70 text-center max-w-xs">{cameraError}</p>
-            <button 
-              onClick={startCamera}
-              className="px-6 py-2 bg-primary rounded-full text-white font-medium"
-            >
-              Try Again
+          )}
+        </div>
+      )}
+
+      {effectsTab === "ar" && (
+        <div className="grid grid-cols-4 gap-2" data-testid="effects-ar-grid">
+          {AR_EFFECTS.map((effect) => (
+            <button key={effect.id} className="flex flex-col items-center gap-0.5 p-2 rounded-xl border bg-white/5 border-white/10 hover:bg-violet-500/10 hover:border-violet-500/30 transition-all" data-testid={`button-ar-${effect.id}`}>
+              <span className="text-xl">{effect.icon}</span>
+              <span className="text-[9px] text-white/40">{effect.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const controlsContent = (
+    <div className="space-y-4">
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Add a title to your stream..."
+        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-base font-medium placeholder:text-white/30 focus:outline-none focus:border-primary/50"
+        data-testid="input-title"
+      />
+
+      <div>
+        <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Category</p>
+        <div className="flex flex-wrap gap-1.5">
+          {categories.map((cat) => (
+            <button key={cat} onClick={() => setCategory(cat)} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${category === cat ? 'bg-primary text-white' : 'bg-white/10 text-white/60 hover:bg-white/15'}`} data-testid={`button-category-${cat.toLowerCase()}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {groupId && group && (
+        <div className="p-2.5 bg-violet-600/20 rounded-xl border border-violet-500/30 text-center">
+          <p className="text-violet-300 text-xs">Streaming to: <span className="text-white font-bold">{group.name}</span></p>
+        </div>
+      )}
+
+      <div>
+        <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Access</p>
+        {!groupId ? (
+          <div className="grid grid-cols-3 gap-1.5">
+            <button onClick={() => setAccessType("public")} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${accessType === "public" ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-public">
+              <UsersIcon className="w-4 h-4" /> Public
+            </button>
+            <button onClick={() => setAccessType("private")} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${accessType === "private" ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-private">
+              <Lock className="w-4 h-4" /> Private
+            </button>
+            <button onClick={() => setAccessType("vip")} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${accessType === "vip" ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-vip">
+              <Crown className="w-4 h-4" /> VIP
             </button>
           </div>
         ) : (
-          <video 
-            ref={videoRef}
-            autoPlay 
-            playsInline 
-            muted 
-            className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
-            style={{ filter: activeFilterCss !== "none" ? activeFilterCss : undefined, transition: "filter 0.4s ease" }}
-          />
-        )}
-        {activeFilterOverlay && (
-          <div
-            className="absolute inset-0 pointer-events-none transition-colors duration-400"
-            style={{ backgroundColor: activeFilterOverlay }}
-          />
-        )}
-        {selectedFilter && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-black/60 backdrop-blur-lg border border-violet-500/30 flex items-center gap-2 shadow-lg shadow-violet-500/10 animate-in fade-in slide-in-from-top-2 duration-300">
-            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-            <span className="text-white text-sm font-medium">{FILTERS.find(f => f.id === selectedFilter)?.name}</span>
+          <div className="flex justify-center">
+            <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium bg-violet-500/20 border border-violet-500 text-violet-400">
+              <UsersIcon className="w-4 h-4" /> Group Only
+            </div>
           </div>
         )}
-        <canvas ref={canvasRef} className="hidden" />
-      </div>
-
-      {/* Thumbnail Preview */}
-      {thumbnail && (
-        <div className="absolute top-20 right-6 z-20">
-          <div className="relative">
-            <img 
-              src={thumbnail} 
-              alt="Stream thumbnail preview" 
-              className="w-20 h-28 object-cover rounded-lg border-2 border-primary shadow-lg"
-            />
-            <button
-              onClick={() => setThumbnail(null)}
-              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs"
-            >
-              ✕
-            </button>
-            <span className="absolute -bottom-5 left-0 right-0 text-[10px] text-white/70 text-center">Preview</span>
-          </div>
-        </div>
-      )}
-
-      {/* Controls Overlay */}
-      <div className="relative z-10 h-full flex flex-col justify-between p-6">
-        <div className="flex justify-between items-start">
-          <button 
-            onClick={() => {
-              if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-              }
-              setLocation("/");
-            }} 
-            className="p-2 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-white/10"
-            data-testid="button-close"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div className="flex gap-4">
-            <button 
-              onClick={captureThumbnail}
-              disabled={cameraError !== null || isCameraLoading}
-              className="p-2 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-white/10 disabled:opacity-50"
-              title="Capture thumbnail"
-              data-testid="button-capture-thumbnail"
-            >
-              <ImageIcon className="w-6 h-6" />
-            </button>
-            <button className="p-2 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-white/10">
-              <Settings className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-black/40 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-          <input 
-            type="text" 
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Add a title to your stream..." 
-            className="w-full bg-transparent text-2xl font-bold text-white placeholder:text-white/30 focus:outline-none mb-6 text-center"
-            data-testid="input-title"
-          />
-          
-          {/* Category Selection */}
-          <div className="mb-6">
-            <p className="text-white/50 text-sm text-center mb-3">Select Category</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    category === cat
-                      ? 'bg-primary text-white'
-                      : 'bg-white/10 text-white/70 hover:bg-white/20'
-                  }`}
-                  data-testid={`button-category-${cat.toLowerCase()}`}
-                >
-                  {cat}
-                </button>
+        {accessType === "vip" && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-white/40 text-[10px]">Min Tier:</span>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((tier) => (
+                <button key={tier} onClick={() => setMinVipTier(tier)} className={`w-7 h-7 rounded-md text-[10px] font-bold transition-all ${minVipTier === tier ? 'bg-yellow-500 text-white' : tier <= minVipTier ? 'bg-yellow-500/30 text-yellow-400' : 'bg-white/10 text-white/40'}`} data-testid={`button-vip-tier-${tier}`}>{tier}</button>
               ))}
             </div>
           </div>
+        )}
+      </div>
 
-          {groupId && group && (
-            <div className="mb-4 p-3 bg-violet-600/20 rounded-xl border border-violet-500/30 text-center">
-              <p className="text-violet-300 text-sm">Streaming to group:</p>
-              <p className="text-white font-bold">{group.name}</p>
-            </div>
-          )}
-
-          {/* Stream Access Selection */}
-          <div className="mb-5">
-            <p className="text-white/50 text-xs uppercase tracking-wider text-center mb-3">Stream Access</p>
-            {!groupId ? (
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setAccessType("public")}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium transition-all border ${
-                    accessType === "public"
-                      ? 'bg-green-500/20 border-green-500 text-green-400'
-                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                  }`}
-                  data-testid="button-access-public"
-                >
-                  <UsersIcon className="w-5 h-5" />
-                  <span>Public</span>
-                  <span className="text-[10px] opacity-60">Everyone</span>
-                </button>
-                <button
-                  onClick={() => setAccessType("private")}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium transition-all border ${
-                    accessType === "private"
-                      ? 'bg-primary/20 border-primary text-primary'
-                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                  }`}
-                  data-testid="button-access-private"
-                >
-                  <Lock className="w-5 h-5" />
-                  <span>Private</span>
-                  <span className="text-[10px] opacity-60">Invite only</span>
-                </button>
-                <button
-                  onClick={() => setAccessType("vip")}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium transition-all border ${
-                    accessType === "vip"
-                      ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                  }`}
-                  data-testid="button-access-vip"
-                >
-                  <Crown className="w-5 h-5" />
-                  <span>VIP Only</span>
-                  <span className="text-[10px] opacity-60">VIP members</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium bg-violet-500/20 border border-violet-500 text-violet-400">
-                  <UsersIcon className="w-5 h-5" />
-                  <span>Group Only</span>
-                  <span className="text-[10px] opacity-60">{group?.name || 'Group members'}</span>
-                </div>
-              </div>
-            )}
-            
-            {accessType === "vip" && (
-              <div className="mt-3 flex justify-center items-center gap-3">
-                <span className="text-white/50 text-xs">Min VIP Tier:</span>
-                <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5].map((tier) => (
-                    <button
-                      key={tier}
-                      onClick={() => setMinVipTier(tier)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                        minVipTier === tier
-                          ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/30'
-                          : tier <= minVipTier
-                            ? 'bg-yellow-500/30 text-yellow-400'
-                            : 'bg-white/10 text-white/50 hover:bg-white/20'
-                      }`}
-                      data-testid={`button-vip-tier-${tier}`}
-                    >
-                      {tier}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2.5 border border-white/10">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-primary" />
+            <span className="text-white/70 text-xs">
+              {user?.country ? (COUNTRIES_MAP[user.country] || user.country) : 'No location'}
+            </span>
           </div>
-
-          {/* Location & Country visibility */}
-          <div className="mb-5 space-y-2">
-            <div className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/10">
-              <div className="flex items-center gap-2.5">
-                <MapPin className="w-4 h-4 text-primary" />
-                <div>
-                  <p className="text-white text-sm font-medium">
-                    {user?.country ? (
-                      <>Location: {COUNTRIES_MAP[user.country] || user.country}</>
-                    ) : (
-                      'No location set'
-                    )}
-                  </p>
-                  <p className="text-white/40 text-[10px]">Set from your profile</p>
-                </div>
-              </div>
-              {user?.country && (
-                <Shield className="w-4 h-4 text-white/30" />
-              )}
+          <Shield className="w-3 h-3 text-white/20" />
+        </div>
+        {user?.country && (
+          <button onClick={() => setShowCountryOnStream(!showCountryOnStream)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${showCountryOnStream ? 'bg-green-500/10 border-green-500/30' : 'bg-white/5 border-white/10'}`} data-testid="button-toggle-country-visibility">
+            <div className="flex items-center gap-2">
+              <Globe className="w-3.5 h-3.5 text-white/50" />
+              <span className="text-white/70 text-xs">Show country</span>
             </div>
-
-            {user?.country && (
-              <button
-                onClick={() => setShowCountryOnStream(!showCountryOnStream)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
-                  showCountryOnStream
-                    ? 'bg-green-500/10 border-green-500/30'
-                    : 'bg-white/5 border-white/10'
-                }`}
-                data-testid="button-toggle-country-visibility"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Globe className="w-4 h-4 text-white/60" />
-                  <span className="text-white/80 text-sm">Show country on stream</span>
-                </div>
-                <div className={`w-10 h-5 rounded-full transition-all relative ${
-                  showCountryOnStream ? 'bg-green-500' : 'bg-white/20'
-                }`}>
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
-                    showCountryOnStream ? 'left-5' : 'left-0.5'
-                  }`} />
-                </div>
-              </button>
-            )}
-          </div>
-          
-          <div className="flex justify-center gap-4 mb-5">
-            <div className="flex flex-col items-center gap-1.5">
-              <button 
-                onClick={() => setActivePanel(activePanel === "beauty" ? null : "beauty")}
-                className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-                  activePanel === "beauty" ? 'bg-pink-500/30 ring-2 ring-pink-500' : 'bg-white/10 hover:bg-white/20'
-                }`}
-                data-testid="button-action-beauty"
-              >
-                <Wand2 className={`w-5 h-5 ${activePanel === "beauty" ? 'text-pink-400' : 'text-white/70'}`} />
-              </button>
-              <span className={`text-[10px] ${activePanel === "beauty" ? 'text-pink-400' : 'text-white/50'}`}>Beauty</span>
+            <div className={`w-9 h-[18px] rounded-full transition-all relative ${showCountryOnStream ? 'bg-green-500' : 'bg-white/20'}`}>
+              <div className={`absolute top-[2px] w-3.5 h-3.5 rounded-full bg-white shadow transition-all ${showCountryOnStream ? 'left-[18px]' : 'left-[2px]'}`} />
             </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <button 
-                onClick={() => setActivePanel(activePanel === "effects" ? null : "effects")}
-                className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-                  activePanel === "effects" ? 'bg-violet-500/30 ring-2 ring-violet-500' : 'bg-white/10 hover:bg-white/20'
-                }`}
-                data-testid="button-action-effects"
-              >
-                <Sparkles className={`w-5 h-5 ${activePanel === "effects" ? 'text-violet-400' : 'text-white/70'}`} />
-              </button>
-              <span className={`text-[10px] ${activePanel === "effects" ? 'text-violet-400' : 'text-white/50'}`}>Effects</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <button 
-                onClick={flipCamera}
-                className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
-                data-testid="button-action-flip"
-              >
-                <RefreshCw className="w-5 h-5 text-white/70" />
-              </button>
-              <span className="text-[10px] text-white/50">Flip</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <button 
-                onClick={handleShare}
-                className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
-                data-testid="button-action-share"
-              >
-                {linkCopied ? (
-                  <Check className="w-5 h-5 text-green-400" />
-                ) : (
-                  <Share2 className="w-5 h-5 text-white/70" />
-                )}
-              </button>
-              <span className={`text-[10px] ${linkCopied ? 'text-green-400' : 'text-white/50'}`}>{linkCopied ? 'Copied!' : 'Share'}</span>
-            </div>
-          </div>
-
-          <button 
-            onClick={handleGoLive}
-            disabled={!title.trim() || isStarting || !user}
-            className="w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-bold text-lg shadow-lg shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            data-testid="button-go-live"
-          >
-            {isStarting ? 'Starting...' : 'Go Live'}
           </button>
-          
-          {!user && (
-            <p className="text-center text-white/50 text-sm mt-3">
-              Please log in to start streaming
-            </p>
-          )}
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={() => setActivePanel(activePanel === "beauty" ? null : "beauty")} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium transition-all border ${activePanel === "beauty" ? 'bg-pink-500/20 border-pink-500/50 text-pink-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-action-beauty">
+          <Wand2 className="w-3.5 h-3.5" /> Beauty
+        </button>
+        <button onClick={() => setActivePanel(activePanel === "effects" ? null : "effects")} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium transition-all border ${activePanel === "effects" ? 'bg-violet-500/20 border-violet-500/50 text-violet-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-action-effects">
+          <Sparkles className="w-3.5 h-3.5" /> Effects
+        </button>
+        <button onClick={handleShare} className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 transition-all" data-testid="button-action-share">
+          {linkCopied ? <><Check className="w-3.5 h-3.5 text-green-400" /> Copied</> : <><Share2 className="w-3.5 h-3.5" /> Share</>}
+        </button>
+      </div>
+
+      {activePanel === "beauty" && beautyPanel}
+      {activePanel === "effects" && effectsPanel}
+
+      <button
+        onClick={handleGoLive}
+        disabled={!title.trim() || isStarting || !user}
+        className="w-full py-3.5 rounded-full bg-gradient-to-r from-primary to-accent text-white font-bold text-base shadow-lg shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+        data-testid="button-go-live"
+      >
+        {isStarting ? 'Starting...' : 'Go Live'}
+      </button>
+
+      {!user && (
+        <p className="text-center text-white/50 text-xs">Please log in to start streaming</p>
+      )}
+    </div>
+  );
+
+  return (
+    <GuestGate>
+    <div className="fixed inset-0 bg-black z-50">
+      {/* Close button */}
+      <button
+        onClick={() => {
+          if (stream) stream.getTracks().forEach(track => track.stop());
+          setLocation("/");
+        }}
+        className="absolute top-4 left-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-white/10"
+        data-testid="button-close"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
+      {/* Desktop: side-by-side 40/60 */}
+      <div className="hidden md:flex h-full">
+        <div className="w-[40%] h-full p-3 pr-1.5">
+          {videoPreview}
+        </div>
+        <div className="w-[60%] h-full p-3 pl-1.5 overflow-y-auto">
+          <div className="bg-gray-950/80 backdrop-blur-xl rounded-2xl p-5 border border-white/10 h-full overflow-y-auto scrollbar-hide">
+            {controlsContent}
+          </div>
         </div>
       </div>
 
-      {/* Beauty Panel */}
-      {activePanel === "beauty" && (
-        <div className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom duration-300">
-          <div className="bg-black/90 backdrop-blur-xl border-t border-white/10 rounded-t-3xl p-5 pb-8 max-h-[55vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                <Wand2 className="w-5 h-5 text-pink-400" />
-                Beauty
-              </h3>
-              <button
-                onClick={() => setActivePanel(null)}
-                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20"
-                data-testid="button-close-beauty"
-              >
-                <X className="w-4 h-4 text-white/70" />
-              </button>
-            </div>
-
-            <div className="space-y-5">
-              {[
-                { key: "smooth" as const, label: "Smooth Skin", icon: "✨", color: "from-pink-500 to-rose-400" },
-                { key: "slim" as const, label: "Face Slim", icon: "💫", color: "from-violet-500 to-purple-400" },
-                { key: "eyes" as const, label: "Big Eyes", icon: "👁️", color: "from-blue-500 to-cyan-400" },
-                { key: "lipColor" as const, label: "Lip Color", icon: "💋", color: "from-red-500 to-pink-400" },
-                { key: "brightness" as const, label: "Brightness", icon: "☀️", color: "from-amber-500 to-yellow-400" },
-                { key: "contrast" as const, label: "Contrast", icon: "◐", color: "from-gray-400 to-gray-600" },
-              ].map(({ key, label, icon, color }) => (
-                <div key={key} data-testid={`beauty-slider-${key}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-white/80 text-sm flex items-center gap-2">
-                      <span className="text-base">{icon}</span>
-                      {label}
-                    </span>
-                    <span className="text-white/50 text-xs font-mono w-8 text-right">{beautySettings[key]}</span>
-                  </div>
-                  <div className="relative flex items-center touch-none" style={{ height: 28 }}>
-                    <div className="absolute left-0 right-0 h-2 bg-white/10 rounded-full overflow-hidden pointer-events-none">
-                      <div
-                        className={`h-full bg-gradient-to-r ${color} rounded-full`}
-                        style={{ width: `${beautySettings[key]}%` }}
-                      />
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={beautySettings[key]}
-                      onChange={(e) => updateBeauty(key, parseInt(e.target.value))}
-                      className="beauty-slider absolute w-full h-full cursor-pointer"
-                      data-testid={`beauty-range-${key}`}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5 flex gap-2">
-              <button
-                onClick={() => setBeautySettings({ smooth: 50, slim: 30, eyes: 40, brightness: 10, contrast: 10, lipColor: 20 })}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-500/20 to-violet-500/20 border border-pink-500/30 text-pink-300 text-sm font-medium"
-                data-testid="button-beauty-preset-natural"
-              >
-                Natural
-              </button>
-              <button
-                onClick={() => setBeautySettings({ smooth: 80, slim: 60, eyes: 70, brightness: 20, contrast: 15, lipColor: 50 })}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-500/30 text-violet-300 text-sm font-medium"
-                data-testid="button-beauty-preset-glam"
-              >
-                Glam
-              </button>
-              <button
-                onClick={() => setBeautySettings({ smooth: 0, slim: 0, eyes: 0, brightness: 0, contrast: 0, lipColor: 0 })}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium"
-                data-testid="button-beauty-reset"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
+      {/* Mobile: vertical stack */}
+      <div className="flex md:hidden flex-col h-full">
+        <div className="h-[40%] min-h-[200px] shrink-0">
+          {videoPreview}
         </div>
-      )}
-
-      {/* Effects Panel */}
-      {activePanel === "effects" && (
-        <div className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom duration-300">
-          <div className="bg-black/90 backdrop-blur-xl border-t border-white/10 rounded-t-3xl p-5 pb-8 max-h-[60vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-violet-400" />
-                Effects
-              </h3>
-              <button
-                onClick={() => setActivePanel(null)}
-                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20"
-                data-testid="button-close-effects"
-              >
-                <X className="w-4 h-4 text-white/70" />
-              </button>
-            </div>
-
-            <div className="flex gap-1 mb-4 bg-white/5 rounded-xl p-1">
-              {([
-                { id: "filters" as const, label: "Filters", Icon: Palette },
-                { id: "frames" as const, label: "Frames", Icon: Frame },
-                { id: "stickers" as const, label: "Stickers", Icon: Sticker },
-                { id: "ar" as const, label: "AR", Icon: Stars },
-              ]).map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setEffectsTab(id)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-                    effectsTab === id
-                      ? 'bg-violet-500 text-white shadow-lg'
-                      : 'text-white/50 hover:text-white/70'
-                  }`}
-                  data-testid={`button-effects-tab-${id}`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {effectsTab === "filters" && (
-              <div className="grid grid-cols-4 gap-2.5" data-testid="effects-filters-grid">
-                {FILTERS.map((filter) => (
-                  <button
-                    key={filter.id}
-                    onClick={() => setSelectedFilter(filter.id === "none" ? null : filter.id)}
-                    className={`flex flex-col items-center gap-1.5 group`}
-                    data-testid={`button-filter-${filter.id}`}
-                  >
-                    <div className={`w-14 h-14 rounded-2xl ${filter.gradient} transition-all ${
-                      (selectedFilter === filter.id) || (filter.id === "none" && !selectedFilter)
-                        ? 'ring-2 ring-violet-400 ring-offset-2 ring-offset-black scale-105'
-                        : 'opacity-70 group-hover:opacity-100'
-                    }`} />
-                    <span className={`text-[10px] ${
-                      (selectedFilter === filter.id) || (filter.id === "none" && !selectedFilter)
-                        ? 'text-violet-400 font-medium'
-                        : 'text-white/50'
-                    }`}>{filter.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {effectsTab === "frames" && (
-              <div className="grid grid-cols-3 gap-2.5" data-testid="effects-frames-grid">
-                {FRAMES.map((frame) => (
-                  <button
-                    key={frame.id}
-                    onClick={() => setSelectedFrame(frame.id === "none" ? null : frame.id)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
-                      (selectedFrame === frame.id) || (frame.id === "none" && !selectedFrame)
-                        ? 'bg-violet-500/15 border-violet-500/50'
-                        : 'bg-white/5 border-white/10 hover:bg-white/10'
-                    }`}
-                    data-testid={`button-frame-${frame.id}`}
-                  >
-                    <span className="text-2xl">{frame.icon}</span>
-                    <span className={`text-[10px] ${
-                      (selectedFrame === frame.id) || (frame.id === "none" && !selectedFrame)
-                        ? 'text-violet-400 font-medium'
-                        : 'text-white/50'
-                    }`}>{frame.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {effectsTab === "stickers" && (
-              <div>
-                <p className="text-white/40 text-xs mb-3">Tap to add/remove stickers on your stream</p>
-                <div className="grid grid-cols-4 gap-2.5" data-testid="effects-stickers-grid">
-                  {STICKERS.map((sticker) => (
-                    <button
-                      key={sticker.id}
-                      onClick={() => toggleSticker(sticker.id)}
-                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
-                        selectedSticker.includes(sticker.id)
-                          ? 'bg-violet-500/15 border-violet-500/50 scale-105'
-                          : 'bg-white/5 border-white/10 hover:bg-white/10'
-                      }`}
-                      data-testid={`button-sticker-${sticker.id}`}
-                    >
-                      <span className="text-2xl">{sticker.icon}</span>
-                      <span className={`text-[10px] ${
-                        selectedSticker.includes(sticker.id)
-                          ? 'text-violet-400 font-medium'
-                          : 'text-white/50'
-                      }`}>{sticker.name}</span>
-                    </button>
-                  ))}
-                </div>
-                {selectedSticker.length > 0 && (
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-white/40 text-xs">{selectedSticker.length} sticker{selectedSticker.length > 1 ? 's' : ''} selected</span>
-                    <button
-                      onClick={() => setSelectedSticker([])}
-                      className="text-xs text-red-400 hover:text-red-300"
-                      data-testid="button-clear-stickers"
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {effectsTab === "ar" && (
-              <div>
-                <p className="text-white/40 text-xs mb-3">Augmented reality face effects</p>
-                <div className="grid grid-cols-4 gap-2.5" data-testid="effects-ar-grid">
-                  {AR_EFFECTS.map((effect) => (
-                    <button
-                      key={effect.id}
-                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
-                        effect.id === "none"
-                          ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                          : 'bg-white/5 border-white/10 hover:bg-violet-500/10 hover:border-violet-500/30'
-                      }`}
-                      data-testid={`button-ar-${effect.id}`}
-                    >
-                      <span className="text-2xl">{effect.icon}</span>
-                      <span className="text-[10px] text-white/50">{effect.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-center text-white/30 text-[10px] mt-4">AR effects require camera access</p>
-              </div>
-            )}
-          </div>
+        <div className="flex-1 overflow-y-auto p-4 pt-3 bg-gray-950">
+          {controlsContent}
         </div>
-      )}
+      </div>
 
       <LocationPickerModal
         open={showLocationPicker}
