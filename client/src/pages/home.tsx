@@ -324,16 +324,19 @@ export default function Home() {
                           className="w-full bg-muted rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
                         />
                       </div>
-                      {selectedCountries.length > 0 && (
-                        <button
-                          data-testid="button-clear-all-countries"
-                          onClick={() => setSelectedCountries([])}
-                          className="bg-destructive/20 text-destructive px-3 py-2 rounded-lg text-xs font-medium hover:bg-destructive/30 whitespace-nowrap flex items-center gap-1 transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          Clear ({selectedCountries.length})
-                        </button>
-                      )}
+                      <button
+                        data-testid="button-clear-all-countries"
+                        onClick={() => setSelectedCountries([])}
+                        disabled={selectedCountries.length === 0}
+                        className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-colors ${
+                          selectedCountries.length > 0
+                            ? 'bg-destructive/20 text-destructive hover:bg-destructive/30'
+                            : 'bg-muted text-muted-foreground/40 cursor-not-allowed'
+                        }`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Clear{selectedCountries.length > 0 ? ` (${selectedCountries.length})` : ''}
+                      </button>
                       <button
                         data-testid="button-apply-countries"
                         onClick={() => setShowCountryDropdown(false)}
