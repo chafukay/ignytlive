@@ -369,39 +369,41 @@ export default function Home() {
                   style={{ maxHeight: '60vh' }}
                 >
                   <div className="p-3 border-b border-border shrink-0">
-                    <div className="relative w-full">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        ref={countrySearchRef}
-                        data-testid="input-country-search"
-                        type="text"
-                        placeholder="Search countries..."
-                        value={countrySearch}
-                        onChange={(e) => setCountrySearch(e.target.value)}
-                        className="w-full bg-muted rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <button
-                        data-testid="button-apply-countries"
-                        onClick={() => setShowCountryDropdown(false)}
-                        className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-xs font-medium hover:bg-primary/90 whitespace-nowrap transition-colors text-center"
-                      >
-                        Apply
-                      </button>
-                      <button
-                        data-testid="button-clear-all-countries"
-                        onClick={() => setSelectedCountries([])}
-                        disabled={selectedCountries.length === 0}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium whitespace-nowrap flex items-center justify-center gap-1 transition-colors ${
-                          selectedCountries.length > 0
-                            ? 'bg-destructive/20 text-destructive hover:bg-destructive/30'
-                            : 'bg-muted text-muted-foreground/40 cursor-not-allowed'
-                        }`}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        Clear{selectedCountries.length > 0 ? ` (${selectedCountries.length})` : ''}
-                      </button>
+                    <div className="flex flex-col md:flex-row md:items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          ref={countrySearchRef}
+                          data-testid="input-country-search"
+                          type="text"
+                          placeholder="Search countries..."
+                          value={countrySearch}
+                          onChange={(e) => setCountrySearch(e.target.value)}
+                          className="w-full bg-muted rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          data-testid="button-apply-countries"
+                          onClick={() => setShowCountryDropdown(false)}
+                          className="flex-1 md:flex-none bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-medium hover:bg-primary/90 whitespace-nowrap transition-colors text-center"
+                        >
+                          Apply
+                        </button>
+                        <button
+                          data-testid="button-clear-all-countries"
+                          onClick={() => setSelectedCountries([])}
+                          disabled={selectedCountries.length === 0}
+                          className={`flex-1 md:flex-none px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap flex items-center justify-center gap-1 transition-colors ${
+                            selectedCountries.length > 0
+                              ? 'bg-destructive/20 text-destructive hover:bg-destructive/30'
+                              : 'bg-muted text-muted-foreground/40 cursor-not-allowed'
+                          }`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Clear{selectedCountries.length > 0 ? ` (${selectedCountries.length})` : ''}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
