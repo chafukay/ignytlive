@@ -48,7 +48,11 @@ export default function GoLive() {
   const [selectedFrame, setSelectedFrame] = useState<string | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string[]>([]);
   const [effectsTab, setEffectsTab] = useState<"filters" | "frames" | "stickers" | "ar">("filters");
-  const [selectedArEffect, setSelectedArEffect] = useState<string | null>(null);
+  const [selectedArEffects, setSelectedArEffects] = useState<string[]>([]);
+  const [arPositions, setArPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [draggingAr, setDraggingAr] = useState<string | null>(null);
+  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const previewRef = useRef<HTMLDivElement>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const { toast } = useToast();
   
@@ -262,6 +266,53 @@ export default function GoLive() {
     setSelectedSticker(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   }, []);
 
+  const toggleArEffect = useCallback((id: string) => {
+    if (id === "none") {
+      setSelectedArEffects([]);
+      setArPositions({});
+      return;
+    }
+    setSelectedArEffects(prev => {
+      if (prev.includes(id)) {
+        const next = prev.filter(e => e !== id);
+        setArPositions(p => { const copy = { ...p }; delete copy[id]; return copy; });
+        return next;
+      }
+      if (prev.length >= 5) {
+        return prev;
+      }
+      const defaultPositions: { x: number; y: number }[] = [
+        { x: 50, y: 50 }, { x: 25, y: 30 }, { x: 75, y: 30 },
+        { x: 25, y: 70 }, { x: 75, y: 70 },
+      ];
+      setArPositions(p => ({ ...p, [id]: defaultPositions[prev.length] || { x: 50, y: 50 } }));
+      return [...prev, id];
+    });
+  }, []);
+
+  const handleArDragStart = useCallback((id: string, clientX: number, clientY: number) => {
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const pos = arPositions[id] || { x: 50, y: 50 };
+    dragOffset.current = {
+      x: clientX - (rect.left + (pos.x / 100) * rect.width),
+      y: clientY - (rect.top + (pos.y / 100) * rect.height),
+    };
+    setDraggingAr(id);
+  }, [arPositions]);
+
+  const handleArDragMove = useCallback((clientX: number, clientY: number) => {
+    if (!draggingAr || !previewRef.current) return;
+    const rect = previewRef.current.getBoundingClientRect();
+    const x = Math.max(5, Math.min(95, ((clientX - dragOffset.current.x - rect.left) / rect.width) * 100));
+    const y = Math.max(5, Math.min(95, ((clientY - dragOffset.current.y - rect.top) / rect.height) * 100));
+    setArPositions(prev => ({ ...prev, [draggingAr]: { x, y } }));
+  }, [draggingAr]);
+
+  const handleArDragEnd = useCallback(() => {
+    setDraggingAr(null);
+  }, []);
+
   const FILTERS = [
     { id: "none", name: "None", gradient: "bg-gradient-to-br from-gray-700 to-gray-800", css: "none", overlay: "" },
     { id: "warm", name: "Warm", gradient: "bg-gradient-to-br from-orange-400 to-rose-500", css: "saturate(1.3) contrast(1.05) brightness(1.05)", overlay: "rgba(255, 140, 50, 0.12)" },
@@ -320,7 +371,7 @@ export default function GoLive() {
 
   const activeFrame = FRAMES.find(f => f.id === selectedFrame);
   const activeStickers = STICKERS.filter(s => selectedSticker.includes(s.id));
-  const activeAr = AR_EFFECTS.find(e => e.id === selectedArEffect);
+  const activeArEffects = AR_EFFECTS.filter(e => selectedArEffects.includes(e.id));
 
   const frameEmojiPositions = [
     { top: '5%', left: '5%' }, { top: '5%', right: '5%' },
@@ -339,7 +390,15 @@ export default function GoLive() {
   ] as const;
 
   const videoPreview = (
-    <div className="relative w-full h-full bg-gradient-to-b from-gray-900 to-black overflow-hidden rounded-none md:rounded-2xl">
+    <div
+      ref={previewRef}
+      className="relative w-full h-full bg-gradient-to-b from-gray-900 to-black overflow-hidden rounded-none md:rounded-2xl"
+      onMouseMove={(e) => { if (draggingAr) handleArDragMove(e.clientX, e.clientY); }}
+      onMouseUp={handleArDragEnd}
+      onMouseLeave={handleArDragEnd}
+      onTouchMove={(e) => { if (draggingAr && e.touches[0]) handleArDragMove(e.touches[0].clientX, e.touches[0].clientY); }}
+      onTouchEnd={handleArDragEnd}
+    >
       {isCameraLoading ? (
         <div className="flex items-center justify-center h-full">
           <div className="w-24 h-24 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center animate-pulse">
@@ -392,19 +451,34 @@ export default function GoLive() {
           animationDelay: `${i * 0.5}s`,
         }}>{sticker.icon}</span>
       ))}
-      {activeAr && activeAr.id !== "none" && (
-        <div className="absolute inset-0 pointer-events-none z-[8] flex items-center justify-center">
-          <span className="text-7xl opacity-60 drop-shadow-2xl" style={{ animation: 'float 3s ease-in-out infinite' }}>{activeAr.icon}</span>
-        </div>
-      )}
-      {(selectedFilter || selectedFrame || selectedArEffect) && (
+      {activeArEffects.map((ar) => {
+        const pos = arPositions[ar.id] || { x: 50, y: 50 };
+        return (
+          <div
+            key={ar.id}
+            className={`absolute z-[8] select-none ${draggingAr === ar.id ? 'cursor-grabbing scale-110' : 'cursor-grab'}`}
+            style={{
+              left: `${pos.x}%`,
+              top: `${pos.y}%`,
+              transform: 'translate(-50%, -50%)',
+              transition: draggingAr === ar.id ? 'none' : 'transform 0.15s ease',
+              touchAction: 'none',
+            }}
+            onMouseDown={(e) => { e.preventDefault(); handleArDragStart(ar.id, e.clientX, e.clientY); }}
+            onTouchStart={(e) => { if (e.touches[0]) handleArDragStart(ar.id, e.touches[0].clientX, e.touches[0].clientY); }}
+          >
+            <span className="text-5xl drop-shadow-2xl block" style={{ animation: draggingAr === ar.id ? 'none' : 'float 3s ease-in-out infinite' }}>{ar.icon}</span>
+          </div>
+        );
+      })}
+      {(selectedFilter || selectedFrame || selectedArEffects.length > 0) && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-lg border border-violet-500/30 flex items-center gap-2">
           <Sparkles className="w-3 h-3 text-violet-400" />
           <span className="text-white text-xs font-medium">
             {[
               selectedFilter && FILTERS.find(f => f.id === selectedFilter)?.name,
               selectedFrame && activeFrame?.name,
-              selectedArEffect && activeAr?.name,
+              ...activeArEffects.map(a => a.name),
             ].filter(Boolean).join(" + ")}
           </span>
         </div>
@@ -551,13 +625,22 @@ export default function GoLive() {
       )}
 
       {effectsTab === "ar" && (
-        <div className="grid grid-cols-4 gap-2" data-testid="effects-ar-grid">
-          {AR_EFFECTS.map((effect) => (
-            <button key={effect.id} onClick={() => setSelectedArEffect(effect.id === "none" ? null : effect.id)} className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border transition-all ${(selectedArEffect === effect.id) || (effect.id === "none" && !selectedArEffect) ? 'bg-violet-500/15 border-violet-500/50' : 'bg-white/5 border-white/10 hover:bg-violet-500/10 hover:border-violet-500/30'}`} data-testid={`button-ar-${effect.id}`}>
-              <span className="text-xl">{effect.icon}</span>
-              <span className={`text-[9px] ${(selectedArEffect === effect.id) || (effect.id === "none" && !selectedArEffect) ? 'text-violet-400 font-medium' : 'text-white/40'}`}>{effect.name}</span>
-            </button>
-          ))}
+        <div>
+          <p className="text-white/40 text-[10px] mb-2">Tap to add, drag to move (max 5)</p>
+          <div className="grid grid-cols-4 gap-2" data-testid="effects-ar-grid">
+            {AR_EFFECTS.map((effect) => (
+              <button key={effect.id} onClick={() => toggleArEffect(effect.id)} className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border transition-all ${selectedArEffects.includes(effect.id) ? 'bg-violet-500/15 border-violet-500/50' : (effect.id === "none" && selectedArEffects.length === 0) ? 'bg-violet-500/15 border-violet-500/50' : selectedArEffects.length >= 5 ? 'bg-white/5 border-white/10 opacity-40' : 'bg-white/5 border-white/10 hover:bg-violet-500/10 hover:border-violet-500/30'}`} data-testid={`button-ar-${effect.id}`}>
+                <span className="text-xl">{effect.icon}</span>
+                <span className={`text-[9px] ${selectedArEffects.includes(effect.id) || (effect.id === "none" && selectedArEffects.length === 0) ? 'text-violet-400 font-medium' : 'text-white/40'}`}>{effect.name}</span>
+              </button>
+            ))}
+          </div>
+          {selectedArEffects.length > 0 && (
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-white/40 text-[10px]">{selectedArEffects.length}/5 selected</span>
+              <button onClick={() => { setSelectedArEffects([]); setArPositions({}); }} className="text-[10px] text-red-400" data-testid="button-clear-ar">Clear all</button>
+            </div>
+          )}
         </div>
       )}
     </div>
