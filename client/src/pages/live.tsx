@@ -66,6 +66,19 @@ export default function LiveRoom() {
   const [showModerationPanel, setShowModerationPanel] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{ userId: string; username: string } | null>(null);
 
+  const [liveEffects, setLiveEffects] = useState<{
+    filter: string | null;
+    filterCss: string;
+    filterOverlay: string;
+    frame: string | null;
+    frameData: { border?: string; shadow?: string; emojis?: string[]; id: string; name: string } | null;
+    stickers: { id: string; icon: string; name: string }[];
+    stickerPositions: { top?: string; left?: string; right?: string; bottom?: string }[];
+    arEffects: { id: string; icon: string; name: string }[];
+    arPositions: Record<string, { x: number; y: number }>;
+    beauty: { smooth: number; slim: number; eyes: number; brightness: number; contrast: number; lipColor: number };
+  } | null>(null);
+
   const { data: stream, isLoading: streamLoading } = useQuery({
     queryKey: ['stream', streamId],
     queryFn: () => api.getStream(streamId!),
@@ -94,6 +107,17 @@ export default function LiveRoom() {
   
   // Check if current user is the broadcaster (only if they own the stream AND it's live)
   const isBroadcaster = !!(user && stream && user.id === stream.userId && stream.isLive);
+
+  useEffect(() => {
+    if (isBroadcaster) {
+      try {
+        const stored = sessionStorage.getItem('liveEffects');
+        if (stored) {
+          setLiveEffects(JSON.parse(stored));
+        }
+      } catch {}
+    }
+  }, [isBroadcaster]);
 
   // Check if user is following the streamer
   const { data: followStatus, refetch: refetchFollowStatus } = useQuery({
@@ -644,9 +668,54 @@ export default function LiveRoom() {
                       playsInline 
                       muted 
                       className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+                      style={liveEffects?.filterCss && liveEffects.filterCss !== "none" ? { filter: liveEffects.filterCss, transition: "filter 0.4s ease" } : undefined}
                       data-testid="video-broadcaster"
                     />
                   )}
+                  {liveEffects?.filterOverlay && (
+                    <div className="absolute inset-0 pointer-events-none z-[2]" style={{ backgroundColor: liveEffects.filterOverlay }} />
+                  )}
+                  {liveEffects?.frameData && liveEffects.frameData.id !== "none" && (
+                    <>
+                      <div className="absolute inset-0 pointer-events-none z-[3]" style={{
+                        border: liveEffects.frameData.border,
+                        boxShadow: liveEffects.frameData.shadow,
+                        ...(liveEffects.frameData.id === "rainbow" ? { borderImage: "linear-gradient(135deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff) 1" } : {}),
+                      }} />
+                      {liveEffects.frameData.emojis?.map((emoji, i) => {
+                        const positions = [
+                          { top: '5%', left: '5%' }, { top: '5%', right: '5%' },
+                          { bottom: '5%', left: '5%' }, { bottom: '5%', right: '5%' },
+                          { top: '5%', left: '40%' }, { bottom: '5%', left: '40%' },
+                          { top: '40%', left: '3%' }, { top: '40%', right: '3%' },
+                        ];
+                        return (
+                          <span key={i} className="absolute pointer-events-none z-[4] text-xl animate-pulse" style={{ ...positions[i % positions.length], animationDelay: `${i * 0.3}s`, opacity: 0.8 }}>{emoji}</span>
+                        );
+                      })}
+                    </>
+                  )}
+                  {liveEffects?.stickers && liveEffects.stickers.length > 0 && liveEffects.stickers.map((sticker, i) => {
+                    const positions = [
+                      { top: '8%', left: '8%' }, { top: '8%', right: '8%' },
+                      { bottom: '12%', left: '8%' }, { bottom: '12%', right: '8%' },
+                      { top: '25%', left: '50%' }, { top: '40%', right: '12%' },
+                      { bottom: '30%', left: '12%' }, { top: '15%', left: '30%' },
+                      { bottom: '25%', right: '25%' }, { top: '50%', left: '5%' },
+                      { bottom: '40%', right: '5%' }, { top: '35%', left: '25%' },
+                    ];
+                    return (
+                      <span key={sticker.id} className="absolute pointer-events-none z-[5] text-3xl drop-shadow-lg" style={{ ...positions[i % positions.length], animation: `float ${2 + (i % 3)}s ease-in-out infinite`, animationDelay: `${i * 0.5}s` }}>{sticker.icon}</span>
+                    );
+                  })}
+                  {liveEffects?.arEffects && liveEffects.arEffects.length > 0 && liveEffects.arEffects.map((ar) => {
+                    const pos = liveEffects.arPositions?.[ar.id] || { x: 50, y: 50 };
+                    return (
+                      <div key={ar.id} className="absolute z-[6] pointer-events-none" style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}>
+                        <span className="text-5xl drop-shadow-2xl block" style={{ animation: 'float 3s ease-in-out infinite' }}>{ar.icon}</span>
+                      </div>
+                    );
+                  })}
                   {/* Loading state while Agora connects */}
                   {isAgoraConfigured() && !agoraConnected && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">

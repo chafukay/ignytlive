@@ -188,6 +188,20 @@ export default function GoLive() {
         showCountry: showCountryOnStream,
       });
       
+      const effectsData = {
+        filter: selectedFilter,
+        filterCss: activeFilterCss,
+        filterOverlay: activeFilterOverlay,
+        frame: selectedFrame,
+        frameData: activeFrame ? { border: activeFrame.border, shadow: activeFrame.shadow, emojis: activeFrame.emojis, id: activeFrame.id, name: activeFrame.name } : null,
+        stickers: activeStickers.map(s => ({ id: s.id, icon: s.icon, name: s.name })),
+        stickerPositions: stickerPositions,
+        arEffects: activeArEffects.map(a => ({ id: a.id, icon: a.icon, name: a.name })),
+        arPositions,
+        beauty: beautySettings,
+      };
+      sessionStorage.setItem('liveEffects', JSON.stringify(effectsData));
+      
       toast({ title: "You're now live!" });
       setLocation(`/live/${stream.id}`);
     } catch (error) {
