@@ -27,14 +27,15 @@ export default function DailyLoginModal() {
     const sessionKey = `daily_login_checked_${user.id}`;
     if (sessionStorage.getItem(sessionKey)) return;
 
-    sessionStorage.setItem(sessionKey, "1");
-
     api.claimDailyLogin(user.id).then((res) => {
+      sessionStorage.setItem(sessionKey, "1");
       setResult(res);
       if (res.eligible) {
         setClaimed(true);
         setShow(true);
         refreshUser();
+      } else if (res.streak && res.day) {
+        setShow(true);
       }
     }).catch(() => {});
   }, [isAuthenticated, user?.id]);
@@ -90,6 +91,7 @@ export default function DailyLoginModal() {
                 const dayNum = i + 1;
                 const isCurrentDay = dayNum === currentDay;
                 const isPast = dayNum < currentDay;
+                const isClaimedToday = isCurrentDay && (!result.eligible || claimed);
 
                 return (
                   <motion.div
@@ -109,12 +111,12 @@ export default function DailyLoginModal() {
                     <span className="text-[10px] text-purple-200 font-medium">D{dayNum}</span>
                     <span className="text-lg my-0.5">{reward.emoji}</span>
                     <span className="text-[9px] text-yellow-300 font-bold">{reward.coins}</span>
-                    {isPast && (
+                    {(isPast || isClaimedToday) && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
                         <Check className="w-4 h-4 text-green-400" />
                       </div>
                     )}
-                    {isCurrentDay && claimed && (
+                    {isClaimedToday && (
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -152,6 +154,18 @@ export default function DailyLoginModal() {
                     {rewards[currentDay - 1].xpMultiplier}x XP Bonus!
                   </p>
                 )}
+              </motion.div>
+            )}
+
+            {!result.eligible && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mx-4 mb-4 p-3 rounded-xl bg-white/10 backdrop-blur-sm"
+              >
+                <p className="text-center text-green-300 font-semibold mb-1">Already Claimed Today</p>
+                <p className="text-center text-purple-200 text-xs">Come back tomorrow for Day {currentDay < 7 ? currentDay + 1 : 1} rewards!</p>
               </motion.div>
             )}
 
