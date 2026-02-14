@@ -250,7 +250,7 @@ export default function Home() {
 
   const countryGroupedStreams = useMemo(() => {
     if (activeTab !== 'countries' || !liveStreams) return null;
-    const withCountry = liveStreams.filter(s => s.country);
+    const withCountry = liveStreams.filter(s => s.country && s.showCountry !== false);
     const userCountry = user?.country;
     const userRegion = userCountry ? COUNTRIES.find(c => c.code === userCountry)?.region : null;
 

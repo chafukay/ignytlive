@@ -191,6 +191,7 @@ export const api = {
     accessType?: string;
     minVipTier?: number;
     groupId?: string;
+    showCountry?: boolean;
   }) {
     const res = await fetch(`${API_BASE}/api/streams`, {
       method: "POST",

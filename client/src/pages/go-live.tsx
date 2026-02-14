@@ -1,12 +1,28 @@
 import { GuestGate } from "@/components/guest-gate";
 import LocationPickerModal from "@/components/location-picker-modal";
-import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin } from "lucide-react";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+
+const COUNTRIES_MAP: Record<string, string> = {
+  US: "United States 🇺🇸", GB: "United Kingdom 🇬🇧", CA: "Canada 🇨🇦", AU: "Australia 🇦🇺",
+  DE: "Germany 🇩🇪", FR: "France 🇫🇷", JP: "Japan 🇯🇵", KR: "South Korea 🇰🇷",
+  BR: "Brazil 🇧🇷", IN: "India 🇮🇳", MX: "Mexico 🇲🇽", ES: "Spain 🇪🇸",
+  IT: "Italy 🇮🇹", NL: "Netherlands 🇳🇱", SE: "Sweden 🇸🇪", NO: "Norway 🇳🇴",
+  DK: "Denmark 🇩🇰", FI: "Finland 🇫🇮", PL: "Poland 🇵🇱", PT: "Portugal 🇵🇹",
+  RU: "Russia 🇷🇺", CN: "China 🇨🇳", TW: "Taiwan 🇹🇼", TH: "Thailand 🇹🇭",
+  VN: "Vietnam 🇻🇳", PH: "Philippines 🇵🇭", ID: "Indonesia 🇮🇩", MY: "Malaysia 🇲🇾",
+  SG: "Singapore 🇸🇬", AE: "UAE 🇦🇪", SA: "Saudi Arabia 🇸🇦", EG: "Egypt 🇪🇬",
+  NG: "Nigeria 🇳🇬", ZA: "South Africa 🇿🇦", KE: "Kenya 🇰🇪", AR: "Argentina 🇦🇷",
+  CO: "Colombia 🇨🇴", CL: "Chile 🇨🇱", PE: "Peru 🇵🇪", TR: "Turkey 🇹🇷",
+  IL: "Israel 🇮🇱", PK: "Pakistan 🇵🇰", BD: "Bangladesh 🇧🇩", NZ: "New Zealand 🇳🇿",
+  IE: "Ireland 🇮🇪", CH: "Switzerland 🇨🇭", AT: "Austria 🇦🇹", BE: "Belgium 🇧🇪",
+  GR: "Greece 🇬🇷", RO: "Romania 🇷🇴",
+};
 
 export default function GoLive() {
   const [, setLocation] = useLocation();
@@ -23,6 +39,7 @@ export default function GoLive() {
   const [isStarting, setIsStarting] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [pendingGoLive, setPendingGoLive] = useState(false);
+  const [showCountryOnStream, setShowCountryOnStream] = useState(true);
   const { toast } = useToast();
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -148,6 +165,7 @@ export default function GoLive() {
         accessType,
         minVipTier: accessType === "vip" ? minVipTier : undefined,
         groupId: accessType === "group" && groupId ? groupId : undefined,
+        showCountry: showCountryOnStream,
       });
       
       toast({ title: "You're now live!" });
@@ -331,70 +349,75 @@ export default function GoLive() {
             </div>
           )}
 
-          {/* Access Type Selection */}
-          <div className="mb-6">
-            <p className="text-white/50 text-sm text-center mb-3">Stream Access</p>
-            <div className="flex flex-wrap justify-center gap-3">
-              {!groupId && (
-                <>
-                  <button
-                    onClick={() => setAccessType("public")}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      accessType === "public"
-                        ? 'bg-green-500 text-white'
-                        : 'bg-white/10 text-white/70 hover:bg-white/20'
-                    }`}
-                    data-testid="button-access-public"
-                  >
-                    <UsersIcon className="w-4 h-4" />
-                    Public
-                  </button>
-                  <button
-                    onClick={() => setAccessType("private")}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      accessType === "private"
-                        ? 'bg-primary text-white'
-                        : 'bg-white/10 text-white/70 hover:bg-white/20'
-                    }`}
-                    data-testid="button-access-private"
-                  >
-                    <Lock className="w-4 h-4" />
-                    Private
-                  </button>
-                  <button
-                    onClick={() => setAccessType("vip")}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      accessType === "vip"
-                        ? 'bg-yellow-500 text-white'
-                        : 'bg-white/10 text-white/70 hover:bg-white/20'
-                    }`}
-                    data-testid="button-access-vip"
-                  >
-                    <Crown className="w-4 h-4" />
-                    VIP Only
-                  </button>
-                </>
-              )}
-              {groupId && (
-                <div className="px-4 py-2 rounded-full text-sm font-medium bg-violet-500 text-white flex items-center gap-2">
-                  <UsersIcon className="w-4 h-4" />
-                  Group Only
+          {/* Stream Access Selection */}
+          <div className="mb-5">
+            <p className="text-white/50 text-xs uppercase tracking-wider text-center mb-3">Stream Access</p>
+            {!groupId ? (
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setAccessType("public")}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium transition-all border ${
+                    accessType === "public"
+                      ? 'bg-green-500/20 border-green-500 text-green-400'
+                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                  }`}
+                  data-testid="button-access-public"
+                >
+                  <UsersIcon className="w-5 h-5" />
+                  <span>Public</span>
+                  <span className="text-[10px] opacity-60">Everyone</span>
+                </button>
+                <button
+                  onClick={() => setAccessType("private")}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium transition-all border ${
+                    accessType === "private"
+                      ? 'bg-primary/20 border-primary text-primary'
+                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                  }`}
+                  data-testid="button-access-private"
+                >
+                  <Lock className="w-5 h-5" />
+                  <span>Private</span>
+                  <span className="text-[10px] opacity-60">Invite only</span>
+                </button>
+                <button
+                  onClick={() => setAccessType("vip")}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium transition-all border ${
+                    accessType === "vip"
+                      ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
+                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                  }`}
+                  data-testid="button-access-vip"
+                >
+                  <Crown className="w-5 h-5" />
+                  <span>VIP Only</span>
+                  <span className="text-[10px] opacity-60">VIP members</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium bg-violet-500/20 border border-violet-500 text-violet-400">
+                  <UsersIcon className="w-5 h-5" />
+                  <span>Group Only</span>
+                  <span className="text-[10px] opacity-60">{group?.name || 'Group members'}</span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             
             {accessType === "vip" && (
-              <div className="mt-4 flex justify-center items-center gap-3">
-                <span className="text-white/50 text-sm">Min VIP Tier:</span>
-                <div className="flex gap-2">
+              <div className="mt-3 flex justify-center items-center gap-3">
+                <span className="text-white/50 text-xs">Min VIP Tier:</span>
+                <div className="flex gap-1.5">
                   {[1, 2, 3, 4, 5].map((tier) => (
                     <button
                       key={tier}
                       onClick={() => setMinVipTier(tier)}
-                      className={`w-8 h-8 rounded-full text-sm font-bold transition-all ${
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
                         minVipTier === tier
-                          ? 'bg-yellow-500 text-white'
-                          : 'bg-white/10 text-white/70 hover:bg-white/20'
+                          ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/30'
+                          : tier <= minVipTier
+                            ? 'bg-yellow-500/30 text-yellow-400'
+                            : 'bg-white/10 text-white/50 hover:bg-white/20'
                       }`}
                       data-testid={`button-vip-tier-${tier}`}
                     >
@@ -405,39 +428,71 @@ export default function GoLive() {
               </div>
             )}
           </div>
+
+          {/* Location & Country visibility */}
+          <div className="mb-5 space-y-2">
+            <div className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+              <div className="flex items-center gap-2.5">
+                <MapPin className="w-4 h-4 text-primary" />
+                <div>
+                  <p className="text-white text-sm font-medium">
+                    {user?.country ? (
+                      <>Location: {COUNTRIES_MAP[user.country] || user.country}</>
+                    ) : (
+                      'No location set'
+                    )}
+                  </p>
+                  <p className="text-white/40 text-[10px]">Set from your profile</p>
+                </div>
+              </div>
+              {user?.country && (
+                <Shield className="w-4 h-4 text-white/30" />
+              )}
+            </div>
+
+            {user?.country && (
+              <button
+                onClick={() => setShowCountryOnStream(!showCountryOnStream)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                  showCountryOnStream
+                    ? 'bg-green-500/10 border-green-500/30'
+                    : 'bg-white/5 border-white/10'
+                }`}
+                data-testid="button-toggle-country-visibility"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Globe className="w-4 h-4 text-white/60" />
+                  <span className="text-white/80 text-sm">Show country on stream</span>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-all relative ${
+                  showCountryOnStream ? 'bg-green-500' : 'bg-white/20'
+                }`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                    showCountryOnStream ? 'left-5' : 'left-0.5'
+                  }`} />
+                </div>
+              </button>
+            )}
+          </div>
           
-          <div className="flex justify-center gap-4 mb-8">
+          <div className="flex justify-center gap-4 mb-5">
             {['Beauty', 'Effects', 'Flip', 'Share'].map(action => (
-              <div key={action} className="flex flex-col items-center gap-2">
+              <div key={action} className="flex flex-col items-center gap-1.5">
                 <button 
                   onClick={action === 'Flip' ? flipCamera : undefined}
-                  className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+                  className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
                   data-testid={`button-action-${action.toLowerCase()}`}
                 >
                   {action === 'Flip' ? (
-                    <RefreshCw className="w-6 h-6 text-white/70" />
+                    <RefreshCw className="w-5 h-5 text-white/70" />
                   ) : (
-                    <div className="w-6 h-6 bg-white/50 rounded-sm" />
+                    <div className="w-5 h-5 bg-white/50 rounded-sm" />
                   )}
                 </button>
-                <span className="text-xs text-white/70">{action}</span>
+                <span className="text-[10px] text-white/50">{action}</span>
               </div>
             ))}
           </div>
-
-          {/* Location indicator */}
-          <button
-            onClick={() => setShowLocationPicker(true)}
-            className="w-full mb-3 flex items-center justify-center gap-2 py-2.5 rounded-full bg-white/10 text-white/70 text-sm hover:bg-white/20 transition-colors"
-            data-testid="button-set-location"
-          >
-            <MapPin className="w-4 h-4" />
-            {user?.country ? (
-              <span>Location: <strong className="text-white">{user.country}</strong></span>
-            ) : (
-              <span>Set your location for country discovery</span>
-            )}
-          </button>
 
           <button 
             onClick={handleGoLive}

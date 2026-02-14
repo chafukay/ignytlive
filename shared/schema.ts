@@ -111,6 +111,7 @@ export const streams = pgTable("streams", {
   city: text("city"),
   state: text("state"),
   country: text("country"),
+  showCountry: boolean("show_country").notNull().default(true),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
