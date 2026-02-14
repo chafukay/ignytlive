@@ -214,35 +214,89 @@ export default function Home() {
       .catch(() => {});
   }
 
+  const sortByCountryProximity = (items: typeof liveStreams, primarySort: (a: any, b: any) => number) => {
+    if (!items) return items;
+    const userCountry = user?.country;
+    const userRegion = userCountry ? COUNTRIES.find(c => c.code === userCountry)?.region : null;
+    return [...items].sort((a, b) => {
+      if (userCountry) {
+        const aLocal = a.country === userCountry ? 2 : (userRegion && COUNTRIES.find(c => c.code === a.country)?.region === userRegion ? 1 : 0);
+        const bLocal = b.country === userCountry ? 2 : (userRegion && COUNTRIES.find(c => c.code === b.country)?.region === userRegion ? 1 : 0);
+        if (aLocal !== bLocal) return bLocal - aLocal;
+      }
+      return primarySort(a, b);
+    });
+  };
+
   const filteredStreams = (() => {
     let result = liveStreams?.filter(stream => {
       if (activeTab === 'popular') return true;
       if (activeTab === 'in-battle') return stream.isPKBattle;
       if (activeTab === 'new') return true;
-      if (activeTab === 'countries') {
-        if (!stream.country) return false;
-        if (selectedCountries.length === 0) return true;
-        return selectedCountries.includes(stream.country);
-      }
+      if (activeTab === 'countries') return false;
       return true;
     });
 
-    if (activeTab === 'new' && result) {
-      const userCountry = user?.country;
-      result = [...result].sort((a, b) => {
-        const aDate = new Date(a.createdAt).getTime();
-        const bDate = new Date(b.createdAt).getTime();
-        if (userCountry) {
-          const aLocal = a.country === userCountry ? 1 : 0;
-          const bLocal = b.country === userCountry ? 1 : 0;
-          if (aLocal !== bLocal) return bLocal - aLocal;
-        }
-        return bDate - aDate;
-      });
+    if (activeTab === 'popular' && result) {
+      result = sortByCountryProximity(result, (a, b) => (b.viewersCount || 0) - (a.viewersCount || 0));
+    } else if (activeTab === 'new' && result) {
+      result = sortByCountryProximity(result, (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (['video-call', 'social', 'multi-guest', 'in-battle'].includes(activeTab) && result) {
+      result = sortByCountryProximity(result, (a, b) => (b.viewersCount || 0) - (a.viewersCount || 0));
     }
 
     return result;
   })();
+
+  const countryGroupedStreams = useMemo(() => {
+    if (activeTab !== 'countries' || !liveStreams) return null;
+    const withCountry = liveStreams.filter(s => s.country);
+    const userCountry = user?.country;
+    const userRegion = userCountry ? COUNTRIES.find(c => c.code === userCountry)?.region : null;
+
+    const byCountry: Record<string, typeof withCountry> = {};
+    for (const stream of withCountry) {
+      if (!stream.country) continue;
+      if (selectedCountries.length > 0 && !selectedCountries.includes(stream.country)) continue;
+      if (!byCountry[stream.country]) byCountry[stream.country] = [];
+      byCountry[stream.country].push(stream);
+    }
+
+    for (const code of Object.keys(byCountry)) {
+      byCountry[code].sort((a, b) => (b.viewersCount || 0) - (a.viewersCount || 0));
+      byCountry[code] = byCountry[code].slice(0, 5);
+    }
+
+    const continentOrder = ["Americas", "Europe", "Asia", "Middle East", "Africa", "Oceania"];
+    if (userRegion) {
+      const idx = continentOrder.indexOf(userRegion);
+      if (idx > 0) {
+        continentOrder.splice(idx, 1);
+        continentOrder.unshift(userRegion);
+      }
+    }
+
+    const grouped: { region: string; countries: { code: string; name: string; flag: string; streams: typeof withCountry }[] }[] = [];
+    for (const region of continentOrder) {
+      const countriesInRegion = COUNTRIES.filter(c => c.region === region && byCountry[c.code]);
+      if (countriesInRegion.length === 0) continue;
+      const sortedCountries = countriesInRegion.sort((a, b) => {
+        if (a.code === userCountry) return -1;
+        if (b.code === userCountry) return 1;
+        return (byCountry[b.code]?.length || 0) - (byCountry[a.code]?.length || 0);
+      });
+      grouped.push({
+        region,
+        countries: sortedCountries.map(c => ({
+          code: c.code,
+          name: c.name,
+          flag: c.flag,
+          streams: byCountry[c.code],
+        })),
+      });
+    }
+    return grouped;
+  }, [activeTab, liveStreams, selectedCountries, user?.country]);
 
   return (
     <Layout>
@@ -493,6 +547,45 @@ export default function Home() {
                 />
               ))}
             </div>
+          ) : activeTab === 'countries' ? (
+            countryGroupedStreams && countryGroupedStreams.length > 0 ? (
+              <div className="space-y-8">
+                {countryGroupedStreams.map(group => (
+                  <div key={group.region}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Globe className="w-5 h-5 text-primary" />
+                      <h3 className="text-lg font-semibold text-foreground">{group.region}</h3>
+                      <div className="flex-1 h-px bg-border ml-2" />
+                    </div>
+                    <div className="space-y-6 pl-1">
+                      {group.countries.map(country => (
+                        <div key={country.code}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">{country.flag}</span>
+                            <span className="text-sm font-medium text-foreground">{country.name}</span>
+                            <span className="text-xs text-muted-foreground">({country.streams.length})</span>
+                            {user?.country === country.code && (
+                              <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium">Your country</span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                            {country.streams.map((stream, index) => (
+                              <StreamCard key={stream.id} stream={stream} rank={index + 1} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <Globe className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                <p className="text-lg">No live streams with location data</p>
+                <p className="text-sm mt-2">Streams will appear here when creators set their country</p>
+              </div>
+            )
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filteredStreams && filteredStreams.length > 0 ? (
