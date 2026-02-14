@@ -48,6 +48,7 @@ export default function GoLive() {
   const [selectedFrame, setSelectedFrame] = useState<string | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string[]>([]);
   const [effectsTab, setEffectsTab] = useState<"filters" | "frames" | "stickers" | "ar">("filters");
+  const [selectedArEffect, setSelectedArEffect] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const { toast } = useToast();
   
@@ -279,16 +280,16 @@ export default function GoLive() {
   const activeFilterCss = FILTERS.find(f => f.id === selectedFilter)?.css || "none";
   const activeFilterOverlay = FILTERS.find(f => f.id === selectedFilter)?.overlay || "";
 
-  const FRAMES = [
+  const FRAMES: { id: string; name: string; icon: string; border?: string; shadow?: string; emojis?: string[] }[] = [
     { id: "none", name: "None", icon: "✕" },
-    { id: "hearts", name: "Hearts", icon: "💕" },
-    { id: "stars", name: "Stars", icon: "✨" },
-    { id: "fire", name: "Fire", icon: "🔥" },
-    { id: "flowers", name: "Flowers", icon: "🌸" },
-    { id: "neon-border", name: "Neon", icon: "💜" },
-    { id: "gold-border", name: "Gold", icon: "👑" },
-    { id: "rainbow", name: "Rainbow", icon: "🌈" },
-    { id: "snowflakes", name: "Snow", icon: "❄️" },
+    { id: "hearts", name: "Hearts", icon: "💕", border: "4px solid #ff69b4", shadow: "inset 0 0 30px rgba(255,105,180,0.3)", emojis: ["💕","💗","💖","❤️","💕","💗","💖","❤️"] },
+    { id: "stars", name: "Stars", icon: "✨", border: "4px solid #ffd700", shadow: "inset 0 0 30px rgba(255,215,0,0.25)", emojis: ["✨","⭐","🌟","✨","⭐","🌟","✨","⭐"] },
+    { id: "fire", name: "Fire", icon: "🔥", border: "4px solid #ff4500", shadow: "inset 0 0 40px rgba(255,69,0,0.3)", emojis: ["🔥","🔥","🔥","🔥","🔥","🔥","🔥","🔥"] },
+    { id: "flowers", name: "Flowers", icon: "🌸", border: "4px solid #ff8ec6", shadow: "inset 0 0 25px rgba(255,142,198,0.2)", emojis: ["🌸","🌺","🌷","🌻","🌸","🌺","🌷","🌻"] },
+    { id: "neon-border", name: "Neon", icon: "💜", border: "3px solid #a855f7", shadow: "inset 0 0 20px rgba(168,85,247,0.4), 0 0 15px rgba(168,85,247,0.3)" },
+    { id: "gold-border", name: "Gold", icon: "👑", border: "4px solid #fbbf24", shadow: "inset 0 0 20px rgba(251,191,36,0.2), 0 0 10px rgba(251,191,36,0.2)" },
+    { id: "rainbow", name: "Rainbow", icon: "🌈", border: "4px solid transparent", shadow: "inset 0 0 25px rgba(255,100,100,0.15)" },
+    { id: "snowflakes", name: "Snow", icon: "❄️", border: "4px solid rgba(200,230,255,0.5)", shadow: "inset 0 0 30px rgba(200,230,255,0.2)", emojis: ["❄️","❄️","❄️","❄️","❄️","❄️","❄️","❄️"] },
   ];
 
   const STICKERS = [
@@ -316,6 +317,26 @@ export default function GoLive() {
     { id: "mask", name: "Mask", icon: "🎭", desc: "Party mask" },
     { id: "astronaut", name: "Space", icon: "🚀", desc: "Space helmet" },
   ];
+
+  const activeFrame = FRAMES.find(f => f.id === selectedFrame);
+  const activeStickers = STICKERS.filter(s => selectedSticker.includes(s.id));
+  const activeAr = AR_EFFECTS.find(e => e.id === selectedArEffect);
+
+  const frameEmojiPositions = [
+    { top: '5%', left: '5%' }, { top: '5%', right: '5%' },
+    { bottom: '5%', left: '5%' }, { bottom: '5%', right: '5%' },
+    { top: '5%', left: '40%' }, { bottom: '5%', left: '40%' },
+    { top: '40%', left: '3%' }, { top: '40%', right: '3%' },
+  ] as const;
+
+  const stickerPositions = [
+    { top: '8%', left: '8%' }, { top: '8%', right: '8%' },
+    { bottom: '12%', left: '8%' }, { bottom: '12%', right: '8%' },
+    { top: '25%', left: '50%' }, { top: '40%', right: '12%' },
+    { bottom: '30%', left: '12%' }, { top: '15%', left: '30%' },
+    { bottom: '25%', right: '25%' }, { top: '50%', left: '5%' },
+    { bottom: '40%', right: '5%' }, { top: '35%', left: '25%' },
+  ] as const;
 
   const videoPreview = (
     <div className="relative w-full h-full bg-gradient-to-b from-gray-900 to-black overflow-hidden rounded-none md:rounded-2xl">
@@ -348,10 +369,44 @@ export default function GoLive() {
       {activeFilterOverlay && (
         <div className="absolute inset-0 pointer-events-none transition-colors duration-300" style={{ backgroundColor: activeFilterOverlay }} />
       )}
-      {selectedFilter && (
+      {activeFrame && activeFrame.id !== "none" && (
+        <>
+          <div className="absolute inset-0 pointer-events-none z-[5] transition-all duration-300" style={{
+            border: activeFrame.border,
+            boxShadow: activeFrame.shadow,
+            ...(activeFrame.id === "rainbow" ? { borderImage: "linear-gradient(135deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff) 1" } : {}),
+          }} />
+          {activeFrame.emojis && activeFrame.emojis.map((emoji, i) => (
+            <span key={i} className="absolute pointer-events-none z-[6] text-xl animate-pulse" style={{
+              ...frameEmojiPositions[i % frameEmojiPositions.length],
+              animationDelay: `${i * 0.3}s`,
+              opacity: 0.8,
+            }}>{emoji}</span>
+          ))}
+        </>
+      )}
+      {activeStickers.length > 0 && activeStickers.map((sticker, i) => (
+        <span key={sticker.id} className="absolute pointer-events-none z-[7] text-3xl drop-shadow-lg" style={{
+          ...stickerPositions[i % stickerPositions.length],
+          animation: `float ${2 + (i % 3)}s ease-in-out infinite`,
+          animationDelay: `${i * 0.5}s`,
+        }}>{sticker.icon}</span>
+      ))}
+      {activeAr && activeAr.id !== "none" && (
+        <div className="absolute inset-0 pointer-events-none z-[8] flex items-center justify-center">
+          <span className="text-7xl opacity-60 drop-shadow-2xl" style={{ animation: 'float 3s ease-in-out infinite' }}>{activeAr.icon}</span>
+        </div>
+      )}
+      {(selectedFilter || selectedFrame || selectedArEffect) && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-lg border border-violet-500/30 flex items-center gap-2">
           <Sparkles className="w-3 h-3 text-violet-400" />
-          <span className="text-white text-xs font-medium">{FILTERS.find(f => f.id === selectedFilter)?.name}</span>
+          <span className="text-white text-xs font-medium">
+            {[
+              selectedFilter && FILTERS.find(f => f.id === selectedFilter)?.name,
+              selectedFrame && activeFrame?.name,
+              selectedArEffect && activeAr?.name,
+            ].filter(Boolean).join(" + ")}
+          </span>
         </div>
       )}
       <div className="absolute top-3 right-3 z-10 flex gap-2">
@@ -498,9 +553,9 @@ export default function GoLive() {
       {effectsTab === "ar" && (
         <div className="grid grid-cols-4 gap-2" data-testid="effects-ar-grid">
           {AR_EFFECTS.map((effect) => (
-            <button key={effect.id} className="flex flex-col items-center gap-0.5 p-2 rounded-xl border bg-white/5 border-white/10 hover:bg-violet-500/10 hover:border-violet-500/30 transition-all" data-testid={`button-ar-${effect.id}`}>
+            <button key={effect.id} onClick={() => setSelectedArEffect(effect.id === "none" ? null : effect.id)} className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border transition-all ${(selectedArEffect === effect.id) || (effect.id === "none" && !selectedArEffect) ? 'bg-violet-500/15 border-violet-500/50' : 'bg-white/5 border-white/10 hover:bg-violet-500/10 hover:border-violet-500/30'}`} data-testid={`button-ar-${effect.id}`}>
               <span className="text-xl">{effect.icon}</span>
-              <span className="text-[9px] text-white/40">{effect.name}</span>
+              <span className={`text-[9px] ${(selectedArEffect === effect.id) || (effect.id === "none" && !selectedArEffect) ? 'text-violet-400 font-medium' : 'text-white/40'}`}>{effect.name}</span>
             </button>
           ))}
         </div>
