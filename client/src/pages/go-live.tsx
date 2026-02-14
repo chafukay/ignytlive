@@ -1,7 +1,7 @@
 import { GuestGate } from "@/components/guest-gate";
 import LocationPickerModal from "@/components/location-picker-modal";
-import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield, Sparkles, Wand2, Frame, Sticker, Stars, SunMedium, Contrast, Palette, Share2, Copy, Check } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
@@ -40,6 +40,15 @@ export default function GoLive() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [pendingGoLive, setPendingGoLive] = useState(false);
   const [showCountryOnStream, setShowCountryOnStream] = useState(true);
+  const [activePanel, setActivePanel] = useState<"beauty" | "effects" | null>(null);
+  const [beautySettings, setBeautySettings] = useState({
+    smooth: 0, slim: 0, eyes: 0, brightness: 0, contrast: 0, lipColor: 0,
+  });
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+  const [selectedFrame, setSelectedFrame] = useState<string | null>(null);
+  const [selectedSticker, setSelectedSticker] = useState<string[]>([]);
+  const [effectsTab, setEffectsTab] = useState<"filters" | "frames" | "stickers" | "ar">("filters");
+  const [linkCopied, setLinkCopied] = useState(false);
   const { toast } = useToast();
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -223,6 +232,81 @@ export default function GoLive() {
   };
 
   const categories = ['Chat', 'Music', 'Gaming', 'Dance', 'Talent', 'Chill'];
+
+  const handleShare = useCallback(async () => {
+    const url = window.location.origin;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: title || "Watch me live on IgnytLIVE!", url });
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      toast({ title: "Link copied!" });
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  }, [title, toast]);
+
+  const updateBeauty = useCallback((key: keyof typeof beautySettings, value: number) => {
+    setBeautySettings(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const toggleSticker = useCallback((id: string) => {
+    setSelectedSticker(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  }, []);
+
+  const FILTERS = [
+    { id: "none", name: "None", gradient: "bg-gradient-to-br from-gray-700 to-gray-800" },
+    { id: "warm", name: "Warm", gradient: "bg-gradient-to-br from-orange-400 to-rose-500" },
+    { id: "cool", name: "Cool", gradient: "bg-gradient-to-br from-blue-400 to-cyan-500" },
+    { id: "vintage", name: "Vintage", gradient: "bg-gradient-to-br from-amber-600 to-yellow-800" },
+    { id: "dramatic", name: "Drama", gradient: "bg-gradient-to-br from-purple-900 to-gray-900" },
+    { id: "soft", name: "Soft", gradient: "bg-gradient-to-br from-pink-200 to-rose-300" },
+    { id: "vivid", name: "Vivid", gradient: "bg-gradient-to-br from-emerald-400 to-blue-500" },
+    { id: "bw", name: "B&W", gradient: "bg-gradient-to-br from-gray-300 to-gray-600" },
+    { id: "sunset", name: "Sunset", gradient: "bg-gradient-to-br from-orange-500 to-pink-600" },
+    { id: "neon", name: "Neon", gradient: "bg-gradient-to-br from-cyan-400 to-violet-600" },
+    { id: "dreamy", name: "Dreamy", gradient: "bg-gradient-to-br from-indigo-300 to-purple-400" },
+    { id: "retro", name: "Retro", gradient: "bg-gradient-to-br from-yellow-500 to-red-600" },
+  ];
+
+  const FRAMES = [
+    { id: "none", name: "None", icon: "✕" },
+    { id: "hearts", name: "Hearts", icon: "💕" },
+    { id: "stars", name: "Stars", icon: "✨" },
+    { id: "fire", name: "Fire", icon: "🔥" },
+    { id: "flowers", name: "Flowers", icon: "🌸" },
+    { id: "neon-border", name: "Neon", icon: "💜" },
+    { id: "gold-border", name: "Gold", icon: "👑" },
+    { id: "rainbow", name: "Rainbow", icon: "🌈" },
+    { id: "snowflakes", name: "Snow", icon: "❄️" },
+  ];
+
+  const STICKERS = [
+    { id: "crown", icon: "👑", name: "Crown" },
+    { id: "sunglasses", icon: "😎", name: "Cool" },
+    { id: "heart-eyes", icon: "😍", name: "Love" },
+    { id: "fire", icon: "🔥", name: "Fire" },
+    { id: "star", icon: "⭐", name: "Star" },
+    { id: "diamond", icon: "💎", name: "Diamond" },
+    { id: "music", icon: "🎵", name: "Music" },
+    { id: "butterfly", icon: "🦋", name: "Butterfly" },
+    { id: "sparkle", icon: "✨", name: "Sparkle" },
+    { id: "rainbow", icon: "🌈", name: "Rainbow" },
+    { id: "cat", icon: "😺", name: "Cat" },
+    { id: "dog", icon: "🐶", name: "Dog" },
+  ];
+
+  const AR_EFFECTS = [
+    { id: "none", name: "None", icon: "✕", desc: "No effect" },
+    { id: "bunny", name: "Bunny", icon: "🐰", desc: "Bunny ears" },
+    { id: "cat-face", name: "Cat", icon: "🐱", desc: "Cat whiskers" },
+    { id: "angel", name: "Angel", icon: "😇", desc: "Halo effect" },
+    { id: "devil", name: "Devil", icon: "😈", desc: "Devil horns" },
+    { id: "glasses", name: "Glasses", icon: "🤓", desc: "Nerdy glasses" },
+    { id: "mask", name: "Mask", icon: "🎭", desc: "Party mask" },
+    { id: "astronaut", name: "Space", icon: "🚀", desc: "Space helmet" },
+  ];
 
   return (
     <GuestGate>
@@ -476,22 +560,54 @@ export default function GoLive() {
           </div>
           
           <div className="flex justify-center gap-4 mb-5">
-            {['Beauty', 'Effects', 'Flip', 'Share'].map(action => (
-              <div key={action} className="flex flex-col items-center gap-1.5">
-                <button 
-                  onClick={action === 'Flip' ? flipCamera : undefined}
-                  className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
-                  data-testid={`button-action-${action.toLowerCase()}`}
-                >
-                  {action === 'Flip' ? (
-                    <RefreshCw className="w-5 h-5 text-white/70" />
-                  ) : (
-                    <div className="w-5 h-5 bg-white/50 rounded-sm" />
-                  )}
-                </button>
-                <span className="text-[10px] text-white/50">{action}</span>
-              </div>
-            ))}
+            <div className="flex flex-col items-center gap-1.5">
+              <button 
+                onClick={() => setActivePanel(activePanel === "beauty" ? null : "beauty")}
+                className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  activePanel === "beauty" ? 'bg-pink-500/30 ring-2 ring-pink-500' : 'bg-white/10 hover:bg-white/20'
+                }`}
+                data-testid="button-action-beauty"
+              >
+                <Wand2 className={`w-5 h-5 ${activePanel === "beauty" ? 'text-pink-400' : 'text-white/70'}`} />
+              </button>
+              <span className={`text-[10px] ${activePanel === "beauty" ? 'text-pink-400' : 'text-white/50'}`}>Beauty</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <button 
+                onClick={() => setActivePanel(activePanel === "effects" ? null : "effects")}
+                className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  activePanel === "effects" ? 'bg-violet-500/30 ring-2 ring-violet-500' : 'bg-white/10 hover:bg-white/20'
+                }`}
+                data-testid="button-action-effects"
+              >
+                <Sparkles className={`w-5 h-5 ${activePanel === "effects" ? 'text-violet-400' : 'text-white/70'}`} />
+              </button>
+              <span className={`text-[10px] ${activePanel === "effects" ? 'text-violet-400' : 'text-white/50'}`}>Effects</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <button 
+                onClick={flipCamera}
+                className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+                data-testid="button-action-flip"
+              >
+                <RefreshCw className="w-5 h-5 text-white/70" />
+              </button>
+              <span className="text-[10px] text-white/50">Flip</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <button 
+                onClick={handleShare}
+                className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+                data-testid="button-action-share"
+              >
+                {linkCopied ? (
+                  <Check className="w-5 h-5 text-green-400" />
+                ) : (
+                  <Share2 className="w-5 h-5 text-white/70" />
+                )}
+              </button>
+              <span className={`text-[10px] ${linkCopied ? 'text-green-400' : 'text-white/50'}`}>{linkCopied ? 'Copied!' : 'Share'}</span>
+            </div>
           </div>
 
           <button 
@@ -510,6 +626,248 @@ export default function GoLive() {
           )}
         </div>
       </div>
+
+      {/* Beauty Panel */}
+      {activePanel === "beauty" && (
+        <div className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom duration-300">
+          <div className="bg-black/90 backdrop-blur-xl border-t border-white/10 rounded-t-3xl p-5 pb-8 max-h-[55vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                <Wand2 className="w-5 h-5 text-pink-400" />
+                Beauty
+              </h3>
+              <button
+                onClick={() => setActivePanel(null)}
+                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20"
+                data-testid="button-close-beauty"
+              >
+                <X className="w-4 h-4 text-white/70" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {[
+                { key: "smooth" as const, label: "Smooth Skin", icon: "✨", color: "from-pink-500 to-rose-400" },
+                { key: "slim" as const, label: "Face Slim", icon: "💫", color: "from-violet-500 to-purple-400" },
+                { key: "eyes" as const, label: "Big Eyes", icon: "👁️", color: "from-blue-500 to-cyan-400" },
+                { key: "lipColor" as const, label: "Lip Color", icon: "💋", color: "from-red-500 to-pink-400" },
+                { key: "brightness" as const, label: "Brightness", icon: "☀️", color: "from-amber-500 to-yellow-400" },
+                { key: "contrast" as const, label: "Contrast", icon: "◐", color: "from-gray-400 to-gray-600" },
+              ].map(({ key, label, icon, color }) => (
+                <div key={key} data-testid={`beauty-slider-${key}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white/80 text-sm flex items-center gap-2">
+                      <span className="text-base">{icon}</span>
+                      {label}
+                    </span>
+                    <span className="text-white/50 text-xs font-mono w-8 text-right">{beautySettings[key]}</span>
+                  </div>
+                  <div className="relative h-8 flex items-center">
+                    <div className="absolute inset-y-0 left-0 right-0 flex items-center">
+                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full bg-gradient-to-r ${color} rounded-full transition-all`}
+                          style={{ width: `${beautySettings[key]}%` }}
+                        />
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={beautySettings[key]}
+                      onChange={(e) => updateBeauty(key, parseInt(e.target.value))}
+                      className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                    />
+                    <div
+                      className="absolute w-5 h-5 rounded-full bg-white shadow-lg shadow-black/30 pointer-events-none transition-all"
+                      style={{ left: `calc(${beautySettings[key]}% - 10px)` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => setBeautySettings({ smooth: 50, slim: 30, eyes: 40, brightness: 10, contrast: 10, lipColor: 20 })}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-500/20 to-violet-500/20 border border-pink-500/30 text-pink-300 text-sm font-medium"
+                data-testid="button-beauty-preset-natural"
+              >
+                Natural
+              </button>
+              <button
+                onClick={() => setBeautySettings({ smooth: 80, slim: 60, eyes: 70, brightness: 20, contrast: 15, lipColor: 50 })}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-500/30 text-violet-300 text-sm font-medium"
+                data-testid="button-beauty-preset-glam"
+              >
+                Glam
+              </button>
+              <button
+                onClick={() => setBeautySettings({ smooth: 0, slim: 0, eyes: 0, brightness: 0, contrast: 0, lipColor: 0 })}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium"
+                data-testid="button-beauty-reset"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Effects Panel */}
+      {activePanel === "effects" && (
+        <div className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom duration-300">
+          <div className="bg-black/90 backdrop-blur-xl border-t border-white/10 rounded-t-3xl p-5 pb-8 max-h-[60vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-violet-400" />
+                Effects
+              </h3>
+              <button
+                onClick={() => setActivePanel(null)}
+                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20"
+                data-testid="button-close-effects"
+              >
+                <X className="w-4 h-4 text-white/70" />
+              </button>
+            </div>
+
+            <div className="flex gap-1 mb-4 bg-white/5 rounded-xl p-1">
+              {([
+                { id: "filters" as const, label: "Filters", Icon: Palette },
+                { id: "frames" as const, label: "Frames", Icon: Frame },
+                { id: "stickers" as const, label: "Stickers", Icon: Sticker },
+                { id: "ar" as const, label: "AR", Icon: Stars },
+              ]).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setEffectsTab(id)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
+                    effectsTab === id
+                      ? 'bg-violet-500 text-white shadow-lg'
+                      : 'text-white/50 hover:text-white/70'
+                  }`}
+                  data-testid={`button-effects-tab-${id}`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {effectsTab === "filters" && (
+              <div className="grid grid-cols-4 gap-2.5" data-testid="effects-filters-grid">
+                {FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setSelectedFilter(filter.id === "none" ? null : filter.id)}
+                    className={`flex flex-col items-center gap-1.5 group`}
+                    data-testid={`button-filter-${filter.id}`}
+                  >
+                    <div className={`w-14 h-14 rounded-2xl ${filter.gradient} transition-all ${
+                      (selectedFilter === filter.id) || (filter.id === "none" && !selectedFilter)
+                        ? 'ring-2 ring-violet-400 ring-offset-2 ring-offset-black scale-105'
+                        : 'opacity-70 group-hover:opacity-100'
+                    }`} />
+                    <span className={`text-[10px] ${
+                      (selectedFilter === filter.id) || (filter.id === "none" && !selectedFilter)
+                        ? 'text-violet-400 font-medium'
+                        : 'text-white/50'
+                    }`}>{filter.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {effectsTab === "frames" && (
+              <div className="grid grid-cols-3 gap-2.5" data-testid="effects-frames-grid">
+                {FRAMES.map((frame) => (
+                  <button
+                    key={frame.id}
+                    onClick={() => setSelectedFrame(frame.id === "none" ? null : frame.id)}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                      (selectedFrame === frame.id) || (frame.id === "none" && !selectedFrame)
+                        ? 'bg-violet-500/15 border-violet-500/50'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                    data-testid={`button-frame-${frame.id}`}
+                  >
+                    <span className="text-2xl">{frame.icon}</span>
+                    <span className={`text-[10px] ${
+                      (selectedFrame === frame.id) || (frame.id === "none" && !selectedFrame)
+                        ? 'text-violet-400 font-medium'
+                        : 'text-white/50'
+                    }`}>{frame.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {effectsTab === "stickers" && (
+              <div>
+                <p className="text-white/40 text-xs mb-3">Tap to add/remove stickers on your stream</p>
+                <div className="grid grid-cols-4 gap-2.5" data-testid="effects-stickers-grid">
+                  {STICKERS.map((sticker) => (
+                    <button
+                      key={sticker.id}
+                      onClick={() => toggleSticker(sticker.id)}
+                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
+                        selectedSticker.includes(sticker.id)
+                          ? 'bg-violet-500/15 border-violet-500/50 scale-105'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      }`}
+                      data-testid={`button-sticker-${sticker.id}`}
+                    >
+                      <span className="text-2xl">{sticker.icon}</span>
+                      <span className={`text-[10px] ${
+                        selectedSticker.includes(sticker.id)
+                          ? 'text-violet-400 font-medium'
+                          : 'text-white/50'
+                      }`}>{sticker.name}</span>
+                    </button>
+                  ))}
+                </div>
+                {selectedSticker.length > 0 && (
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-white/40 text-xs">{selectedSticker.length} sticker{selectedSticker.length > 1 ? 's' : ''} selected</span>
+                    <button
+                      onClick={() => setSelectedSticker([])}
+                      className="text-xs text-red-400 hover:text-red-300"
+                      data-testid="button-clear-stickers"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {effectsTab === "ar" && (
+              <div>
+                <p className="text-white/40 text-xs mb-3">Augmented reality face effects</p>
+                <div className="grid grid-cols-4 gap-2.5" data-testid="effects-ar-grid">
+                  {AR_EFFECTS.map((effect) => (
+                    <button
+                      key={effect.id}
+                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
+                        effect.id === "none"
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                          : 'bg-white/5 border-white/10 hover:bg-violet-500/10 hover:border-violet-500/30'
+                      }`}
+                      data-testid={`button-ar-${effect.id}`}
+                    >
+                      <span className="text-2xl">{effect.icon}</span>
+                      <span className="text-[10px] text-white/50">{effect.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-center text-white/30 text-[10px] mt-4">AR effects require camera access</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <LocationPickerModal
         open={showLocationPicker}
