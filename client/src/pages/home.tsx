@@ -214,17 +214,35 @@ export default function Home() {
       .catch(() => {});
   }
 
-  const filteredStreams = liveStreams?.filter(stream => {
-    if (activeTab === 'popular') return true;
-    if (activeTab === 'in-battle') return stream.isPKBattle;
-    if (activeTab === 'new') return true;
-    if (activeTab === 'countries') {
-      if (!stream.country) return false;
-      if (selectedCountries.length === 0) return true;
-      return selectedCountries.includes(stream.country);
+  const filteredStreams = (() => {
+    let result = liveStreams?.filter(stream => {
+      if (activeTab === 'popular') return true;
+      if (activeTab === 'in-battle') return stream.isPKBattle;
+      if (activeTab === 'new') return true;
+      if (activeTab === 'countries') {
+        if (!stream.country) return false;
+        if (selectedCountries.length === 0) return true;
+        return selectedCountries.includes(stream.country);
+      }
+      return true;
+    });
+
+    if (activeTab === 'new' && result) {
+      const userCountry = user?.country;
+      result = [...result].sort((a, b) => {
+        const aDate = new Date(a.createdAt).getTime();
+        const bDate = new Date(b.createdAt).getTime();
+        if (userCountry) {
+          const aLocal = a.country === userCountry ? 1 : 0;
+          const bLocal = b.country === userCountry ? 1 : 0;
+          if (aLocal !== bLocal) return bLocal - aLocal;
+        }
+        return bDate - aDate;
+      });
     }
-    return true;
-  });
+
+    return result;
+  })();
 
   return (
     <Layout>
