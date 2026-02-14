@@ -111,6 +111,12 @@ export default function GoLive() {
     startCamera();
   }, [facingMode]);
 
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
   // Cleanup camera on unmount
   useEffect(() => {
     return () => {
