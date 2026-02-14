@@ -631,25 +631,15 @@ export default function GoLive() {
         <X className="w-5 h-5" />
       </button>
 
-      {/* Desktop: side-by-side 40/60 */}
-      <div className="hidden md:flex h-full">
-        <div className="w-[40%] h-full p-3 pr-1.5">
+      {/* Responsive: mobile vertical stack / desktop side-by-side 40/60 */}
+      <div className="flex flex-col md:flex-row h-full">
+        <div className="h-[40%] min-h-[200px] shrink-0 md:h-full md:w-[40%] md:p-3 md:pr-1.5">
           {videoPreview}
         </div>
-        <div className="w-[60%] h-full p-3 pl-1.5 overflow-y-auto">
-          <div className="bg-gray-950/80 backdrop-blur-xl rounded-2xl p-5 border border-white/10 h-full overflow-y-auto scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-4 pt-3 bg-gray-950 md:bg-transparent md:w-[60%] md:p-3 md:pl-1.5 md:flex-none md:h-full">
+          <div className="md:bg-gray-950/80 md:backdrop-blur-xl md:rounded-2xl md:p-5 md:border md:border-white/10 md:h-full md:overflow-y-auto scrollbar-hide">
             {controlsContent}
           </div>
-        </div>
-      </div>
-
-      {/* Mobile: vertical stack */}
-      <div className="flex md:hidden flex-col h-full">
-        <div className="h-[40%] min-h-[200px] shrink-0">
-          {videoPreview}
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 pt-3 bg-gray-950">
-          {controlsContent}
         </div>
       </div>
 
