@@ -256,19 +256,22 @@ export default function GoLive() {
   }, []);
 
   const FILTERS = [
-    { id: "none", name: "None", gradient: "bg-gradient-to-br from-gray-700 to-gray-800" },
-    { id: "warm", name: "Warm", gradient: "bg-gradient-to-br from-orange-400 to-rose-500" },
-    { id: "cool", name: "Cool", gradient: "bg-gradient-to-br from-blue-400 to-cyan-500" },
-    { id: "vintage", name: "Vintage", gradient: "bg-gradient-to-br from-amber-600 to-yellow-800" },
-    { id: "dramatic", name: "Drama", gradient: "bg-gradient-to-br from-purple-900 to-gray-900" },
-    { id: "soft", name: "Soft", gradient: "bg-gradient-to-br from-pink-200 to-rose-300" },
-    { id: "vivid", name: "Vivid", gradient: "bg-gradient-to-br from-emerald-400 to-blue-500" },
-    { id: "bw", name: "B&W", gradient: "bg-gradient-to-br from-gray-300 to-gray-600" },
-    { id: "sunset", name: "Sunset", gradient: "bg-gradient-to-br from-orange-500 to-pink-600" },
-    { id: "neon", name: "Neon", gradient: "bg-gradient-to-br from-cyan-400 to-violet-600" },
-    { id: "dreamy", name: "Dreamy", gradient: "bg-gradient-to-br from-indigo-300 to-purple-400" },
-    { id: "retro", name: "Retro", gradient: "bg-gradient-to-br from-yellow-500 to-red-600" },
+    { id: "none", name: "None", gradient: "bg-gradient-to-br from-gray-700 to-gray-800", css: "none", overlay: "" },
+    { id: "warm", name: "Warm", gradient: "bg-gradient-to-br from-orange-400 to-rose-500", css: "saturate(1.3) contrast(1.05) brightness(1.05)", overlay: "rgba(255, 140, 50, 0.12)" },
+    { id: "cool", name: "Cool", gradient: "bg-gradient-to-br from-blue-400 to-cyan-500", css: "saturate(0.9) brightness(1.05) hue-rotate(15deg)", overlay: "rgba(50, 130, 255, 0.1)" },
+    { id: "vintage", name: "Vintage", gradient: "bg-gradient-to-br from-amber-600 to-yellow-800", css: "sepia(0.4) contrast(1.1) brightness(0.95) saturate(0.85)", overlay: "rgba(180, 130, 50, 0.08)" },
+    { id: "dramatic", name: "Drama", gradient: "bg-gradient-to-br from-purple-900 to-gray-900", css: "contrast(1.4) brightness(0.9) saturate(0.7)", overlay: "rgba(30, 0, 50, 0.15)" },
+    { id: "soft", name: "Soft", gradient: "bg-gradient-to-br from-pink-200 to-rose-300", css: "brightness(1.1) contrast(0.9) saturate(0.9)", overlay: "rgba(255, 180, 200, 0.1)" },
+    { id: "vivid", name: "Vivid", gradient: "bg-gradient-to-br from-emerald-400 to-blue-500", css: "saturate(1.6) contrast(1.1) brightness(1.05)", overlay: "" },
+    { id: "bw", name: "B&W", gradient: "bg-gradient-to-br from-gray-300 to-gray-600", css: "grayscale(1) contrast(1.1)", overlay: "" },
+    { id: "sunset", name: "Sunset", gradient: "bg-gradient-to-br from-orange-500 to-pink-600", css: "saturate(1.3) brightness(1.05) contrast(1.05)", overlay: "rgba(255, 100, 60, 0.15)" },
+    { id: "neon", name: "Neon", gradient: "bg-gradient-to-br from-cyan-400 to-violet-600", css: "saturate(1.8) contrast(1.3) brightness(1.1)", overlay: "rgba(120, 0, 255, 0.08)" },
+    { id: "dreamy", name: "Dreamy", gradient: "bg-gradient-to-br from-indigo-300 to-purple-400", css: "brightness(1.15) contrast(0.85) saturate(1.1)", overlay: "rgba(140, 120, 255, 0.12)" },
+    { id: "retro", name: "Retro", gradient: "bg-gradient-to-br from-yellow-500 to-red-600", css: "sepia(0.3) saturate(1.2) contrast(1.15) brightness(0.95)", overlay: "rgba(200, 100, 0, 0.1)" },
   ];
+
+  const activeFilterCss = FILTERS.find(f => f.id === selectedFilter)?.css || "none";
+  const activeFilterOverlay = FILTERS.find(f => f.id === selectedFilter)?.overlay || "";
 
   const FRAMES = [
     { id: "none", name: "None", icon: "✕" },
@@ -339,7 +342,20 @@ export default function GoLive() {
             playsInline 
             muted 
             className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+            style={{ filter: activeFilterCss !== "none" ? activeFilterCss : undefined, transition: "filter 0.4s ease" }}
           />
+        )}
+        {activeFilterOverlay && (
+          <div
+            className="absolute inset-0 pointer-events-none transition-colors duration-400"
+            style={{ backgroundColor: activeFilterOverlay }}
+          />
+        )}
+        {selectedFilter && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-2 animate-in fade-in duration-300">
+            <Sparkles className="w-3 h-3 text-violet-400" />
+            <span className="text-white/80 text-xs font-medium">{FILTERS.find(f => f.id === selectedFilter)?.name} filter</span>
+          </div>
         )}
         <canvas ref={canvasRef} className="hidden" />
       </div>
