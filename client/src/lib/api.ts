@@ -89,6 +89,12 @@ export const api = {
     return res.json() as Promise<User[]>;
   },
 
+  async detectCountry() {
+    const res = await fetch(`${API_BASE}/api/geo/detect`);
+    if (!res.ok) return { country: null, countryCode: null };
+    return res.json() as Promise<{ country: string | null; countryCode: string | null }>;
+  },
+
   async getAllUsers(adminUserId?: string) {
     const headers: Record<string, string> = {};
     if (adminUserId) {

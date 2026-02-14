@@ -44,6 +44,7 @@ export async function seedDatabase() {
       totalLikes: 0,
       vipTier: 5,
       role: 'superadmin',
+      country: 'US',
     },
     // Admin
     {
@@ -60,6 +61,7 @@ export async function seedDatabase() {
       totalLikes: 5000,
       vipTier: 4,
       role: 'admin',
+      country: 'GB',
     },
     // VIP Users (High Level)
     {
@@ -76,6 +78,7 @@ export async function seedDatabase() {
       totalLikes: 125000,
       vipTier: 3,
       role: 'user',
+      country: 'US',
     },
     {
       username: 'BellaVita',
@@ -91,6 +94,7 @@ export async function seedDatabase() {
       totalLikes: 98000,
       vipTier: 4,
       role: 'user',
+      country: 'IT',
     },
     // Mid Level Users
     {
@@ -107,6 +111,7 @@ export async function seedDatabase() {
       totalLikes: 45000,
       vipTier: 2,
       role: 'user',
+      country: 'DE',
     },
     {
       username: 'GamerGirl99',
@@ -122,6 +127,7 @@ export async function seedDatabase() {
       totalLikes: 67000,
       vipTier: 2,
       role: 'user',
+      country: 'KR',
     },
     {
       username: 'MusicMaster',
@@ -137,6 +143,7 @@ export async function seedDatabase() {
       totalLikes: 89000,
       vipTier: 3,
       role: 'user',
+      country: 'BR',
     },
     // Low Level / New Users
     {
@@ -153,6 +160,7 @@ export async function seedDatabase() {
       totalLikes: 150,
       vipTier: 0,
       role: 'user',
+      country: 'JP',
     },
     {
       username: 'StarterSteve',
@@ -168,6 +176,7 @@ export async function seedDatabase() {
       totalLikes: 800,
       vipTier: 0,
       role: 'user',
+      country: 'AU',
     },
     {
       username: 'RookieRita',
@@ -183,6 +192,7 @@ export async function seedDatabase() {
       totalLikes: 2500,
       vipTier: 1,
       role: 'user',
+      country: 'FR',
     },
   ];
 

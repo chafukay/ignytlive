@@ -727,6 +727,22 @@ export async function registerRoutes(
     res.json(stream);
   });
 
+  app.get("/api/geo/detect", async (req, res) => {
+    try {
+      const forwarded = req.headers["x-forwarded-for"];
+      const ip = typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.socket.remoteAddress || "";
+      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode`);
+      const data = await response.json() as { status: string; country?: string; countryCode?: string };
+      if (data.status === "success" && data.countryCode) {
+        res.json({ country: data.country, countryCode: data.countryCode });
+      } else {
+        res.json({ country: null, countryCode: null });
+      }
+    } catch {
+      res.json({ country: null, countryCode: null });
+    }
+  });
+
   app.post("/api/streams", async (req, res) => {
     try {
       const { userId, title, description, category, thumbnail, tags, isPrivate, accessType, minVipTier, groupId } = req.body;
@@ -737,6 +753,9 @@ export async function registerRoutes(
       
       // Guest restriction
       if (await checkGuestRestriction(userId, res, storage)) return;
+
+      const user = await storage.getUser(userId);
+      const streamCountry = user?.country || null;
       
       const stream = await storage.createStream({
         userId,
@@ -749,6 +768,7 @@ export async function registerRoutes(
         accessType: accessType || "public",
         minVipTier: minVipTier || 0,
         groupId: groupId || null,
+        country: streamCountry,
         streamKey: `stream_${Date.now()}_${Math.random().toString(36).substring(2)}`,
         isLive: true,
         viewersCount: 0,

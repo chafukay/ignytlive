@@ -1,8 +1,9 @@
 import { GuestGate } from "@/components/guest-gate";
-import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon } from "lucide-react";
+import LocationPickerModal from "@/components/location-picker-modal";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -13,12 +14,15 @@ export default function GoLive() {
   const params = new URLSearchParams(search);
   const groupId = params.get("groupId");
   
-  const { user } = useAuth();
+  const { user, login } = useAuth();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Chat");
   const [accessType, setAccessType] = useState<"public" | "private" | "vip" | "group">(groupId ? "group" : "public");
   const [minVipTier, setMinVipTier] = useState(1);
   const [isStarting, setIsStarting] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [pendingGoLive, setPendingGoLive] = useState(false);
   const { toast } = useToast();
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -131,17 +135,8 @@ export default function GoLive() {
     toast({ title: "Thumbnail captured!" });
   };
 
-  const handleGoLive = async () => {
-    if (!user) {
-      toast({ title: "Please log in to go live", variant: "destructive" });
-      return;
-    }
-    
-    if (!title.trim()) {
-      toast({ title: "Please add a title", variant: "destructive" });
-      return;
-    }
-    
+  const startStreamNow = async () => {
+    if (!user) return;
     setIsStarting(true);
     try {
       const stream = await api.createStream({
@@ -160,6 +155,52 @@ export default function GoLive() {
     } catch (error) {
       toast({ title: "Failed to start stream", description: "Please try again", variant: "destructive" });
       setIsStarting(false);
+    }
+  };
+
+  const handleGoLive = async () => {
+    if (!user) {
+      toast({ title: "Please log in to go live", variant: "destructive" });
+      return;
+    }
+    
+    if (!title.trim()) {
+      toast({ title: "Please add a title", variant: "destructive" });
+      return;
+    }
+
+    if (!user.country) {
+      setPendingGoLive(true);
+      setShowLocationPicker(true);
+      return;
+    }
+    
+    await startStreamNow();
+  };
+
+  const handleLocationSelect = async (countryCode: string) => {
+    if (!user) return;
+    setShowLocationPicker(false);
+    try {
+      const updated = await api.updateUser(user.id, { country: countryCode });
+      login(updated);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      toast({ title: "Location set!", description: `Your country has been set to ${countryCode}` });
+      if (pendingGoLive) {
+        setPendingGoLive(false);
+        await startStreamNow();
+      }
+    } catch {
+      toast({ title: "Failed to set location", variant: "destructive" });
+      setPendingGoLive(false);
+    }
+  };
+
+  const handleLocationSkip = () => {
+    setShowLocationPicker(false);
+    if (pendingGoLive) {
+      setPendingGoLive(false);
+      startStreamNow();
     }
   };
 
@@ -384,6 +425,20 @@ export default function GoLive() {
             ))}
           </div>
 
+          {/* Location indicator */}
+          <button
+            onClick={() => setShowLocationPicker(true)}
+            className="w-full mb-3 flex items-center justify-center gap-2 py-2.5 rounded-full bg-white/10 text-white/70 text-sm hover:bg-white/20 transition-colors"
+            data-testid="button-set-location"
+          >
+            <MapPin className="w-4 h-4" />
+            {user?.country ? (
+              <span>Location: <strong className="text-white">{user.country}</strong></span>
+            ) : (
+              <span>Set your location for country discovery</span>
+            )}
+          </button>
+
           <button 
             onClick={handleGoLive}
             disabled={!title.trim() || isStarting || !user}
@@ -400,6 +455,12 @@ export default function GoLive() {
           )}
         </div>
       </div>
+
+      <LocationPickerModal
+        open={showLocationPicker}
+        onSelect={handleLocationSelect}
+        onSkip={handleLocationSkip}
+      />
     </div>
     </GuestGate>
   );

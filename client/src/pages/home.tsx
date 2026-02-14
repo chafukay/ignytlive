@@ -205,8 +205,9 @@ export default function Home() {
     if (activeTab === 'in-battle') return stream.isPKBattle;
     if (activeTab === 'new') return true;
     if (activeTab === 'countries') {
+      if (!stream.country) return false;
       if (selectedCountries.length === 0) return true;
-      return selectedCountries.includes(stream.country || '');
+      return selectedCountries.includes(stream.country);
     }
     return true;
   });
