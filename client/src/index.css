@@ -183,3 +183,36 @@
     scrollbar-width: none;
   }
 }
+
+/* Custom Scrollbar Styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.35);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.55);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

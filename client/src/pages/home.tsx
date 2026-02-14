@@ -294,14 +294,7 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {selectedCountries.length > 0 && (
-                  <button
-                    data-testid="button-clear-countries"
-                    onClick={(e) => { e.stopPropagation(); setSelectedCountries([]); }}
-                    className="flex items-center gap-1 bg-destructive/20 text-destructive px-2.5 py-1 rounded-full text-xs font-medium hover:bg-destructive/30 transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                    Clear
-                  </button>
+                  <span className="text-xs text-primary font-medium">{selectedCountries.length} selected</span>
                 )}
                 <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
               </div>
@@ -335,15 +328,16 @@ export default function Home() {
                         <button
                           data-testid="button-clear-all-countries"
                           onClick={() => setSelectedCountries([])}
-                          className="text-xs text-destructive hover:underline whitespace-nowrap"
+                          className="bg-destructive/20 text-destructive px-3 py-2 rounded-lg text-xs font-medium hover:bg-destructive/30 whitespace-nowrap flex items-center gap-1 transition-colors"
                         >
+                          <X className="w-3.5 h-3.5" />
                           Clear ({selectedCountries.length})
                         </button>
                       )}
                       <button
                         data-testid="button-apply-countries"
                         onClick={() => setShowCountryDropdown(false)}
-                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-medium hover:bg-primary/90 whitespace-nowrap"
+                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-medium hover:bg-primary/90 whitespace-nowrap transition-colors"
                       >
                         Apply
                       </button>
