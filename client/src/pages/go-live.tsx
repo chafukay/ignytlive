@@ -352,9 +352,9 @@ export default function GoLive() {
           />
         )}
         {selectedFilter && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center gap-2 animate-in fade-in duration-300">
-            <Sparkles className="w-3 h-3 text-violet-400" />
-            <span className="text-white/80 text-xs font-medium">{FILTERS.find(f => f.id === selectedFilter)?.name} filter</span>
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-black/60 backdrop-blur-lg border border-violet-500/30 flex items-center gap-2 shadow-lg shadow-violet-500/10 animate-in fade-in slide-in-from-top-2 duration-300">
+            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+            <span className="text-white text-sm font-medium">{FILTERS.find(f => f.id === selectedFilter)?.name}</span>
           </div>
         )}
         <canvas ref={canvasRef} className="hidden" />
@@ -671,21 +671,19 @@ export default function GoLive() {
                 { key: "contrast" as const, label: "Contrast", icon: "◐", color: "from-gray-400 to-gray-600" },
               ].map(({ key, label, icon, color }) => (
                 <div key={key} data-testid={`beauty-slider-${key}`}>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1.5">
                     <span className="text-white/80 text-sm flex items-center gap-2">
                       <span className="text-base">{icon}</span>
                       {label}
                     </span>
                     <span className="text-white/50 text-xs font-mono w-8 text-right">{beautySettings[key]}</span>
                   </div>
-                  <div className="relative h-8 flex items-center">
-                    <div className="absolute inset-y-0 left-0 right-0 flex items-center">
-                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full bg-gradient-to-r ${color} rounded-full transition-all`}
-                          style={{ width: `${beautySettings[key]}%` }}
-                        />
-                      </div>
+                  <div className="relative flex items-center touch-none" style={{ height: 28 }}>
+                    <div className="absolute left-0 right-0 h-2 bg-white/10 rounded-full overflow-hidden pointer-events-none">
+                      <div
+                        className={`h-full bg-gradient-to-r ${color} rounded-full`}
+                        style={{ width: `${beautySettings[key]}%` }}
+                      />
                     </div>
                     <input
                       type="range"
@@ -693,11 +691,8 @@ export default function GoLive() {
                       max="100"
                       value={beautySettings[key]}
                       onChange={(e) => updateBeauty(key, parseInt(e.target.value))}
-                      className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                    />
-                    <div
-                      className="absolute w-5 h-5 rounded-full bg-white shadow-lg shadow-black/30 pointer-events-none transition-all"
-                      style={{ left: `calc(${beautySettings[key]}% - 10px)` }}
+                      className="beauty-slider absolute w-full h-full cursor-pointer"
+                      data-testid={`beauty-range-${key}`}
                     />
                   </div>
                 </div>
