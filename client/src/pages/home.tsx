@@ -313,10 +313,10 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.97 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden"
+                  className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-xl z-50 flex flex-col"
                   style={{ maxHeight: '60vh' }}
                 >
-                  <div className="p-3 border-b border-border">
+                  <div className="p-3 border-b border-border shrink-0">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input
@@ -331,7 +331,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex gap-1.5 p-3 overflow-x-auto border-b border-border scrollbar-hide">
+                  <div className="flex gap-1.5 p-3 overflow-x-auto border-b border-border scrollbar-hide shrink-0">
                     {REGIONS.map(region => (
                       <button
                         key={region}
@@ -348,7 +348,7 @@ export default function Home() {
                     ))}
                   </div>
 
-                  <div className="overflow-y-auto" style={{ maxHeight: '40vh' }}>
+                  <div className="overflow-y-auto min-h-0 flex-1">
                     {filteredCountries.length === 0 ? (
                       <div className="p-6 text-center text-muted-foreground text-sm">
                         No countries found
@@ -382,7 +382,7 @@ export default function Home() {
                   </div>
 
                   {selectedCountries.length > 0 && (
-                    <div className="p-3 border-t border-border flex items-center justify-between">
+                    <div className="p-3 border-t border-border flex items-center justify-between shrink-0">
                       <span className="text-xs text-muted-foreground">{selectedCountries.length} selected</span>
                       <div className="flex gap-2">
                         <button
