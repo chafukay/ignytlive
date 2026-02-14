@@ -199,6 +199,7 @@ export default function GoLive() {
         arEffects: activeArEffects.map(a => ({ id: a.id, icon: a.icon, name: a.name })),
         arPositions,
         beauty: beautySettings,
+        beautyOverlay,
       };
       sessionStorage.setItem('liveEffects', JSON.stringify(effectsData));
       
@@ -342,8 +343,35 @@ export default function GoLive() {
     { id: "retro", name: "Retro", gradient: "bg-gradient-to-br from-yellow-500 to-red-600", css: "sepia(0.3) saturate(1.2) contrast(1.15) brightness(0.95)", overlay: "rgba(200, 100, 0, 0.1)" },
   ];
 
-  const activeFilterCss = FILTERS.find(f => f.id === selectedFilter)?.css || "none";
+  const baseFilterCss = FILTERS.find(f => f.id === selectedFilter)?.css || "none";
   const activeFilterOverlay = FILTERS.find(f => f.id === selectedFilter)?.overlay || "";
+
+  const beautyCss = (() => {
+    const parts: string[] = [];
+    if (beautySettings.smooth > 0) parts.push(`blur(${(beautySettings.smooth / 100) * 1.2}px)`);
+    if (beautySettings.brightness > 0) parts.push(`brightness(${1 + (beautySettings.brightness / 100) * 0.4})`);
+    if (beautySettings.contrast > 0) parts.push(`contrast(${1 + (beautySettings.contrast / 100) * 0.4})`);
+    if (beautySettings.eyes > 0) parts.push(`saturate(${1 + (beautySettings.eyes / 100) * 0.5})`);
+    return parts.join(' ');
+  })();
+
+  const activeFilterCss = (() => {
+    if (baseFilterCss !== "none" && beautyCss) return `${baseFilterCss} ${beautyCss}`;
+    if (baseFilterCss !== "none") return baseFilterCss;
+    if (beautyCss) return beautyCss;
+    return "none";
+  })();
+
+  const beautyOverlay = (() => {
+    const overlays: string[] = [];
+    if (beautySettings.lipColor > 0) {
+      overlays.push(`rgba(255, 80, 120, ${(beautySettings.lipColor / 100) * 0.08})`);
+    }
+    if (beautySettings.slim > 0) {
+      overlays.push(`rgba(0, 0, 0, ${(beautySettings.slim / 100) * 0.06})`);
+    }
+    return overlays.length > 0 ? overlays[0] : "";
+  })();
 
   const FRAMES: { id: string; name: string; icon: string; border?: string; shadow?: string; emojis?: string[] }[] = [
     { id: "none", name: "None", icon: "✕" },
@@ -441,6 +469,9 @@ export default function GoLive() {
       )}
       {activeFilterOverlay && (
         <div className="absolute inset-0 pointer-events-none transition-colors duration-300" style={{ backgroundColor: activeFilterOverlay }} />
+      )}
+      {beautyOverlay && (
+        <div className="absolute inset-0 pointer-events-none transition-colors duration-300 z-[1]" style={{ backgroundColor: beautyOverlay }} />
       )}
       {activeFrame && activeFrame.id !== "none" && (
         <>

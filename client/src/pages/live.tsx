@@ -675,6 +675,9 @@ export default function LiveRoom() {
                   {liveEffects?.filterOverlay && (
                     <div className="absolute inset-0 pointer-events-none z-[2]" style={{ backgroundColor: liveEffects.filterOverlay }} />
                   )}
+                  {liveEffects?.beautyOverlay && (
+                    <div className="absolute inset-0 pointer-events-none z-[2]" style={{ backgroundColor: liveEffects.beautyOverlay }} />
+                  )}
                   {liveEffects?.frameData && liveEffects.frameData.id !== "none" && (
                     <>
                       <div className="absolute inset-0 pointer-events-none z-[3]" style={{
