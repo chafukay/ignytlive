@@ -383,6 +383,13 @@ export default function Home() {
                     </div>
                     <div className="flex items-center gap-2 mt-2">
                       <button
+                        data-testid="button-apply-countries"
+                        onClick={() => setShowCountryDropdown(false)}
+                        className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-xs font-medium hover:bg-primary/90 whitespace-nowrap transition-colors text-center"
+                      >
+                        Apply
+                      </button>
+                      <button
                         data-testid="button-clear-all-countries"
                         onClick={() => setSelectedCountries([])}
                         disabled={selectedCountries.length === 0}
@@ -394,13 +401,6 @@ export default function Home() {
                       >
                         <X className="w-3.5 h-3.5" />
                         Clear{selectedCountries.length > 0 ? ` (${selectedCountries.length})` : ''}
-                      </button>
-                      <button
-                        data-testid="button-apply-countries"
-                        onClick={() => setShowCountryDropdown(false)}
-                        className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-xs font-medium hover:bg-primary/90 whitespace-nowrap transition-colors text-center"
-                      >
-                        Apply
                       </button>
                     </div>
                   </div>
