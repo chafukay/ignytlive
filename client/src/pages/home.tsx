@@ -80,10 +80,12 @@ export default function Home() {
   const { user, login } = useAuth();
   const [activeTab, setActiveTab] = useState('popular');
   const [showSearch, setShowSearch] = useState(false);
+  const [showTabDropdown, setShowTabDropdown] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [countrySearch, setCountrySearch] = useState('');
   const [activeRegion, setActiveRegion] = useState('All');
+  const tabDropdownRef = useRef<HTMLDivElement>(null);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const countrySearchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -108,6 +110,18 @@ export default function Home() {
       countrySearchRef.current.focus();
     }
   }, [showCountryDropdown]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tabDropdownRef.current && !tabDropdownRef.current.contains(e.target as Node)) {
+        setShowTabDropdown(false);
+      }
+    };
+    if (showTabDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTabDropdown]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -244,13 +258,56 @@ export default function Home() {
 
         <SearchOverlay open={showSearch} onClose={() => setShowSearch(false)} />
 
-        {/* SuperLive-style Horizontal Tabs */}
-        <div className="flex gap-4 overflow-x-auto no-scrollbar mb-6 pb-2 border-b border-border">
+        {/* Tabs - Dropdown on mobile, horizontal on desktop */}
+        <div className="md:hidden relative mb-4" ref={tabDropdownRef}>
+          <button
+            onClick={() => setShowTabDropdown(!showTabDropdown)}
+            data-testid="button-tab-dropdown"
+            className="w-full flex items-center justify-between bg-muted rounded-xl px-4 py-3 hover:bg-muted/80 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              {(() => { const t = STREAM_TABS.find(t => t.id === activeTab); return t?.icon ? <t.icon className="w-4 h-4 text-primary" /> : null; })()}
+              <span className="font-medium text-sm">{STREAM_TABS.find(t => t.id === activeTab)?.label}</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showTabDropdown ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {showTabDropdown && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg z-30 overflow-hidden"
+              >
+                {STREAM_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id); setShowTabDropdown(false); }}
+                    data-testid={`tab-${tab.id}`}
+                    className={`w-full flex items-center gap-2.5 px-4 py-3 text-sm transition-colors ${
+                      activeTab === tab.id
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {tab.icon && <tab.icon className="w-4 h-4" />}
+                    {tab.label}
+                    {activeTab === tab.id && <Check className="w-4 h-4 ml-auto" />}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Desktop horizontal tabs */}
+        <div className="hidden md:flex gap-4 overflow-x-auto no-scrollbar mb-6 pb-2 border-b border-border">
           {STREAM_TABS.map((tab) => (
             <button 
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              data-testid={`tab-${tab.id}`}
+              data-testid={`tab-desktop-${tab.id}`}
               className={`flex items-center gap-1.5 whitespace-nowrap px-1 py-3 text-sm font-medium transition-all border-b-2 ${
                 activeTab === tab.id
                   ? 'text-foreground border-primary' 
