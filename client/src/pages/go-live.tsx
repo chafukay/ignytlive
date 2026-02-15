@@ -34,7 +34,8 @@ export default function GoLive() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Chat");
-  const [accessType, setAccessType] = useState<"public" | "private" | "vip" | "group">(groupId ? "group" : "public");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [requireVip, setRequireVip] = useState(false);
   const [minVipTier, setMinVipTier] = useState(1);
   const [isStarting, setIsStarting] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -72,7 +73,7 @@ export default function GoLive() {
 
   useEffect(() => {
     if (groupId) {
-      setAccessType("group");
+      setIsPrivate(true);
     }
   }, [groupId]);
 
@@ -181,10 +182,10 @@ export default function GoLive() {
         title: title.trim(),
         category,
         thumbnail: thumbnail || undefined,
-        isPrivate: accessType !== "public",
-        accessType,
-        minVipTier: accessType === "vip" ? minVipTier : undefined,
-        groupId: accessType === "group" && groupId ? groupId : undefined,
+        isPrivate: groupId ? true : isPrivate,
+        accessType: groupId ? "group" : (requireVip ? "vip" : (isPrivate ? "private" : "public")),
+        minVipTier: requireVip ? minVipTier : 0,
+        groupId: groupId || undefined,
         showCountry: showCountryOnStream,
       });
       
@@ -753,17 +754,14 @@ export default function GoLive() {
       )}
 
       <div>
-        <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Access</p>
+        <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Visibility</p>
         {!groupId ? (
-          <div className="grid grid-cols-3 gap-1.5">
-            <button onClick={() => setAccessType("public")} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${accessType === "public" ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-public">
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={() => setIsPrivate(false)} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${!isPrivate ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-public">
               <UsersIcon className="w-4 h-4" /> Public
             </button>
-            <button onClick={() => setAccessType("private")} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${accessType === "private" ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-private">
+            <button onClick={() => setIsPrivate(true)} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${isPrivate ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-private">
               <Lock className="w-4 h-4" /> Private
-            </button>
-            <button onClick={() => setAccessType("vip")} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${accessType === "vip" ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-vip">
-              <Crown className="w-4 h-4" /> VIP
             </button>
           </div>
         ) : (
@@ -773,13 +771,25 @@ export default function GoLive() {
             </div>
           </div>
         )}
-        {accessType === "vip" && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-white/40 text-[10px]">Min Tier:</span>
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((tier) => (
-                <button key={tier} onClick={() => setMinVipTier(tier)} className={`w-7 h-7 rounded-md text-[10px] font-bold transition-all ${minVipTier === tier ? 'bg-yellow-500 text-white' : tier <= minVipTier ? 'bg-yellow-500/30 text-yellow-400' : 'bg-white/10 text-white/40'}`} data-testid={`button-vip-tier-${tier}`}>{tier}</button>
-              ))}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-white/40 text-[10px] uppercase tracking-wider">VIP Only</p>
+          <button onClick={() => setRequireVip(!requireVip)} className={`relative w-9 h-5 rounded-full transition-all ${requireVip ? 'bg-yellow-500' : 'bg-white/15'}`} data-testid="button-toggle-vip">
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${requireVip ? 'left-[18px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+        {requireVip && (
+          <div className="space-y-2">
+            <p className="text-white/50 text-[10px]">{isPrivate ? 'Only VIP members can discover and watch' : 'Everyone can see this stream, but only VIP members can watch'}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-white/40 text-[10px]">Min Tier:</span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((tier) => (
+                  <button key={tier} onClick={() => setMinVipTier(tier)} className={`w-7 h-7 rounded-md text-[10px] font-bold transition-all ${minVipTier === tier ? 'bg-yellow-500 text-white' : tier <= minVipTier ? 'bg-yellow-500/30 text-yellow-400' : 'bg-white/10 text-white/40'}`} data-testid={`button-vip-tier-${tier}`}>{tier}</button>
+                ))}
+              </div>
             </div>
           </div>
         )}

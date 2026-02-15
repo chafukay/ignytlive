@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff, Shield } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff, Shield, Crown, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -137,6 +137,10 @@ export default function LiveRoom() {
   });
 
   const canModerate = isBroadcaster || modInfo?.isModerator;
+
+  const isVipRestricted = !!(stream && (stream.minVipTier > 0 || stream.accessType === "vip"));
+  const userVipTier = user?.vipTier || 0;
+  const hasVipAccess = isBroadcaster || !isVipRestricted || userVipTier >= (stream?.minVipTier || 1);
 
   // Follow mutation
   const followMutation = useMutation({
@@ -777,6 +781,52 @@ export default function LiveRoom() {
                 </div>
               )}
             </>
+          ) : !hasVipAccess ? (
+            <div className="w-full h-full relative">
+              <img 
+                src={stream?.thumbnail || displayUser.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=' + streamId} 
+                alt="Stream" 
+                className="w-full h-full object-cover"
+                data-testid="img-vip-thumbnail"
+              />
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="text-center px-6 max-w-sm">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-yellow-500/30">
+                    <Crown className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-white font-bold text-xl mb-2" data-testid="text-vip-title">VIP Stream</h3>
+                  <p className="text-white/60 text-sm mb-1">{displayUser.displayName || displayUser.username} requires</p>
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <div className="flex gap-1">
+                      {Array.from({ length: stream?.minVipTier || 1 }).map((_, i) => (
+                        <Crown key={i} className="w-4 h-4 text-yellow-400" />
+                      ))}
+                    </div>
+                    <span className="text-yellow-400 font-bold text-sm">VIP Tier {stream?.minVipTier || 1}+</span>
+                  </div>
+                  {userVipTier > 0 ? (
+                    <p className="text-white/50 text-xs mb-4">Your current tier: <span className="text-yellow-400 font-bold">{userVipTier}</span> — you need tier {stream?.minVipTier} to watch</p>
+                  ) : (
+                    <p className="text-white/50 text-xs mb-4">Upgrade to VIP to unlock this stream and other exclusive content</p>
+                  )}
+                  <button 
+                    onClick={() => setLocation('/coins')} 
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-white font-bold text-sm shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 transition-all"
+                    data-testid="button-upgrade-vip"
+                  >
+                    Upgrade VIP Membership
+                  </button>
+                  <button 
+                    onClick={handleClose} 
+                    className="w-full py-2.5 mt-2 rounded-xl bg-white/10 text-white/60 text-sm hover:bg-white/15 transition-all"
+                    data-testid="button-vip-go-back"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : (
             <>
               {/* Agora remote video container - always rendered */}
