@@ -348,10 +348,12 @@ export default function GoLive() {
 
   const beautyCss = (() => {
     const parts: string[] = [];
-    if (beautySettings.smooth > 0) parts.push(`blur(${(beautySettings.smooth / 100) * 1.2}px)`);
+    // TODO: Smooth Skin - will be added later with WebGL processing
+    // if (beautySettings.smooth > 0) parts.push(`blur(${(beautySettings.smooth / 100) * 1.2}px)`);
     if (beautySettings.brightness > 0) parts.push(`brightness(${1 + (beautySettings.brightness / 100) * 0.4})`);
     if (beautySettings.contrast > 0) parts.push(`contrast(${1 + (beautySettings.contrast / 100) * 0.4})`);
-    if (beautySettings.eyes > 0) parts.push(`saturate(${1 + (beautySettings.eyes / 100) * 0.5})`);
+    // TODO: Big Eyes - will be added later with face detection
+    // if (beautySettings.eyes > 0) parts.push(`saturate(${1 + (beautySettings.eyes / 100) * 0.5})`);
     return parts.join(' ');
   })();
 
@@ -364,9 +366,10 @@ export default function GoLive() {
 
   const beautyOverlay = (() => {
     const overlays: string[] = [];
-    if (beautySettings.lipColor > 0) {
-      overlays.push(`rgba(255, 80, 120, ${(beautySettings.lipColor / 100) * 0.08})`);
-    }
+    // TODO: Lip Color - will be added later with face detection
+    // if (beautySettings.lipColor > 0) {
+    //   overlays.push(`rgba(255, 80, 120, ${(beautySettings.lipColor / 100) * 0.08})`);
+    // }
     if (beautySettings.slim > 0) {
       overlays.push(`rgba(0, 0, 0, ${(beautySettings.slim / 100) * 0.06})`);
     }
@@ -572,10 +575,13 @@ export default function GoLive() {
       </div>
       <div className="space-y-3">
         {([
-          { key: "smooth" as const, label: "Smooth Skin", icon: "✨", color: "from-pink-500 to-rose-400" },
+          // TODO: Smooth Skin - will be added later
+          // { key: "smooth" as const, label: "Smooth Skin", icon: "✨", color: "from-pink-500 to-rose-400" },
           { key: "slim" as const, label: "Face Slim", icon: "💫", color: "from-violet-500 to-purple-400" },
-          { key: "eyes" as const, label: "Big Eyes", icon: "👁️", color: "from-blue-500 to-cyan-400" },
-          { key: "lipColor" as const, label: "Lip Color", icon: "💋", color: "from-red-500 to-pink-400" },
+          // TODO: Big Eyes - will be added later
+          // { key: "eyes" as const, label: "Big Eyes", icon: "👁️", color: "from-blue-500 to-cyan-400" },
+          // TODO: Lip Color - will be added later
+          // { key: "lipColor" as const, label: "Lip Color", icon: "💋", color: "from-red-500 to-pink-400" },
           { key: "brightness" as const, label: "Brightness", icon: "☀️", color: "from-amber-500 to-yellow-400" },
           { key: "contrast" as const, label: "Contrast", icon: "◐", color: "from-gray-400 to-gray-600" },
         ]).map(({ key, label, icon, color }) => (
@@ -596,8 +602,8 @@ export default function GoLive() {
         ))}
       </div>
       <div className="flex gap-2">
-        <button onClick={() => setBeautySettings({ smooth: 50, slim: 30, eyes: 40, brightness: 10, contrast: 10, lipColor: 20 })} className="flex-1 py-2 rounded-lg bg-pink-500/15 border border-pink-500/30 text-pink-300 text-xs font-medium" data-testid="button-beauty-preset-natural">Natural</button>
-        <button onClick={() => setBeautySettings({ smooth: 80, slim: 60, eyes: 70, brightness: 20, contrast: 15, lipColor: 50 })} className="flex-1 py-2 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-300 text-xs font-medium" data-testid="button-beauty-preset-glam">Glam</button>
+        <button onClick={() => setBeautySettings({ smooth: 0, slim: 30, eyes: 0, brightness: 10, contrast: 10, lipColor: 0 })} className="flex-1 py-2 rounded-lg bg-pink-500/15 border border-pink-500/30 text-pink-300 text-xs font-medium" data-testid="button-beauty-preset-natural">Natural</button>
+        <button onClick={() => setBeautySettings({ smooth: 0, slim: 60, eyes: 0, brightness: 20, contrast: 15, lipColor: 0 })} className="flex-1 py-2 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-300 text-xs font-medium" data-testid="button-beauty-preset-glam">Glam</button>
         <button onClick={() => setBeautySettings({ smooth: 0, slim: 0, eyes: 0, brightness: 0, contrast: 0, lipColor: 0 })} className="flex-1 py-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-xs font-medium" data-testid="button-beauty-reset">Reset</button>
       </div>
     </div>
