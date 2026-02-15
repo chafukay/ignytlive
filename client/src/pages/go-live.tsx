@@ -773,21 +773,50 @@ export default function GoLive() {
         )}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-white/40 text-[10px] uppercase tracking-wider">VIP Only</p>
-          <button onClick={() => setRequireVip(!requireVip)} className={`relative w-9 h-5 rounded-full transition-all ${requireVip ? 'bg-yellow-500' : 'bg-white/15'}`} data-testid="button-toggle-vip">
-            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${requireVip ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
+      <div className={`rounded-2xl border-2 transition-all overflow-hidden ${requireVip ? 'border-yellow-500/60 bg-gradient-to-br from-yellow-500/15 via-amber-500/10 to-yellow-600/5' : 'border-white/10 bg-white/5'}`}>
+        <button onClick={() => setRequireVip(!requireVip)} className="w-full flex items-center justify-between px-4 py-3" data-testid="button-toggle-vip">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${requireVip ? 'bg-gradient-to-br from-yellow-400 to-amber-600 shadow-lg shadow-yellow-500/30' : 'bg-white/10'}`}>
+              <Crown className={`w-5 h-5 ${requireVip ? 'text-white' : 'text-white/40'}`} />
+            </div>
+            <div className="text-left">
+              <p className={`text-sm font-bold ${requireVip ? 'text-yellow-400' : 'text-white/60'}`}>VIP Only</p>
+              <p className="text-white/40 text-[10px]">Restrict stream to VIP members</p>
+            </div>
+          </div>
+          <div className={`relative w-11 h-6 rounded-full transition-all ${requireVip ? 'bg-yellow-500' : 'bg-white/15'}`}>
+            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${requireVip ? 'left-[22px]' : 'left-1'}`} />
+          </div>
+        </button>
         {requireVip && (
-          <div className="space-y-2">
-            <p className="text-white/50 text-[10px]">{isPrivate ? 'Only VIP members can discover and watch' : 'Everyone can see this stream, but only VIP members can watch'}</p>
-            <div className="flex items-center gap-2">
-              <span className="text-white/40 text-[10px]">Min Tier:</span>
-              <div className="flex gap-1">
+          <div className="px-4 pb-4 space-y-3">
+            <div className={`rounded-xl p-3 ${isPrivate ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
+              {isPrivate ? (
+                <div className="flex gap-2">
+                  <Lock className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-purple-300 text-xs font-semibold mb-0.5">Private + VIP Stream</p>
+                    <p className="text-white/50 text-[10px] leading-relaxed">Stream is hidden from non-VIP users. Only VIP Tier {minVipTier}+ members can discover and watch this stream.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Eye className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-yellow-300 text-xs font-semibold mb-0.5">Public + VIP Stream</p>
+                    <p className="text-white/50 text-[10px] leading-relaxed">Stream thumbnail will be visible to everyone, but only VIP Tier {minVipTier}+ members can watch. Non-VIP users will see the thumbnail and get an option to upgrade their VIP status.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-white/50 text-[10px] uppercase tracking-wider mb-2">Minimum VIP Tier Required</p>
+              <div className="flex gap-1.5">
                 {[1, 2, 3, 4, 5].map((tier) => (
-                  <button key={tier} onClick={() => setMinVipTier(tier)} className={`w-7 h-7 rounded-md text-[10px] font-bold transition-all ${minVipTier === tier ? 'bg-yellow-500 text-white' : tier <= minVipTier ? 'bg-yellow-500/30 text-yellow-400' : 'bg-white/10 text-white/40'}`} data-testid={`button-vip-tier-${tier}`}>{tier}</button>
+                  <button key={tier} onClick={() => setMinVipTier(tier)} className={`flex-1 h-10 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${minVipTier === tier ? 'bg-gradient-to-b from-yellow-400 to-amber-600 text-white shadow-lg shadow-yellow-500/20' : tier < minVipTier ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-white/5 text-white/30 border border-white/10'}`} data-testid={`button-vip-tier-${tier}`}>
+                    <Crown className={`w-3 h-3 ${minVipTier === tier ? 'text-white' : tier < minVipTier ? 'text-yellow-400' : 'text-white/20'}`} />
+                    <span>{tier}</span>
+                  </button>
                 ))}
               </div>
             </div>
