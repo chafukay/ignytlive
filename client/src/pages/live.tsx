@@ -71,12 +71,13 @@ export default function LiveRoom() {
     filterCss: string;
     filterOverlay: string;
     frame: string | null;
-    frameData: { border?: string; shadow?: string; emojis?: string[]; id: string; name: string } | null;
+    frameData: { border?: string; shadow?: string; emojis?: any[]; layout?: string; id: string; name: string } | null;
     stickers: { id: string; icon: string; name: string }[];
     stickerPositions: { top?: string; left?: string; right?: string; bottom?: string }[];
     arEffects: { id: string; icon: string; name: string }[];
     arPositions: Record<string, { x: number; y: number }>;
     beauty: { smooth: number; slim: number; eyes: number; brightness: number; contrast: number; lipColor: number };
+    beautyOverlay?: string;
   } | null>(null);
 
   const { data: stream, isLoading: streamLoading } = useQuery({
@@ -685,15 +686,24 @@ export default function LiveRoom() {
                         boxShadow: liveEffects.frameData.shadow,
                         ...(liveEffects.frameData.id === "rainbow" ? { borderImage: "linear-gradient(135deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff) 1" } : {}),
                       }} />
-                      {liveEffects.frameData.emojis?.map((emoji, i) => {
-                        const positions = [
-                          { top: '5%', left: '5%' }, { top: '5%', right: '5%' },
-                          { bottom: '5%', left: '5%' }, { bottom: '5%', right: '5%' },
-                          { top: '5%', left: '40%' }, { bottom: '5%', left: '40%' },
-                          { top: '40%', left: '3%' }, { top: '40%', right: '3%' },
+                      {liveEffects.frameData.emojis?.map((emoji: any, i: number) => {
+                        const cornerPos = [
+                          { top: '3%', left: '3%' }, { top: '3%', right: '3%' },
+                          { bottom: '3%', left: '3%' }, { bottom: '3%', right: '3%' },
+                          { top: '3%', left: '45%' }, { bottom: '3%', left: '45%' },
+                          { top: '45%', left: '2%' }, { top: '45%', right: '2%' },
                         ];
+                        const fullPos = [
+                          { top: '2%', left: '2%' }, { top: '2%', left: '30%' }, { top: '2%', right: '30%' }, { top: '2%', right: '2%' },
+                          { top: '30%', left: '1%' }, { top: '30%', right: '1%' }, { top: '60%', left: '1%' }, { top: '60%', right: '1%' },
+                          { bottom: '2%', left: '2%' }, { bottom: '2%', left: '30%' }, { bottom: '2%', right: '30%' }, { bottom: '2%', right: '2%' },
+                          { top: '15%', left: '1%' }, { top: '15%', right: '1%' }, { top: '75%', left: '1%' }, { top: '75%', right: '1%' },
+                        ];
+                        const positions = liveEffects.frameData?.layout === "full" ? fullPos : cornerPos;
+                        const emojiIcon = typeof emoji === 'string' ? emoji : emoji.icon;
+                        const emojiSize = typeof emoji === 'string' ? 'text-xl' : emoji.size;
                         return (
-                          <span key={i} className="absolute pointer-events-none z-[4] text-xl animate-pulse" style={{ ...positions[i % positions.length], animationDelay: `${i * 0.3}s`, opacity: 0.8 }}>{emoji}</span>
+                          <span key={i} className={`absolute pointer-events-none z-[4] ${emojiSize} animate-pulse`} style={{ ...positions[i % positions.length], animationDelay: `${i * 0.2}s`, opacity: 0.85 }}>{emojiIcon}</span>
                         );
                       })}
                     </>

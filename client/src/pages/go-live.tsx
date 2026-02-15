@@ -193,7 +193,7 @@ export default function GoLive() {
         filterCss: activeFilterCss,
         filterOverlay: activeFilterOverlay,
         frame: selectedFrame,
-        frameData: activeFrame ? { border: activeFrame.border, shadow: activeFrame.shadow, emojis: activeFrame.emojis, id: activeFrame.id, name: activeFrame.name } : null,
+        frameData: activeFrame ? { border: activeFrame.border, shadow: activeFrame.shadow, emojis: activeFrame.emojis, layout: activeFrame.layout, id: activeFrame.id, name: activeFrame.name } : null,
         stickers: activeStickers.map(s => ({ id: s.id, icon: s.icon, name: s.name })),
         stickerPositions: stickerPositions,
         arEffects: activeArEffects.map(a => ({ id: a.id, icon: a.icon, name: a.name })),
@@ -376,16 +376,48 @@ export default function GoLive() {
     return overlays.length > 0 ? overlays[0] : "";
   })();
 
-  const FRAMES: { id: string; name: string; icon: string; border?: string; shadow?: string; emojis?: string[] }[] = [
+  type FrameLayout = "corners" | "full";
+  type FrameEmoji = { icon: string; size: string };
+  interface FrameDef {
+    id: string; name: string; icon: string; border?: string; shadow?: string;
+    emojis?: FrameEmoji[]; layout?: FrameLayout;
+  }
+
+  const FRAMES: FrameDef[] = [
     { id: "none", name: "None", icon: "✕" },
-    { id: "hearts", name: "Hearts", icon: "💕", border: "4px solid #ff69b4", shadow: "inset 0 0 30px rgba(255,105,180,0.3)", emojis: ["💕","💗","💖","❤️","💕","💗","💖","❤️"] },
-    { id: "stars", name: "Stars", icon: "✨", border: "4px solid #ffd700", shadow: "inset 0 0 30px rgba(255,215,0,0.25)", emojis: ["✨","⭐","🌟","✨","⭐","🌟","✨","⭐"] },
-    { id: "fire", name: "Fire", icon: "🔥", border: "4px solid #ff4500", shadow: "inset 0 0 40px rgba(255,69,0,0.3)", emojis: ["🔥","🔥","🔥","🔥","🔥","🔥","🔥","🔥"] },
-    { id: "flowers", name: "Flowers", icon: "🌸", border: "4px solid #ff8ec6", shadow: "inset 0 0 25px rgba(255,142,198,0.2)", emojis: ["🌸","🌺","🌷","🌻","🌸","🌺","🌷","🌻"] },
+    { id: "hearts", name: "Hearts", icon: "💕", border: "4px solid #ff69b4", shadow: "inset 0 0 30px rgba(255,105,180,0.3)", layout: "full", emojis: [
+      { icon: "💕", size: "text-xl" }, { icon: "💗", size: "text-lg" }, { icon: "💖", size: "text-2xl" }, { icon: "❤️", size: "text-base" },
+      { icon: "💕", size: "text-lg" }, { icon: "💗", size: "text-xl" }, { icon: "💖", size: "text-base" }, { icon: "❤️", size: "text-2xl" },
+      { icon: "💕", size: "text-lg" }, { icon: "💗", size: "text-xl" }, { icon: "💖", size: "text-base" }, { icon: "❤️", size: "text-lg" },
+      { icon: "💕", size: "text-2xl" }, { icon: "💗", size: "text-base" }, { icon: "💖", size: "text-xl" }, { icon: "❤️", size: "text-lg" },
+    ]},
+    { id: "stars", name: "Stars", icon: "✨", border: "4px solid #ffd700", shadow: "inset 0 0 30px rgba(255,215,0,0.25)", layout: "full", emojis: [
+      { icon: "✨", size: "text-2xl" }, { icon: "⭐", size: "text-lg" }, { icon: "🌟", size: "text-xl" }, { icon: "✨", size: "text-base" },
+      { icon: "⭐", size: "text-xl" }, { icon: "🌟", size: "text-2xl" }, { icon: "✨", size: "text-lg" }, { icon: "⭐", size: "text-base" },
+      { icon: "🌟", size: "text-lg" }, { icon: "✨", size: "text-xl" }, { icon: "⭐", size: "text-2xl" }, { icon: "🌟", size: "text-base" },
+      { icon: "✨", size: "text-lg" }, { icon: "⭐", size: "text-xl" }, { icon: "🌟", size: "text-lg" }, { icon: "✨", size: "text-2xl" },
+    ]},
+    { id: "fire", name: "Fire", icon: "🔥", border: "4px solid #ff4500", shadow: "inset 0 0 40px rgba(255,69,0,0.3)", layout: "corners", emojis: [
+      { icon: "🔥", size: "text-2xl" }, { icon: "🔥", size: "text-xl" },
+      { icon: "🔥", size: "text-xl" }, { icon: "🔥", size: "text-2xl" },
+      { icon: "🔥", size: "text-lg" }, { icon: "🔥", size: "text-lg" },
+      { icon: "🔥", size: "text-xl" }, { icon: "🔥", size: "text-2xl" },
+    ]},
+    { id: "flowers", name: "Flowers", icon: "🌸", border: "4px solid #ff8ec6", shadow: "inset 0 0 25px rgba(255,142,198,0.2)", layout: "full", emojis: [
+      { icon: "🌸", size: "text-2xl" }, { icon: "🌺", size: "text-lg" }, { icon: "🌷", size: "text-xl" }, { icon: "🌻", size: "text-base" },
+      { icon: "🌸", size: "text-lg" }, { icon: "🌺", size: "text-2xl" }, { icon: "🌷", size: "text-base" }, { icon: "🌻", size: "text-xl" },
+      { icon: "🌸", size: "text-xl" }, { icon: "🌺", size: "text-base" }, { icon: "🌷", size: "text-2xl" }, { icon: "🌻", size: "text-lg" },
+      { icon: "🌸", size: "text-base" }, { icon: "🌺", size: "text-xl" }, { icon: "🌷", size: "text-lg" }, { icon: "🌻", size: "text-2xl" },
+    ]},
     { id: "neon-border", name: "Neon", icon: "💜", border: "3px solid #a855f7", shadow: "inset 0 0 20px rgba(168,85,247,0.4), 0 0 15px rgba(168,85,247,0.3)" },
     { id: "gold-border", name: "Gold", icon: "👑", border: "4px solid #fbbf24", shadow: "inset 0 0 20px rgba(251,191,36,0.2), 0 0 10px rgba(251,191,36,0.2)" },
     { id: "rainbow", name: "Rainbow", icon: "🌈", border: "4px solid transparent", shadow: "inset 0 0 25px rgba(255,100,100,0.15)" },
-    { id: "snowflakes", name: "Snow", icon: "❄️", border: "4px solid rgba(200,230,255,0.5)", shadow: "inset 0 0 30px rgba(200,230,255,0.2)", emojis: ["❄️","❄️","❄️","❄️","❄️","❄️","❄️","❄️"] },
+    { id: "snowflakes", name: "Snow", icon: "❄️", border: "4px solid rgba(200,230,255,0.5)", shadow: "inset 0 0 30px rgba(200,230,255,0.2)", layout: "full", emojis: [
+      { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-lg" }, { icon: "❄️", size: "text-2xl" }, { icon: "❄️", size: "text-base" },
+      { icon: "❄️", size: "text-2xl" }, { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-base" }, { icon: "❄️", size: "text-lg" },
+      { icon: "❄️", size: "text-lg" }, { icon: "❄️", size: "text-2xl" }, { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-base" },
+      { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-base" }, { icon: "❄️", size: "text-lg" }, { icon: "❄️", size: "text-2xl" },
+    ]},
   ];
 
   const STICKERS = [
@@ -418,11 +450,18 @@ export default function GoLive() {
   const activeStickers = STICKERS.filter(s => selectedSticker.includes(s.id));
   const activeArEffects = AR_EFFECTS.filter(e => selectedArEffects.includes(e.id));
 
-  const frameEmojiPositions = [
-    { top: '5%', left: '5%' }, { top: '5%', right: '5%' },
-    { bottom: '5%', left: '5%' }, { bottom: '5%', right: '5%' },
-    { top: '5%', left: '40%' }, { bottom: '5%', left: '40%' },
-    { top: '40%', left: '3%' }, { top: '40%', right: '3%' },
+  const frameCornerPositions = [
+    { top: '3%', left: '3%' }, { top: '3%', right: '3%' },
+    { bottom: '3%', left: '3%' }, { bottom: '3%', right: '3%' },
+    { top: '3%', left: '45%' }, { bottom: '3%', left: '45%' },
+    { top: '45%', left: '2%' }, { top: '45%', right: '2%' },
+  ] as const;
+
+  const frameFullPositions = [
+    { top: '2%', left: '2%' }, { top: '2%', left: '30%' }, { top: '2%', right: '30%' }, { top: '2%', right: '2%' },
+    { top: '30%', left: '1%' }, { top: '30%', right: '1%' }, { top: '60%', left: '1%' }, { top: '60%', right: '1%' },
+    { bottom: '2%', left: '2%' }, { bottom: '2%', left: '30%' }, { bottom: '2%', right: '30%' }, { bottom: '2%', right: '2%' },
+    { top: '15%', left: '1%' }, { top: '15%', right: '1%' }, { top: '75%', left: '1%' }, { top: '75%', right: '1%' },
   ] as const;
 
   const stickerPositions = [
@@ -483,13 +522,16 @@ export default function GoLive() {
             boxShadow: activeFrame.shadow,
             ...(activeFrame.id === "rainbow" ? { borderImage: "linear-gradient(135deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff) 1" } : {}),
           }} />
-          {activeFrame.emojis && activeFrame.emojis.map((emoji, i) => (
-            <span key={i} className="absolute pointer-events-none z-[6] text-xl animate-pulse" style={{
-              ...frameEmojiPositions[i % frameEmojiPositions.length],
-              animationDelay: `${i * 0.3}s`,
-              opacity: 0.8,
-            }}>{emoji}</span>
-          ))}
+          {activeFrame.emojis && activeFrame.emojis.map((emoji, i) => {
+            const positions = activeFrame.layout === "full" ? frameFullPositions : frameCornerPositions;
+            return (
+              <span key={i} className={`absolute pointer-events-none z-[6] ${emoji.size} animate-pulse`} style={{
+                ...positions[i % positions.length],
+                animationDelay: `${i * 0.2}s`,
+                opacity: 0.85,
+              }}>{emoji.icon}</span>
+            );
+          })}
         </>
       )}
       {activeStickers.length > 0 && activeStickers.map((sticker, i) => (
