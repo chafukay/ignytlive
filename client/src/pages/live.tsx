@@ -71,7 +71,7 @@ export default function LiveRoom() {
     filterCss: string;
     filterOverlay: string;
     frame: string | null;
-    frameData: { border?: string; shadow?: string; emojis?: any[]; layout?: string; id: string; name: string } | null;
+    frameData: { border?: string; shadow?: string; emojiSet?: string[]; sizes?: string[]; count?: number; emojis?: any[]; layout?: string; id: string; name: string } | null;
     stickers: { id: string; icon: string; name: string }[];
     stickerPositions: { top?: string; left?: string; right?: string; bottom?: string }[];
     arEffects: { id: string; icon: string; name: string }[];
@@ -686,26 +686,23 @@ export default function LiveRoom() {
                         boxShadow: liveEffects.frameData.shadow,
                         ...(liveEffects.frameData.id === "rainbow" ? { borderImage: "linear-gradient(135deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff) 1" } : {}),
                       }} />
-                      {liveEffects.frameData.emojis?.map((emoji: any, i: number) => {
-                        const cornerPos = [
-                          { top: '3%', left: '3%' }, { top: '3%', right: '3%' },
-                          { bottom: '3%', left: '3%' }, { bottom: '3%', right: '3%' },
-                          { top: '3%', left: '45%' }, { bottom: '3%', left: '45%' },
-                          { top: '45%', left: '2%' }, { top: '45%', right: '2%' },
-                        ];
-                        const fullPos = [
-                          { top: '2%', left: '2%' }, { top: '2%', left: '30%' }, { top: '2%', right: '30%' }, { top: '2%', right: '2%' },
-                          { top: '30%', left: '1%' }, { top: '30%', right: '1%' }, { top: '60%', left: '1%' }, { top: '60%', right: '1%' },
-                          { bottom: '2%', left: '2%' }, { bottom: '2%', left: '30%' }, { bottom: '2%', right: '30%' }, { bottom: '2%', right: '2%' },
-                          { top: '15%', left: '1%' }, { top: '15%', right: '1%' }, { top: '75%', left: '1%' }, { top: '75%', right: '1%' },
-                        ];
-                        const positions = liveEffects.frameData?.layout === "full" ? fullPos : cornerPos;
-                        const emojiIcon = typeof emoji === 'string' ? emoji : emoji.icon;
-                        const emojiSize = typeof emoji === 'string' ? 'text-xl' : emoji.size;
-                        return (
-                          <span key={i} className={`absolute pointer-events-none z-[4] ${emojiSize} animate-pulse`} style={{ ...positions[i % positions.length], animationDelay: `${i * 0.2}s`, opacity: 0.85 }}>{emojiIcon}</span>
-                        );
-                      })}
+                      {liveEffects.frameData.emojiSet && (() => {
+                        const count = liveEffects.frameData!.count || 20;
+                        const emojiSet = liveEffects.frameData!.emojiSet!;
+                        const sizes = liveEffects.frameData!.sizes || ["text-lg"];
+                        const positions: { top?: string; left?: string; right?: string; bottom?: string }[] = [];
+                        const topCount = Math.ceil(count * 0.28);
+                        const rightCount = Math.ceil(count * 0.22);
+                        const bottomCount = Math.ceil(count * 0.28);
+                        const leftCount = count - topCount - rightCount - bottomCount;
+                        for (let i = 0; i < topCount; i++) positions.push({ top: '1%', left: `${(i / (topCount - 1)) * 92 + 2}%` });
+                        for (let i = 0; i < rightCount; i++) positions.push({ top: `${(i / (rightCount + 1)) * 85 + 8}%`, right: '1%' });
+                        for (let i = 0; i < bottomCount; i++) positions.push({ bottom: '1%', left: `${((bottomCount - 1 - i) / (bottomCount - 1)) * 92 + 2}%` });
+                        for (let i = 0; i < leftCount; i++) positions.push({ top: `${((leftCount - 1 - i) / (leftCount + 1)) * 85 + 8}%`, left: '1%' });
+                        return positions.map((pos, i) => (
+                          <span key={i} className={`absolute pointer-events-none z-[4] ${sizes[i % sizes.length]} animate-pulse drop-shadow-md`} style={{ ...pos, animationDelay: `${i * 0.15}s`, opacity: 0.9, transform: 'translate(-50%, -50%)' }}>{emojiSet[i % emojiSet.length]}</span>
+                        ));
+                      })()}
                     </>
                   )}
                   {liveEffects?.stickers && liveEffects.stickers.length > 0 && liveEffects.stickers.map((sticker, i) => {

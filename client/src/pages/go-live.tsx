@@ -193,7 +193,7 @@ export default function GoLive() {
         filterCss: activeFilterCss,
         filterOverlay: activeFilterOverlay,
         frame: selectedFrame,
-        frameData: activeFrame ? { border: activeFrame.border, shadow: activeFrame.shadow, emojis: activeFrame.emojis, layout: activeFrame.layout, id: activeFrame.id, name: activeFrame.name } : null,
+        frameData: activeFrame ? { border: activeFrame.border, shadow: activeFrame.shadow, emojiSet: activeFrame.emojiSet, sizes: activeFrame.sizes, count: activeFrame.count, id: activeFrame.id, name: activeFrame.name } : null,
         stickers: activeStickers.map(s => ({ id: s.id, icon: s.icon, name: s.name })),
         stickerPositions: stickerPositions,
         arEffects: activeArEffects.map(a => ({ id: a.id, icon: a.icon, name: a.name })),
@@ -376,49 +376,43 @@ export default function GoLive() {
     return overlays.length > 0 ? overlays[0] : "";
   })();
 
-  type FrameLayout = "corners" | "full";
-  type FrameEmoji = { icon: string; size: string };
   interface FrameDef {
     id: string; name: string; icon: string; border?: string; shadow?: string;
-    emojis?: FrameEmoji[]; layout?: FrameLayout;
+    emojiSet?: string[]; sizes?: string[]; count?: number;
   }
 
   const FRAMES: FrameDef[] = [
     { id: "none", name: "None", icon: "✕" },
-    { id: "hearts", name: "Hearts", icon: "💕", border: "4px solid #ff69b4", shadow: "inset 0 0 30px rgba(255,105,180,0.3)", layout: "full", emojis: [
-      { icon: "💕", size: "text-xl" }, { icon: "💗", size: "text-lg" }, { icon: "💖", size: "text-2xl" }, { icon: "❤️", size: "text-base" },
-      { icon: "💕", size: "text-lg" }, { icon: "💗", size: "text-xl" }, { icon: "💖", size: "text-base" }, { icon: "❤️", size: "text-2xl" },
-      { icon: "💕", size: "text-lg" }, { icon: "💗", size: "text-xl" }, { icon: "💖", size: "text-base" }, { icon: "❤️", size: "text-lg" },
-      { icon: "💕", size: "text-2xl" }, { icon: "💗", size: "text-base" }, { icon: "💖", size: "text-xl" }, { icon: "❤️", size: "text-lg" },
-    ]},
-    { id: "stars", name: "Stars", icon: "✨", border: "4px solid #ffd700", shadow: "inset 0 0 30px rgba(255,215,0,0.25)", layout: "full", emojis: [
-      { icon: "✨", size: "text-2xl" }, { icon: "⭐", size: "text-lg" }, { icon: "🌟", size: "text-xl" }, { icon: "✨", size: "text-base" },
-      { icon: "⭐", size: "text-xl" }, { icon: "🌟", size: "text-2xl" }, { icon: "✨", size: "text-lg" }, { icon: "⭐", size: "text-base" },
-      { icon: "🌟", size: "text-lg" }, { icon: "✨", size: "text-xl" }, { icon: "⭐", size: "text-2xl" }, { icon: "🌟", size: "text-base" },
-      { icon: "✨", size: "text-lg" }, { icon: "⭐", size: "text-xl" }, { icon: "🌟", size: "text-lg" }, { icon: "✨", size: "text-2xl" },
-    ]},
-    { id: "fire", name: "Fire", icon: "🔥", border: "4px solid #ff4500", shadow: "inset 0 0 40px rgba(255,69,0,0.3)", layout: "corners", emojis: [
-      { icon: "🔥", size: "text-2xl" }, { icon: "🔥", size: "text-xl" },
-      { icon: "🔥", size: "text-xl" }, { icon: "🔥", size: "text-2xl" },
-      { icon: "🔥", size: "text-lg" }, { icon: "🔥", size: "text-lg" },
-      { icon: "🔥", size: "text-xl" }, { icon: "🔥", size: "text-2xl" },
-    ]},
-    { id: "flowers", name: "Flowers", icon: "🌸", border: "4px solid #ff8ec6", shadow: "inset 0 0 25px rgba(255,142,198,0.2)", layout: "full", emojis: [
-      { icon: "🌸", size: "text-2xl" }, { icon: "🌺", size: "text-lg" }, { icon: "🌷", size: "text-xl" }, { icon: "🌻", size: "text-base" },
-      { icon: "🌸", size: "text-lg" }, { icon: "🌺", size: "text-2xl" }, { icon: "🌷", size: "text-base" }, { icon: "🌻", size: "text-xl" },
-      { icon: "🌸", size: "text-xl" }, { icon: "🌺", size: "text-base" }, { icon: "🌷", size: "text-2xl" }, { icon: "🌻", size: "text-lg" },
-      { icon: "🌸", size: "text-base" }, { icon: "🌺", size: "text-xl" }, { icon: "🌷", size: "text-lg" }, { icon: "🌻", size: "text-2xl" },
-    ]},
+    { id: "hearts", name: "Hearts", icon: "💕", border: "4px solid #ff69b4", shadow: "inset 0 0 30px rgba(255,105,180,0.3)", emojiSet: ["💕","💗","💖","❤️","💓","💝"], sizes: ["text-sm","text-base","text-lg","text-xl","text-2xl"], count: 28 },
+    { id: "stars", name: "Stars", icon: "✨", border: "4px solid #ffd700", shadow: "inset 0 0 30px rgba(255,215,0,0.25)", emojiSet: ["✨","⭐","🌟","💫"], sizes: ["text-sm","text-base","text-lg","text-xl","text-2xl"], count: 28 },
+    { id: "fire", name: "Fire", icon: "🔥", border: "4px solid #ff4500", shadow: "inset 0 0 40px rgba(255,69,0,0.3)", emojiSet: ["🔥"], sizes: ["text-base","text-lg","text-xl","text-2xl"], count: 24 },
+    { id: "flowers", name: "Flowers", icon: "🌸", border: "4px solid #ff8ec6", shadow: "inset 0 0 25px rgba(255,142,198,0.2)", emojiSet: ["🌸","🌺","🌷","🌻","🌹","💐"], sizes: ["text-sm","text-base","text-lg","text-xl","text-2xl"], count: 28 },
     { id: "neon-border", name: "Neon", icon: "💜", border: "3px solid #a855f7", shadow: "inset 0 0 20px rgba(168,85,247,0.4), 0 0 15px rgba(168,85,247,0.3)" },
     { id: "gold-border", name: "Gold", icon: "👑", border: "4px solid #fbbf24", shadow: "inset 0 0 20px rgba(251,191,36,0.2), 0 0 10px rgba(251,191,36,0.2)" },
     { id: "rainbow", name: "Rainbow", icon: "🌈", border: "4px solid transparent", shadow: "inset 0 0 25px rgba(255,100,100,0.15)" },
-    { id: "snowflakes", name: "Snow", icon: "❄️", border: "4px solid rgba(200,230,255,0.5)", shadow: "inset 0 0 30px rgba(200,230,255,0.2)", layout: "full", emojis: [
-      { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-lg" }, { icon: "❄️", size: "text-2xl" }, { icon: "❄️", size: "text-base" },
-      { icon: "❄️", size: "text-2xl" }, { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-base" }, { icon: "❄️", size: "text-lg" },
-      { icon: "❄️", size: "text-lg" }, { icon: "❄️", size: "text-2xl" }, { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-base" },
-      { icon: "❄️", size: "text-xl" }, { icon: "❄️", size: "text-base" }, { icon: "❄️", size: "text-lg" }, { icon: "❄️", size: "text-2xl" },
-    ]},
+    { id: "snowflakes", name: "Snow", icon: "❄️", border: "4px solid rgba(200,230,255,0.5)", shadow: "inset 0 0 30px rgba(200,230,255,0.2)", emojiSet: ["❄️","❄️","❄️"], sizes: ["text-sm","text-base","text-lg","text-xl","text-2xl"], count: 28 },
   ];
+
+  const generatePerimeterPositions = (count: number) => {
+    const positions: { top?: string; left?: string; right?: string; bottom?: string }[] = [];
+    const topCount = Math.ceil(count * 0.28);
+    const rightCount = Math.ceil(count * 0.22);
+    const bottomCount = Math.ceil(count * 0.28);
+    const leftCount = count - topCount - rightCount - bottomCount;
+    for (let i = 0; i < topCount; i++) {
+      positions.push({ top: '1%', left: `${(i / (topCount - 1)) * 92 + 2}%` });
+    }
+    for (let i = 0; i < rightCount; i++) {
+      positions.push({ top: `${(i / (rightCount + 1)) * 85 + 8}%`, right: '1%' });
+    }
+    for (let i = 0; i < bottomCount; i++) {
+      positions.push({ bottom: '1%', left: `${((bottomCount - 1 - i) / (bottomCount - 1)) * 92 + 2}%` });
+    }
+    for (let i = 0; i < leftCount; i++) {
+      positions.push({ top: `${((leftCount - 1 - i) / (leftCount + 1)) * 85 + 8}%`, left: '1%' });
+    }
+    return positions;
+  };
 
   const STICKERS = [
     { id: "crown", icon: "👑", name: "Crown" },
@@ -450,19 +444,6 @@ export default function GoLive() {
   const activeStickers = STICKERS.filter(s => selectedSticker.includes(s.id));
   const activeArEffects = AR_EFFECTS.filter(e => selectedArEffects.includes(e.id));
 
-  const frameCornerPositions = [
-    { top: '3%', left: '3%' }, { top: '3%', right: '3%' },
-    { bottom: '3%', left: '3%' }, { bottom: '3%', right: '3%' },
-    { top: '3%', left: '45%' }, { bottom: '3%', left: '45%' },
-    { top: '45%', left: '2%' }, { top: '45%', right: '2%' },
-  ] as const;
-
-  const frameFullPositions = [
-    { top: '2%', left: '2%' }, { top: '2%', left: '30%' }, { top: '2%', right: '30%' }, { top: '2%', right: '2%' },
-    { top: '30%', left: '1%' }, { top: '30%', right: '1%' }, { top: '60%', left: '1%' }, { top: '60%', right: '1%' },
-    { bottom: '2%', left: '2%' }, { bottom: '2%', left: '30%' }, { bottom: '2%', right: '30%' }, { bottom: '2%', right: '2%' },
-    { top: '15%', left: '1%' }, { top: '15%', right: '1%' }, { top: '75%', left: '1%' }, { top: '75%', right: '1%' },
-  ] as const;
 
   const stickerPositions = [
     { top: '8%', left: '8%' }, { top: '8%', right: '8%' },
@@ -522,16 +503,20 @@ export default function GoLive() {
             boxShadow: activeFrame.shadow,
             ...(activeFrame.id === "rainbow" ? { borderImage: "linear-gradient(135deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff) 1" } : {}),
           }} />
-          {activeFrame.emojis && activeFrame.emojis.map((emoji, i) => {
-            const positions = activeFrame.layout === "full" ? frameFullPositions : frameCornerPositions;
-            return (
-              <span key={i} className={`absolute pointer-events-none z-[6] ${emoji.size} animate-pulse`} style={{
-                ...positions[i % positions.length],
-                animationDelay: `${i * 0.2}s`,
-                opacity: 0.85,
-              }}>{emoji.icon}</span>
-            );
-          })}
+          {activeFrame.emojiSet && (() => {
+            const count = activeFrame.count || 20;
+            const positions = generatePerimeterPositions(count);
+            const emojis = activeFrame.emojiSet!;
+            const sizes = activeFrame.sizes || ["text-lg"];
+            return positions.map((pos, i) => (
+              <span key={i} className={`absolute pointer-events-none z-[6] ${sizes[i % sizes.length]} animate-pulse drop-shadow-md`} style={{
+                ...pos,
+                animationDelay: `${i * 0.15}s`,
+                opacity: 0.9,
+                transform: 'translate(-50%, -50%)',
+              }}>{emojis[i % emojis.length]}</span>
+            ));
+          })()}
         </>
       )}
       {activeStickers.length > 0 && activeStickers.map((sticker, i) => (
