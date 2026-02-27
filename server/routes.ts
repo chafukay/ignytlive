@@ -369,7 +369,12 @@ export async function registerRoutes(
         user = await storage.getUserByEmail(username);
       }
       
-      if (!user || user.password !== password) {
+      if (!user) {
+        console.log(`[login] User not found for: "${username}"`);
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      if (user.password !== password) {
+        console.log(`[login] Password mismatch for user "${username}" - stored length: ${user.password?.length}, provided length: ${password?.length}`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
