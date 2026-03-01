@@ -24,6 +24,10 @@ export default function DailyLoginModal() {
   useEffect(() => {
     if (!isAuthenticated || !user || user.isGuest) return;
 
+    const today = new Date().toISOString().split('T')[0];
+    const dismissKey = `daily_login_dismissed_${user.id}_${today}`;
+    if (localStorage.getItem(dismissKey)) return;
+
     const sessionKey = `daily_login_checked_${user.id}`;
     if (sessionStorage.getItem(sessionKey)) return;
 
@@ -34,8 +38,8 @@ export default function DailyLoginModal() {
         setClaimed(true);
         setShow(true);
         refreshUser();
-      } else if (res.streak && res.day) {
-        setShow(true);
+      } else {
+        localStorage.setItem(dismissKey, "1");
       }
     }).catch(() => {});
   }, [isAuthenticated, user?.id]);
@@ -53,7 +57,13 @@ export default function DailyLoginModal() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={() => setShow(false)}
+          onClick={() => {
+            if (user) {
+              const today = new Date().toISOString().split('T')[0];
+              localStorage.setItem(`daily_login_dismissed_${user.id}_${today}`, "1");
+            }
+            setShow(false);
+          }}
           data-testid="daily-login-overlay"
         >
           <motion.div
@@ -66,7 +76,13 @@ export default function DailyLoginModal() {
             data-testid="daily-login-modal"
           >
             <button
-              onClick={() => setShow(false)}
+              onClick={() => {
+                if (user) {
+                  const today = new Date().toISOString().split('T')[0];
+                  localStorage.setItem(`daily_login_dismissed_${user.id}_${today}`, "1");
+                }
+                setShow(false);
+              }}
               className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
               data-testid="close-daily-login"
             >
@@ -171,7 +187,13 @@ export default function DailyLoginModal() {
 
             <div className="px-4 pb-4">
               <button
-                onClick={() => setShow(false)}
+                onClick={() => {
+                  if (user) {
+                    const today = new Date().toISOString().split('T')[0];
+                    localStorage.setItem(`daily_login_dismissed_${user.id}_${today}`, "1");
+                  }
+                  setShow(false);
+                }}
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold text-sm hover:from-yellow-500 hover:to-orange-600 transition-all shadow-lg"
                 data-testid="button-collect-daily"
               >
