@@ -45,6 +45,8 @@ export default function LiveRoom() {
   const [showSpinWheel, setShowSpinWheel] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [chatHidden, setChatHidden] = useState(false);
+  const chatSwipeRef = useRef<{ startX: number; startY: number; swiping: boolean }>({ startX: 0, startY: 0, swiping: false });
   const [isMuted, setIsMuted] = useState(false);
   const [isPKMode, setIsPKMode] = useState(false);
   const [pkScore, setPkScore] = useState(15000);
@@ -1160,93 +1162,115 @@ export default function LiveRoom() {
         data-testid="area-stream-tap"
       />
 
-      {/* Chat Area - Always visible */}
-      <div className="relative z-10 px-4 pb-2">
+      {/* Chat & Controls Area - Swipeable */}
+      <div
+        className="relative z-10 transition-transform duration-300 ease-out"
+        style={{ transform: chatHidden ? 'translateX(100%)' : 'translateX(0)' }}
+        onTouchStart={(e) => {
+          chatSwipeRef.current.startX = e.touches[0].clientX;
+          chatSwipeRef.current.startY = e.touches[0].clientY;
+          chatSwipeRef.current.swiping = false;
+        }}
+        onTouchMove={(e) => {
+          const dx = e.touches[0].clientX - chatSwipeRef.current.startX;
+          const dy = Math.abs(e.touches[0].clientY - chatSwipeRef.current.startY);
+          if (Math.abs(dx) > 20 && Math.abs(dx) > dy) {
+            chatSwipeRef.current.swiping = true;
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (!chatSwipeRef.current.swiping) return;
+          const dx = e.changedTouches[0].clientX - chatSwipeRef.current.startX;
+          if (dx > 60) setChatHidden(true);
+          if (dx < -60) setChatHidden(false);
+        }}
+        data-testid="chat-swipeable-area"
+      >
         {/* Slow Mode Indicator */}
-        {stream?.slowModeSeconds ? (
-          <div className="flex items-center gap-1 text-xs text-yellow-400 mb-1">
-            <span>Slow mode: {stream.slowModeSeconds}s</span>
-          </div>
-        ) : null}
-        
-        <div className="h-40 overflow-y-auto no-scrollbar mask-image-gradient">
-          <div className="flex flex-col gap-2 justify-end min-h-full">
-            {comments.map((msg) => (
-              <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">
-                <div className={cn(
-                  "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[85%]",
-                  msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/30"
-                )}>
-                  <span 
-                    className={cn(
-                      "font-bold mr-2",
-                      canModerate && msg.userId && msg.userId !== stream?.userId ? "text-white/90 cursor-pointer hover:text-primary" : "text-white/90"
-                    )}
-                    onClick={() => {
-                      if (canModerate && msg.userId && msg.userId !== stream?.userId) {
-                        setSelectedUser({ userId: msg.userId, username: msg.user });
-                      }
-                    }}
-                  >
-                    {msg.user}:
-                  </span>
-                  {msg.gift && <span className="mr-1">{msg.gift}</span>}
-                  <span className={msg.color || "text-white"}>{msg.text}</span>
+        <div className="px-4 pb-2">
+          {stream?.slowModeSeconds ? (
+            <div className="flex items-center gap-1 text-xs text-yellow-400 mb-1">
+              <span>Slow mode: {stream.slowModeSeconds}s</span>
+            </div>
+          ) : null}
+          
+          <div className="h-40 overflow-y-auto no-scrollbar mask-image-gradient">
+            <div className="flex flex-col gap-2 justify-end min-h-full">
+              {comments.map((msg) => (
+                <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">
+                  <div className={cn(
+                    "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[85%]",
+                    msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/30"
+                  )}>
+                    <span 
+                      className={cn(
+                        "font-bold mr-2",
+                        canModerate && msg.userId && msg.userId !== stream?.userId ? "text-white/90 cursor-pointer hover:text-primary" : "text-white/90"
+                      )}
+                      onClick={() => {
+                        if (canModerate && msg.userId && msg.userId !== stream?.userId) {
+                          setSelectedUser({ userId: msg.userId, username: msg.user });
+                        }
+                      }}
+                    >
+                      {msg.user}:
+                    </span>
+                    {msg.gift && <span className="mr-1">{msg.gift}</span>}
+                    <span className={msg.color || "text-white"}>{msg.text}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-            <div ref={chatEndRef} />
+              ))}
+              <div ref={chatEndRef} />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Overlay Elements - Hidden when tapped */}
-      <AnimatePresence>
-        {showOverlay && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className="relative z-10"
-          >
-            {/* Quick Gift Bar */}
-            <div className="px-4 pb-2">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
-                {gifts?.slice(0, 7).map((gift) => (
-                  <button
-                    key={gift.id}
-                    onClick={() => handleSendGift(gift)}
-                    disabled={isSendingGift}
-                    className="flex flex-col items-center min-w-[50px] hover:scale-110 transition-transform disabled:opacity-50"
-                    data-testid={`quick-gift-${gift.id}`}
-                  >
-                    <span className="text-2xl">{gift.emoji}</span>
-                    <span className="text-[9px] text-yellow-400 font-bold">{gift.coinCost}</span>
-                  </button>
-                ))}
+        {/* Overlay Elements - Hidden when tapped */}
+        <AnimatePresence>
+          {showOverlay && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Quick Gift Bar */}
+              <div className="px-4 pb-2">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                  {gifts?.slice(0, 7).map((gift) => (
+                    <button
+                      key={gift.id}
+                      onClick={() => handleSendGift(gift)}
+                      disabled={isSendingGift}
+                      className="flex flex-col items-center min-w-[50px] hover:scale-110 transition-transform disabled:opacity-50"
+                      data-testid={`quick-gift-${gift.id}`}
+                    >
+                      <span className="text-2xl">{gift.emoji}</span>
+                      <span className="text-[9px] text-yellow-400 font-bold">{gift.coinCost}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Bottom Interface */}
-            <div className="p-4 pt-0 pb-6">
-              {/* Actions Bar */}
-              <div className="flex items-center gap-3">
-                <form onSubmit={handleSend} className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Say something..."
-                    className="w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-full py-2.5 pl-4 pr-10 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
-                    data-testid="input-chat"
-                  />
-                  <button 
-                    type="submit" 
-                    className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors"
-                    data-testid="button-send"
-                  >
-                    <Send className="w-4 h-4 text-white" />
+              {/* Bottom Interface */}
+              <div className="p-4 pt-0 pb-6">
+                {/* Actions Bar */}
+                <div className="flex items-center gap-3">
+                  <form onSubmit={handleSend} className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      placeholder="Say something..."
+                      className="w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-full py-2.5 pl-4 pr-10 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
+                      data-testid="input-chat"
+                    />
+                    <button 
+                      type="submit" 
+                      className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors"
+                      data-testid="button-send"
+                    >
+                      <Send className="w-4 h-4 text-white" />
                   </button>
                 </form>
 
@@ -1287,9 +1311,36 @@ export default function LiveRoom() {
                 </button>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Swipe hint when chat is hidden */}
+      {chatHidden && (
+        <div 
+          className="absolute bottom-24 left-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 backdrop-blur-sm text-white/60 text-xs animate-pulse cursor-pointer"
+          onClick={() => setChatHidden(false)}
+          onTouchStart={(e) => {
+            chatSwipeRef.current.startX = e.touches[0].clientX;
+            chatSwipeRef.current.startY = e.touches[0].clientY;
+            chatSwipeRef.current.swiping = false;
+          }}
+          onTouchMove={(e) => {
+            const dx = e.touches[0].clientX - chatSwipeRef.current.startX;
+            const dy = Math.abs(e.touches[0].clientY - chatSwipeRef.current.startY);
+            if (Math.abs(dx) > 20 && Math.abs(dx) > dy) chatSwipeRef.current.swiping = true;
+          }}
+          onTouchEnd={(e) => {
+            if (!chatSwipeRef.current.swiping) return;
+            const dx = e.changedTouches[0].clientX - chatSwipeRef.current.startX;
+            if (dx < -60) setChatHidden(false);
+          }}
+          data-testid="chat-swipe-hint"
+        >
+          ← Swipe to show chat
+        </div>
+      )}
 
       {/* Gift Sheet */}
       <AnimatePresence>
