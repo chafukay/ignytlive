@@ -47,7 +47,8 @@ export default function Chat() {
     queryKey: ['chats', user?.id],
     queryFn: () => api.getRecentChats(user!.id),
     enabled: !!user?.id,
-    refetchInterval: 5000,
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: searchResults, isLoading: searchLoading } = useQuery({
@@ -66,7 +67,8 @@ export default function Chat() {
     queryKey: ['conversation', user?.id, selectedUserId],
     queryFn: () => api.getConversation(user!.id, selectedUserId!),
     enabled: !!user?.id && !!selectedUserId,
-    refetchInterval: 3000,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 
   const sendMessageMutation = useMutation({

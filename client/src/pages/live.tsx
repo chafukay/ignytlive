@@ -103,7 +103,8 @@ export default function LiveRoom() {
     queryKey: ['streamGoals', streamId],
     queryFn: () => api.getStreamGoals(streamId!),
     enabled: !!streamId,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
 
   const queryClient = useQueryClient();
@@ -176,7 +177,8 @@ export default function LiveRoom() {
     queryKey: ['joinRequests', streamId],
     queryFn: () => api.getJoinRequests(streamId!),
     enabled: !!streamId && isBroadcaster,
-    refetchInterval: 3000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
 
   const pendingJoinRequests = joinRequests?.filter(r => r.status === 'pending') || [];
@@ -186,7 +188,8 @@ export default function LiveRoom() {
     queryKey: ['callRequests', user?.id],
     queryFn: () => api.getUserCalls(user!.id),
     enabled: !!user && isBroadcaster,
-    refetchInterval: 3000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
 
   const pendingCallRequests = callRequests?.filter(r => r.status === 'pending' && r.receiverId === user?.id) || [];
@@ -774,7 +777,7 @@ export default function LiveRoom() {
               )}
               <button
                 onClick={flipCamera}
-                className="absolute top-24 right-4 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
+                className="absolute top-24 right-4 z-20 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-white/20"
                 data-testid="button-flip-camera"
               >
                 <RefreshCw className="w-5 h-5" />
@@ -820,7 +823,7 @@ export default function LiveRoom() {
                 className="w-full h-full object-cover"
                 data-testid="img-vip-thumbnail"
               />
-              <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+              <div className="absolute inset-0 bg-black/70 " />
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center px-6 max-w-sm">
                   <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-yellow-500/30">
@@ -1072,14 +1075,14 @@ export default function LiveRoom() {
 
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
-              <div key={i} className="w-8 h-8 rounded-full border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden">
+              <div key={i} className="w-8 h-8 rounded-full border border-white/20 bg-white/10 overflow-hidden">
                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} className="w-full h-full" />
               </div>
             ))}
           </div>
           <button 
             onClick={() => setIsMuted(!isMuted)}
-            className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
+            className="w-8 h-8 rounded-full bg-black/20  flex items-center justify-center text-white hover:bg-white/20"
             data-testid="button-mute"
           >
             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -1087,7 +1090,7 @@ export default function LiveRoom() {
           {canModerate && (
             <button 
               onClick={() => setShowModerationPanel(true)}
-              className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-primary hover:bg-white/20"
+              className="w-8 h-8 rounded-full bg-black/20  flex items-center justify-center text-primary hover:bg-white/20"
               data-testid="button-moderation"
             >
               <Shield className="w-5 h-5" />
@@ -1095,7 +1098,7 @@ export default function LiveRoom() {
           )}
           <button 
             onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
+            className="w-8 h-8 rounded-full bg-black/20  flex items-center justify-center text-white hover:bg-white/20"
             data-testid="button-close"
           >
             <X className="w-5 h-5" />
@@ -1298,7 +1301,7 @@ export default function LiveRoom() {
               {comments.map((msg) => (
                 <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-5 duration-300">
                   <div className={cn(
-                    "px-3 py-1.5 rounded-2xl backdrop-blur-sm text-sm max-w-[85%]",
+                    "px-3 py-1.5 rounded-2xl text-sm max-w-[85%]",
                     msg.isGift ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50" : "bg-black/30"
                   )}>
                     <span 
@@ -1361,7 +1364,7 @@ export default function LiveRoom() {
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       placeholder="Say something..."
-                      className="w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-full py-2.5 pl-4 pr-10 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
+                      className="w-full bg-black/40  border border-white/10 rounded-full py-2.5 pl-4 pr-10 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-white/50"
                       data-testid="input-chat"
                     />
                     <button 

@@ -138,23 +138,24 @@ export default function Home() {
   const { data: liveStreamsData, isLoading } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
-    refetchInterval: 5000,
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
   });
   const liveStreams = liveStreamsData?.streams;
 
-  // Get all streamers sorted by live status
   const { data: streamers } = useQuery({
     queryKey: ['streamers'],
     queryFn: () => api.getStreamers(),
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
   });
 
-  // Get users that current user is following
   const { data: following } = useQuery({
     queryKey: ['following', user?.id],
     queryFn: () => api.getFollowing(user!.id),
     enabled: !!user,
-    refetchInterval: 10000,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   });
 
   // Set of user IDs that current user follows
@@ -178,7 +179,8 @@ export default function Home() {
     queryKey: ['suggested-users', user?.id],
     queryFn: () => api.getSuggestedUsers(user!.id),
     enabled: !!user && followedUserIds.size > 0,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   });
 
   const followBasedIds = new Set(followBasedSuggestions.map(s => s.user.id));
