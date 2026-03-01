@@ -1556,6 +1556,24 @@ export async function registerRoutes(
     try {
       const { status } = updateJoinRequestSchema.parse(req.body);
       const request = await storage.updateJoinRequest(req.params.id, status);
+
+      if (status === 'accepted' && request.streamId) {
+        const requesterUser = await storage.getUser(request.userId);
+        streamConnections.get(request.streamId)?.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'join_accepted',
+              data: {
+                userId: request.userId,
+                username: requesterUser?.username || 'User',
+                avatar: requesterUser?.avatar,
+                streamId: request.streamId,
+              }
+            }));
+          }
+        });
+      }
+
       res.json(request);
     } catch (error) {
       res.status(400).json({ error: "Failed to update join request" });

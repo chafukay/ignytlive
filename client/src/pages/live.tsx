@@ -167,6 +167,9 @@ export default function LiveRoom() {
 
   // Track co-hosts (accepted join requests)
   const [coHosts, setCoHosts] = useState<Array<{ id: string; username: string; avatar?: string }>>([]);
+  const [joinAccepted, setJoinAccepted] = useState(false);
+  const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
+  const coHostVideoRef = useRef<HTMLVideoElement>(null);
 
   // Fetch join requests for broadcaster
   const { data: joinRequests, refetch: refetchJoinRequests } = useQuery({
@@ -317,8 +320,17 @@ export default function LiveRoom() {
           } else if (message.type === 'viewer_count') {
             setViewerCount(message.data.viewerCount);
           } else if (message.type === 'join_request') {
-            // Refresh join requests when a new one comes in
             refetchJoinRequests();
+          } else if (message.type === 'join_accepted') {
+            if (message.data.userId === user?.id) {
+              setJoinAccepted(true);
+              toast({ title: "You're in!", description: "The host accepted your request. Turn on your camera to join!" });
+            } else if (isBroadcaster) {
+              setCoHosts(prev => {
+                if (prev.some(c => c.id === message.data.userId)) return prev;
+                return [...prev, { id: message.data.userId, username: message.data.username, avatar: message.data.avatar }];
+              });
+            }
           }
         } catch (e) {
           console.error('Failed to parse WebSocket message:', e);
@@ -483,6 +495,33 @@ export default function LiveRoom() {
         setCameraError("Unable to access camera");
       }
     }
+  };
+
+  const activateCoHostCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: true,
+      });
+      setCoHostStream(mediaStream);
+      setTimeout(() => {
+        if (coHostVideoRef.current) {
+          coHostVideoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+      toast({ title: "Camera is live!", description: "You're now visible on the stream" });
+    } catch (error: any) {
+      console.error("Co-host camera error:", error);
+      toast({ title: "Camera access denied", description: "Please allow camera access to join", variant: "destructive" });
+    }
+  };
+
+  const deactivateCoHostCamera = () => {
+    if (coHostStream) {
+      coHostStream.getTracks().forEach(track => track.stop());
+      setCoHostStream(null);
+    }
+    setJoinAccepted(false);
   };
 
   const flipCamera = async () => {
@@ -872,6 +911,68 @@ export default function LiveRoom() {
               )}
             </>
           )}
+          {/* Co-host panel for accepted viewer */}
+          {!isBroadcaster && joinAccepted && (
+            <div className="absolute bottom-32 right-4 z-30 flex flex-col items-end gap-2">
+              {coHostStream ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, x: 50 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  className="relative w-28 h-36 rounded-xl overflow-hidden border-2 border-green-500 shadow-lg bg-black"
+                  data-testid="cohost-self-video"
+                >
+                  <video
+                    ref={coHostVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover scale-x-[-1]"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                    <span className="text-white text-[10px] font-bold">You (Live)</span>
+                  </div>
+                  <div className="absolute top-1 left-1 bg-green-500 rounded-full w-2 h-2 animate-pulse" />
+                  <button
+                    onClick={deactivateCoHostCamera}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/80 flex items-center justify-center text-white hover:bg-red-500"
+                    data-testid="button-leave-cohost"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-4 shadow-2xl max-w-[200px]"
+                  data-testid="cohost-join-prompt"
+                >
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-2">
+                      <Video className="w-6 h-6 text-white" />
+                    </div>
+                    <p className="text-white font-bold text-sm mb-1">You're Accepted!</p>
+                    <p className="text-white/70 text-[10px] mb-3">Turn on your camera to join the stream</p>
+                    <button
+                      onClick={activateCoHostCamera}
+                      className="w-full py-2 rounded-xl bg-white text-green-700 font-bold text-xs hover:bg-white/90 transition-colors"
+                      data-testid="button-activate-camera"
+                    >
+                      Go Live
+                    </button>
+                    <button
+                      onClick={() => setJoinAccepted(false)}
+                      className="w-full py-1.5 mt-1 rounded-xl text-white/60 text-[10px] hover:text-white/80 transition-colors"
+                      data-testid="button-decline-cohost"
+                    >
+                      Not now
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          )}
+
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90 pointer-events-none" />
         </div>
       )}
