@@ -524,14 +524,6 @@ export default function LiveRoom() {
       };
       
       setComments(prev => [...prev, newComment]);
-      
-      // Also send via WebSocket for real-time updates to other viewers
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'comment',
-          data: { content: messageText, username: user.username, userId: user.id }
-        }));
-      }
     } catch (error: any) {
       toast({ 
         title: "Couldn't send message", 
