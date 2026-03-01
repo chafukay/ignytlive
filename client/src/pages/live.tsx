@@ -183,16 +183,15 @@ export default function LiveRoom() {
 
   const pendingJoinRequests = joinRequests?.filter(r => r.status === 'pending') || [];
 
-  // Fetch call requests for broadcaster (where they are the receiver)
   const { data: callRequests, refetch: refetchCallRequests } = useQuery({
-    queryKey: ['callRequests', user?.id],
-    queryFn: () => api.getUserCalls(user!.id),
+    queryKey: ['pendingPrivateCalls', user?.id],
+    queryFn: () => api.getPendingPrivateCalls(user!.id),
     enabled: !!user && isBroadcaster,
     refetchInterval: 10000,
     refetchIntervalInBackground: false,
   });
 
-  const pendingCallRequests = callRequests?.filter(r => r.status === 'pending' && r.receiverId === user?.id) || [];
+  const pendingCallRequests = callRequests || [];
 
   const joinVideoMutation = useMutation({
     mutationFn: () => {
@@ -236,10 +235,13 @@ export default function LiveRoom() {
 
   const [showJoinRequests, setShowJoinRequests] = useState(false);
 
-  // Mutation to handle call requests (for broadcaster)
   const handleCallRequestMutation = useMutation({
     mutationFn: ({ callId, status }: { callId: string; status: string }) => {
-      return api.updateCall(callId, { status });
+      if (status === 'accepted') {
+        return api.acceptPrivateCall(callId, user!.id);
+      } else {
+        return api.declinePrivateCall(callId, user!.id);
+      }
     },
     onSuccess: (call, variables) => {
       if (variables.status === 'accepted') {
@@ -247,7 +249,6 @@ export default function LiveRoom() {
           title: "Call accepted!",
           description: "Redirecting to call...",
         });
-        // Navigate to private call page
         setLocation(`/private-call/${call.id}`);
       } else {
         toast({ title: "Call declined" });
@@ -1137,15 +1138,20 @@ export default function LiveRoom() {
                       <div key={call.id} className="flex items-center justify-between bg-pink-500/10 border border-pink-500/30 rounded-lg p-2">
                         <div className="flex items-center gap-2">
                           <img 
-                            src={call.caller?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${call.callerId}`}
+                            src={call.viewer?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${call.viewerId}`}
                             className="w-8 h-8 rounded-full ring-2 ring-pink-500"
                             alt="Caller avatar"
                           />
                           <div>
                             <span className="text-white text-sm font-medium block">
-                              {call.caller?.username || 'User'}
+                              {call.viewer?.username || 'User'}
                             </span>
-                            <span className="text-yellow-400 text-xs">{call.coinCost} coins</span>
+                            <span className="text-yellow-400 text-xs">
+                              {call.billingMode === "per_minute" 
+                                ? `${call.ratePerMinute} coins/min`
+                                : `${call.sessionPrice} coins`
+                              }
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-2">

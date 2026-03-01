@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface CallButtonProps {
@@ -16,29 +17,33 @@ export default function CallButton({ receiverId, receiverName, coinCost = 100 }:
   const { user } = useAuth();
   const { toast } = useToast();
   const [showConfirm, setShowConfirm] = useState(false);
+  const [, setLocation] = useLocation();
 
   const callMutation = useMutation({
-    mutationFn: () => api.requestCall({
-      callerId: user!.id,
-      receiverId,
-      coinCost,
-    }),
-    onSuccess: () => {
-      toast({ title: "Call request sent!" });
+    mutationFn: () => api.requestPrivateCall(user!.id, receiverId),
+    onSuccess: (data: any) => {
       setShowConfirm(false);
+      if (data?.id) {
+        setLocation(`/private-call/${data.id}`);
+      } else {
+        toast({ title: "Call request sent!", description: "Waiting for host to accept" });
+      }
     },
-    onError: () => {
-      toast({ title: "Failed to request call", variant: "destructive" });
+    onError: (error: any) => {
+      const msg = error.message || "Failed to request call";
+      if (error.code === "HOST_UNAVAILABLE") {
+        toast({ title: "Host unavailable", description: "This user is not accepting calls right now", variant: "destructive" });
+      } else if (error.code === "INSUFFICIENT_FUNDS") {
+        toast({ title: "Not enough coins", description: msg, variant: "destructive" });
+      } else {
+        toast({ title: "Call failed", description: msg, variant: "destructive" });
+      }
     },
   });
 
   const handleCallRequest = () => {
     if (!user) {
       toast({ title: "Please log in", variant: "destructive" });
-      return;
-    }
-    if ((user.coins || 0) < coinCost) {
-      toast({ title: "Not enough coins", variant: "destructive" });
       return;
     }
     callMutation.mutate();
@@ -78,8 +83,8 @@ export default function CallButton({ receiverId, receiverName, coinCost = 100 }:
                 Request a private video call with {receiverName}
               </p>
               <div className="bg-white/5 rounded-xl p-3 mb-4">
-                <p className="text-yellow-500 font-bold">{coinCost} coins</p>
-                <p className="text-xs text-white/50">Will be deducted if accepted</p>
+                <p className="text-yellow-500 font-bold">{coinCost} coins/min</p>
+                <p className="text-xs text-white/50">Charged per minute during the call</p>
               </div>
               <div className="flex gap-3">
                 <button

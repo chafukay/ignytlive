@@ -112,7 +112,22 @@ export default function PrivateCallPage() {
         endCallMutation.mutate(isHost ? "viewer_ended" : "host_ended");
       });
 
-      await agoraClient.join(AGORA_APP_ID, call.agoraChannel, null, user?.id);
+      let token: string | null = null;
+      try {
+        const tokenRes = await fetch('/api/agora/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channelName: call.agoraChannel, uid: 0, role: 'host' }),
+        });
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          token = tokenData.token;
+        }
+      } catch (e) {
+        console.warn("Could not fetch Agora token, joining without token");
+      }
+
+      await agoraClient.join(AGORA_APP_ID, call.agoraChannel, token, null);
 
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       setLocalAudioTrack(audioTrack);

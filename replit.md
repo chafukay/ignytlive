@@ -133,5 +133,17 @@ Core data models include:
 - **DM Sans**: Primary body font
 - **Outfit**: Display/heading font
 
+### Private Video Calls (1:1)
+- **System**: Unified private calls system via `/api/private-calls/*` endpoints
+- **Flow**: Viewer clicks Call button → `requestPrivateCall` creates pending call → Host sees request in live room → Accept navigates both to `/private-call/:id` → Agora video connection established
+- **Billing**: Per-minute (charged every 60s) or per-session (flat fee upfront)
+- **Agora**: Both participants join as publishers with token authentication
+- **Components**: `CallButton` (initiates), `PrivateCallPage` (call UI with controls)
+
+### Performance Optimizations
+- **Polling**: All `refetchInterval` queries use `refetchIntervalInBackground: false` to stop polling when tab is backgrounded
+- **Intervals**: Home page 15s (streams), 30s (following), 60s (suggestions); Live room 10s; Chat 5-15s
+- **GPU**: Removed `backdrop-blur` from frequently rendered elements (chat messages, buttons) on live page
+
 ## Feature Roadmap (Pending)
 - **Event Scheduling System**: Calendar-based feature for Explore page allowing creators to schedule upcoming streams and platform events. Users can browse, RSVP, and get reminders for scheduled streams/events.
