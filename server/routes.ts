@@ -761,7 +761,14 @@ export async function registerRoutes(
 
       const user = await storage.getUser(userId);
       const streamCountry = user?.country || null;
-      
+
+      const existingStreams = await storage.getUserStreams(userId);
+      for (const existing of existingStreams) {
+        if (existing.isLive) {
+          await storage.updateStream(existing.id, { isLive: false, endedAt: new Date() });
+        }
+      }
+
       const stream = await storage.createStream({
         userId,
         title,
