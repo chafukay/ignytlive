@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRoute, useLocation } from "wouter";
 import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff, Shield, Crown, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -628,6 +628,51 @@ export default function LiveRoom() {
     setLikes(prev => prev + 1);
   };
 
+  const cleanupStreamRef = useRef(false);
+
+  const cleanupStream = useCallback(async () => {
+    if (cleanupStreamRef.current) return;
+    cleanupStreamRef.current = true;
+    if (isBroadcaster && streamId && user) {
+      try {
+        await api.endStream(streamId, user.id);
+      } catch (error) {
+        console.error("Failed to end stream:", error);
+      }
+    }
+    try { leaveChannel(); } catch {}
+  }, [isBroadcaster, streamId, user]);
+
+  const handleClose = async () => {
+    await cleanupStream();
+    toast({ title: isBroadcaster ? "Stream ended" : "Left stream" });
+    setLocation("/");
+  };
+
+  useEffect(() => {
+    const handlePopState = async () => {
+      await cleanupStream();
+      setLocation("/");
+    };
+
+    const handleBeforeUnload = () => {
+      if (isBroadcaster && streamId && user) {
+        const blob = new Blob([JSON.stringify({ userId: user.id })], { type: 'application/json' });
+        navigator.sendBeacon(`/api/streams/${streamId}/end`, blob);
+      }
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      cleanupStream();
+    };
+  }, [cleanupStream, isBroadcaster, streamId, user]);
+
   if (streamLoading) {
     return (
       <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
@@ -656,20 +701,6 @@ export default function LiveRoom() {
     username: 'Streamer', 
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
     level: 1
-  };
-
-  // Handle closing/leaving the stream
-  const handleClose = async () => {
-    if (isBroadcaster && streamId && user) {
-      try {
-        // End the stream when broadcaster leaves
-        await api.endStream(streamId, user.id);
-        toast({ title: "Stream ended" });
-      } catch (error) {
-        console.error("Failed to end stream:", error);
-      }
-    }
-    setLocation("/");
   };
 
   return (
@@ -982,52 +1013,79 @@ export default function LiveRoom() {
       )}
 
       {/* Header */}
-      <div className="relative z-10 p-4 pt-6 flex justify-between items-start">
-        {/* Streamer Profile */}
-        <div className="glass rounded-full p-1 pr-4 flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary">
-            <img 
-              src={displayUser.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + displayUser.username} 
-              className="w-full h-full object-cover" 
-              data-testid="img-streamer-avatar"
-            />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1">
-              <h3 className="text-xs font-bold text-white" data-testid="text-streamer-name">
-                {displayUser.username}
-              </h3>
-              {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" allowGifting={true} />}
+      <div className="relative z-10 p-4 pt-6">
+        {/* Top row: Profile + Close button (always visible) */}
+        <div className="flex justify-between items-start mb-2">
+          <div className="glass rounded-full p-1 pr-4 flex items-center gap-2 min-w-0 flex-shrink">
+            <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary flex-shrink-0">
+              <img 
+                src={displayUser.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + displayUser.username} 
+                className="w-full h-full object-cover" 
+                data-testid="img-streamer-avatar"
+              />
             </div>
-            <span className="text-[10px] text-white/80" data-testid="text-viewer-count">
-              {viewerCount} viewers
-            </span>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1">
+                <h3 className="text-xs font-bold text-white truncate" data-testid="text-streamer-name">
+                  {displayUser.username}
+                </h3>
+                {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" allowGifting={true} />}
+              </div>
+              <span className="text-[10px] text-white/80" data-testid="text-viewer-count">
+                {viewerCount} viewers
+              </span>
+            </div>
+            {!isBroadcaster && (
+              <button 
+                onClick={() => { if (isGuest) { requireAccount(); return; } followMutation.mutate(); }}
+                disabled={followMutation.isPending}
+                className={cn(
+                  "text-[10px] font-bold px-3 py-1 rounded-full ml-1 transition-colors disabled:opacity-50 flex-shrink-0",
+                  isFollowing 
+                    ? "bg-white/20 text-white hover:bg-white/30" 
+                    : "bg-primary text-white hover:bg-primary/90"
+                )}
+                data-testid="button-follow"
+              >
+                {followMutation.isPending ? "..." : isFollowing ? "Following" : "Follow"}
+              </button>
+            )}
           </div>
-          {!isBroadcaster && (
+
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             <button 
-              onClick={() => { if (isGuest) { requireAccount(); return; } followMutation.mutate(); }}
-              disabled={followMutation.isPending}
-              className={cn(
-                "text-[10px] font-bold px-3 py-1 rounded-full ml-1 transition-colors disabled:opacity-50",
-                isFollowing 
-                  ? "bg-white/20 text-white hover:bg-white/30" 
-                  : "bg-primary text-white hover:bg-primary/90"
-              )}
-              data-testid="button-follow"
+              onClick={() => setIsMuted(!isMuted)}
+              className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-white/20"
+              data-testid="button-mute"
             >
-              {followMutation.isPending ? "..." : isFollowing ? "Following" : "Follow"}
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
-          )}
+            {canModerate && (
+              <button 
+                onClick={() => setShowModerationPanel(true)}
+                className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-primary hover:bg-white/20"
+                data-testid="button-moderation"
+              >
+                <Shield className="w-4 h-4" />
+              </button>
+            )}
+            <button 
+              onClick={handleClose}
+              className="w-8 h-8 rounded-full bg-red-500/80 flex items-center justify-center text-white hover:bg-red-500"
+              data-testid="button-close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Viewer List & Close */}
-        <div className="flex items-center gap-3">
-          {/* Requests Button (for broadcaster only) */}
+        {/* Second row: Action buttons */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
           {isBroadcaster && (
             <button 
               onClick={() => setShowJoinRequests(!showJoinRequests)}
               className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors relative",
+                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors relative flex-shrink-0",
                 (pendingJoinRequests.length > 0 || pendingCallRequests.length > 0)
                   ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white animate-pulse" 
                   : "bg-white/10 text-white hover:bg-white/20"
@@ -1044,12 +1102,11 @@ export default function LiveRoom() {
             </button>
           )}
 
-          {/* Join Video Button (for viewers only) */}
           {user && streamerUser && user.id !== streamerUser.id && (
             <button 
               onClick={() => { if (isGuest) { requireAccount(); return; } joinVideoMutation.mutate(); }}
               disabled={joinVideoMutation.isPending}
-              className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50 flex-shrink-0"
               data-testid="button-join-video"
             >
               <UserPlus className="w-3 h-3" />
@@ -1057,13 +1114,12 @@ export default function LiveRoom() {
             </button>
           )}
 
-          {/* PK Toggle Button (for broadcaster only) */}
           {isBroadcaster && (
             <button 
               onClick={() => togglePKMutation.mutate(!isPKMode)}
               disabled={togglePKMutation.isPending}
               className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors",
+                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors flex-shrink-0",
                 isPKMode ? "bg-red-600 text-white animate-pulse" : "bg-white/10 text-white hover:bg-white/20",
                 togglePKMutation.isPending && "opacity-50"
               )}
@@ -1074,36 +1130,13 @@ export default function LiveRoom() {
             </button>
           )}
 
-          <div className="flex -space-x-2">
+          <div className="flex -space-x-2 flex-shrink-0">
             {[1,2,3].map(i => (
-              <div key={i} className="w-8 h-8 rounded-full border border-white/20 bg-white/10 overflow-hidden">
+              <div key={i} className="w-7 h-7 rounded-full border border-white/20 bg-white/10 overflow-hidden">
                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} className="w-full h-full" />
               </div>
             ))}
           </div>
-          <button 
-            onClick={() => setIsMuted(!isMuted)}
-            className="w-8 h-8 rounded-full bg-black/20  flex items-center justify-center text-white hover:bg-white/20"
-            data-testid="button-mute"
-          >
-            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-          </button>
-          {canModerate && (
-            <button 
-              onClick={() => setShowModerationPanel(true)}
-              className="w-8 h-8 rounded-full bg-black/20  flex items-center justify-center text-primary hover:bg-white/20"
-              data-testid="button-moderation"
-            >
-              <Shield className="w-5 h-5" />
-            </button>
-          )}
-          <button 
-            onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-black/20  flex items-center justify-center text-white hover:bg-white/20"
-            data-testid="button-close"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
       </div>
 
