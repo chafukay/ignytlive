@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createStreamWebSocket } from "@/lib/websocket";
-import { isAgoraConfigured, ensureAgoraConfigured, joinAsHost, joinAsAudience, leaveChannel, switchCamera, toggleMute } from "@/lib/agora";
+import { isAgoraConfigured, ensureAgoraConfigured, joinAsHost, joinAsAudience, leaveChannel, switchCamera, toggleMute, promoteToHost, demoteToAudience } from "@/lib/agora";
 import type { IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import PKBattleView from "@/components/pk-battle-view";
 import SpinWheel from "@/components/spin-wheel";
@@ -174,6 +174,7 @@ export default function LiveRoom() {
   const [joinAccepted, setJoinAccepted] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
   const coHostVideoRef = useRef<HTMLVideoElement>(null);
+  const coHostAgoraRef = useRef<HTMLDivElement>(null);
 
   // Fetch join requests for broadcaster
   const { data: joinRequests, refetch: refetchJoinRequests } = useQuery({
@@ -513,24 +514,39 @@ export default function LiveRoom() {
 
   const activateCoHostCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: true,
-      });
-      setCoHostStream(mediaStream);
-      setTimeout(() => {
-        if (coHostVideoRef.current) {
-          coHostVideoRef.current.srcObject = mediaStream;
-        }
-      }, 100);
-      toast({ title: "Camera is live!", description: "You're now visible on the stream" });
+      if (isAgoraConfigured() && agoraConnected) {
+        setCoHostStream(new MediaStream());
+        await new Promise(resolve => setTimeout(resolve, 150));
+        const container = coHostAgoraRef.current;
+        await promoteToHost(container);
+        toast({ title: "Camera is live!", description: "You're now visible on the stream" });
+      } else {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: true,
+        });
+        setCoHostStream(mediaStream);
+        setTimeout(() => {
+          if (coHostVideoRef.current) {
+            coHostVideoRef.current.srcObject = mediaStream;
+          }
+        }, 100);
+        toast({ title: "Camera is live!", description: "You're now visible on the stream" });
+      }
     } catch (error: any) {
       console.error("Co-host camera error:", error);
       toast({ title: "Camera access denied", description: "Please allow camera access to join", variant: "destructive" });
     }
   };
 
-  const deactivateCoHostCamera = () => {
+  const deactivateCoHostCamera = async () => {
+    if (isAgoraConfigured() && agoraConnected) {
+      try {
+        await demoteToAudience();
+      } catch (e) {
+        console.error("Failed to demote to audience:", e);
+      }
+    }
     if (coHostStream) {
       coHostStream.getTracks().forEach(track => track.stop());
       setCoHostStream(null);
@@ -966,13 +982,20 @@ export default function LiveRoom() {
                   className="relative w-28 h-36 rounded-xl overflow-hidden border-2 border-green-500 shadow-lg bg-black"
                   data-testid="cohost-self-video"
                 >
-                  <video
-                    ref={coHostVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover scale-x-[-1]"
-                  />
+                  {isAgoraConfigured() && agoraConnected ? (
+                    <div
+                      ref={coHostAgoraRef}
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <video
+                      ref={coHostVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover scale-x-[-1]"
+                    />
+                  )}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
                     <span className="text-white text-[10px] font-bold">You (Live)</span>
                   </div>

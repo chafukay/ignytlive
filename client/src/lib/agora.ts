@@ -36,6 +36,7 @@ let client: IAgoraRTCClient | null = null;
 let localAudioTrack: IMicrophoneAudioTrack | null = null;
 let localVideoTrack: ICameraVideoTrack | null = null;
 let isConnected = false;
+let currentChannelName = "";
 
 export function isAgoraConfigured(): boolean {
   return !!APP_ID;
@@ -106,6 +107,7 @@ export async function joinAsHost(
   await agoraClient.setClientRole("host");
   await agoraClient.join(APP_ID, channelName, token, null);
   isConnected = true;
+  currentChannelName = channelName;
 
   [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
     {},
@@ -148,6 +150,7 @@ export async function joinAsAudience(
   await agoraClient.setClientRole("audience");
   await agoraClient.join(APP_ID, channelName, token, null);
   isConnected = true;
+  currentChannelName = channelName;
 
   // Set up event listeners for remote users
   agoraClient.on("user-published", async (user, mediaType) => {
@@ -178,6 +181,69 @@ export async function joinAsAudience(
   });
 
   console.log("Joined as audience to channel:", channelName);
+}
+
+export async function promoteToHost(
+  videoContainer?: HTMLElement | string | null
+): Promise<{ audioTrack: IMicrophoneAudioTrack; videoTrack: ICameraVideoTrack }> {
+  if (!client || !isConnected) {
+    throw new Error("Not connected to a channel");
+  }
+
+  const channelName = currentChannelName;
+  if (!channelName) {
+    throw new Error("No channel name - not in a channel");
+  }
+
+  await client.leave();
+
+  const token = await getToken(channelName, "host");
+  await client.setClientRole("host");
+  await client.join(APP_ID, channelName, token, null);
+
+  [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+    {},
+    {
+      encoderConfig: "480p_1",
+      facingMode: "user"
+    }
+  );
+
+  if (videoContainer) {
+    localVideoTrack.play(videoContainer);
+  }
+
+  await client.publish([localAudioTrack, localVideoTrack]);
+
+  console.log("[Agora] Promoted to host and published tracks");
+
+  return { audioTrack: localAudioTrack, videoTrack: localVideoTrack };
+}
+
+export async function demoteToAudience(): Promise<void> {
+  if (!client || !isConnected) return;
+
+  const channelName = currentChannelName;
+
+  if (localAudioTrack) {
+    await client.unpublish(localAudioTrack);
+    localAudioTrack.close();
+    localAudioTrack = null;
+  }
+
+  if (localVideoTrack) {
+    await client.unpublish(localVideoTrack);
+    localVideoTrack.close();
+    localVideoTrack = null;
+  }
+
+  await client.leave();
+
+  const token = await getToken(channelName, "audience");
+  await client.setClientRole("audience");
+  await client.join(APP_ID, channelName, token, null);
+
+  console.log("[Agora] Demoted back to audience");
 }
 
 export async function switchCamera(): Promise<void> {
@@ -225,6 +291,7 @@ export async function leaveChannel(): Promise<void> {
   }
   
   isConnected = false;
+  currentChannelName = "";
   console.log("Left channel");
 }
 
