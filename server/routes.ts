@@ -92,6 +92,20 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
   
+  // Cleanup stale streams on server startup
+  try {
+    const { streams: liveStreams } = await storage.getLiveStreams(100);
+    for (const s of liveStreams) {
+      await storage.updateStream(s.id, { isLive: false, endedAt: new Date() });
+      await storage.updateUser(s.userId, { isLive: false });
+    }
+    if (liveStreams.length > 0) {
+      console.log(`[Startup] Cleaned up ${liveStreams.length} stale streams`);
+    }
+  } catch (e) {
+    console.error("[Startup] Failed to clean stale streams:", e);
+  }
+  
   // WebSocket server for real-time features
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   
@@ -833,6 +847,19 @@ export async function registerRoutes(
       });
 
       await storage.updateUser(stream.userId, { isLive: false });
+
+      const clients = streamConnections.get(req.params.id);
+      if (clients) {
+        const msg = JSON.stringify({ type: 'stream_ended', data: { streamId: req.params.id } });
+        clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(msg);
+          }
+        });
+        clients.clear();
+        streamConnections.delete(req.params.id);
+        realViewers.delete(req.params.id);
+      }
       
       res.json(updatedStream);
     } catch (error) {

@@ -87,6 +87,8 @@ export default function LiveRoom() {
     queryKey: ['stream', streamId],
     queryFn: () => api.getStream(streamId!),
     enabled: !!streamId,
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: streamerUser } = useQuery({
@@ -324,6 +326,9 @@ export default function LiveRoom() {
             }]);
           } else if (message.type === 'viewer_count') {
             setViewerCount(message.data.viewerCount);
+          } else if (message.type === 'stream_ended') {
+            toast({ title: "Stream Ended", description: "The host has ended the stream" });
+            setTimeout(() => setLocation("/"), 2000);
           } else if (message.type === 'join_request') {
             refetchJoinRequests();
           } else if (message.type === 'join_accepted') {
@@ -365,11 +370,15 @@ export default function LiveRoom() {
     };
   }, [streamId]);
 
-  // Update viewer count from stream data
+  // Update viewer count from stream data and detect ended streams
   useEffect(() => {
     if (stream) {
       setViewerCount(stream.viewersCount);
       setIsPKMode(stream.isPKBattle);
+      if (!stream.isLive && !isBroadcaster) {
+        toast({ title: "Stream Ended", description: "The host has ended the stream" });
+        setTimeout(() => setLocation("/"), 2000);
+      }
     }
   }, [stream]);
 
