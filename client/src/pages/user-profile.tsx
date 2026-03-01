@@ -104,8 +104,12 @@ export default function UserProfile() {
 
   const handlePrivateCall = () => {
     if (isGuest) { requireAccount(); return; }
+    if (profileUser?.dndEnabled) {
+      toast({ title: "Not Available", description: "This user has Do Not Disturb enabled", variant: "destructive" });
+      return;
+    }
     if (!profileUser?.availableForPrivateCall) {
-      toast({ title: "Not Available", description: "This user is not accepting private calls right now", variant: "destructive" });
+      toast({ title: "Not Available", description: "This user has disabled private calls", variant: "destructive" });
       return;
     }
     setShowCallDialog(true);
@@ -311,15 +315,19 @@ export default function UserProfile() {
             {!isOwnProfile && (
               <button
                 onClick={handlePrivateCall}
-                className="mt-3 w-full max-w-sm py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:opacity-90 transition-opacity border border-yellow-400/50"
+                className={`mt-3 w-full max-w-sm py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-opacity ${
+                  profileUser.availableForPrivateCall && !profileUser.dndEnabled
+                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:opacity-90 border border-yellow-400/50"
+                    : "bg-white/10 text-gray-400 border border-white/10"
+                }`}
                 data-testid="btn-private-call"
               >
                 <Video className="w-5 h-5" />
                 Private Call
-                {profileUser.availableForPrivateCall && profileUser.privateCallBillingMode === "per_minute" && (
+                {profileUser.availableForPrivateCall && profileUser.privateCallRate > 0 && profileUser.privateCallBillingMode === "per_minute" && (
                   <span className="text-xs opacity-70 ml-1">({profileUser.privateCallRate} coins/min)</span>
                 )}
-                {profileUser.availableForPrivateCall && profileUser.privateCallBillingMode === "per_session" && (
+                {profileUser.availableForPrivateCall && profileUser.privateCallRate > 0 && profileUser.privateCallBillingMode === "per_session" && (
                   <span className="text-xs opacity-70 ml-1">({profileUser.privateCallSessionPrice} coins)</span>
                 )}
               </button>

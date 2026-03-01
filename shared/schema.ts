@@ -25,10 +25,10 @@ export const users = pgTable("users", {
   isLive: boolean("is_live").notNull().default(false),
   vipTier: integer("vip_tier").notNull().default(0),
   dndEnabled: boolean("dnd_enabled").notNull().default(false),
-  availableForPrivateCall: boolean("available_for_private_call").notNull().default(false),
-  privateCallRate: integer("private_call_rate").notNull().default(50), // coins per minute
+  availableForPrivateCall: boolean("available_for_private_call").notNull().default(true),
+  privateCallRate: integer("private_call_rate").notNull().default(0), // coins per minute (0 = free)
   privateCallBillingMode: text("private_call_billing_mode").notNull().default("per_minute"), // per_minute or per_session
-  privateCallSessionPrice: integer("private_call_session_price").notNull().default(500), // flat fee for per_session
+  privateCallSessionPrice: integer("private_call_session_price").notNull().default(0), // flat fee for per_session (0 = free)
   role: text("role").notNull().default("user"), // user, admin, superadmin
   phone: text("phone").unique(),
   phoneVerified: boolean("phone_verified").notNull().default(false),
