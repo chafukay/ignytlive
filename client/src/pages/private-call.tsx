@@ -5,8 +5,9 @@ import { GuestGate } from "@/components/guest-gate";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Coins } from "lucide-react";
+import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Coins, Gift } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import GiftPanel from "@/components/gift-panel";
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
 
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID;
@@ -25,6 +26,7 @@ export default function PrivateCallPage() {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [showGiftPanel, setShowGiftPanel] = useState(false);
   
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
@@ -312,6 +314,16 @@ export default function PrivateCallPage() {
         >
           {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
         </Button>
+
+        <Button
+          variant="outline"
+          size="lg"
+          className="rounded-full w-14 h-14 bg-gradient-to-tr from-yellow-400/20 to-orange-500/20 border-yellow-500/30"
+          onClick={() => setShowGiftPanel(true)}
+          data-testid="btn-gift-call"
+        >
+          <Gift className="w-6 h-6 text-yellow-400" />
+        </Button>
         
         <Button
           variant="destructive"
@@ -333,6 +345,15 @@ export default function PrivateCallPage() {
           {isVideoOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
         </Button>
       </div>
+
+      {call && user && (
+        <GiftPanel
+          receiverId={isHost ? call.viewerId : call.hostId}
+          receiverName={isHost ? "Caller" : "Host"}
+          isOpen={showGiftPanel}
+          onClose={() => setShowGiftPanel(false)}
+        />
+      )}
     </div>
     </GuestGate>
   );

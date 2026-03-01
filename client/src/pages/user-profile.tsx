@@ -6,7 +6,8 @@ import Layout from "@/components/layout";
 import UserAvatar from "@/components/user-avatar";
 import BadgesDisplay from "@/components/badges-display";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Sparkles, MapPin, Crown, Share2, Eye } from "lucide-react";
+import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Sparkles, MapPin, Crown, Share2, Eye, Gift } from "lucide-react";
+import GiftPanel from "@/components/gift-panel";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -31,6 +32,7 @@ export default function UserProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showCallDialog, setShowCallDialog] = useState(false);
+  const [showGiftPanel, setShowGiftPanel] = useState(false);
 
   const { data: profileUser, isLoading } = useQuery({
     queryKey: ['user', userId],
@@ -313,6 +315,19 @@ export default function UserProfile() {
             )}
 
             {!isOwnProfile && (
+              <div className="flex gap-3 mt-3 w-full max-w-sm">
+                <button
+                  onClick={() => { if (isGuest) { requireAccount(); return; } setShowGiftPanel(true); }}
+                  className="flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30 transition-colors"
+                  data-testid="btn-send-gift"
+                >
+                  <Gift className="w-4 h-4" />
+                  Send Gift
+                </button>
+              </div>
+            )}
+
+            {!isOwnProfile && (
               <button
                 onClick={handlePrivateCall}
                 className={`mt-3 w-full max-w-sm py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-opacity ${
@@ -422,6 +437,15 @@ export default function UserProfile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {profileUser && (
+        <GiftPanel
+          receiverId={profileUser.id}
+          receiverName={profileUser.username}
+          isOpen={showGiftPanel}
+          onClose={() => setShowGiftPanel(false)}
+        />
+      )}
     </Layout>
   );
 }

@@ -1,11 +1,12 @@
 import { GuestGate } from "@/components/guest-gate";
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Send, MoreVertical } from "lucide-react";
+import { ArrowLeft, Send, MoreVertical, Gift } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import GiftPanel from "@/components/gift-panel";
 
 export default function Conversation() {
   const [, params] = useRoute("/chat/:userId");
@@ -14,6 +15,7 @@ export default function Conversation() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
+  const [showGiftPanel, setShowGiftPanel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const otherUserId = params?.userId;
 
@@ -164,6 +166,14 @@ export default function Conversation() {
 
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card/30 backdrop-blur-md">
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowGiftPanel(true)}
+            className="p-3 rounded-full bg-gradient-to-tr from-yellow-400/20 to-orange-500/20 border border-yellow-500/30 hover:bg-yellow-500/30 transition-colors"
+            data-testid="button-gift-chat"
+          >
+            <Gift className="w-5 h-5 text-yellow-400" />
+          </button>
           <input
             type="text"
             value={message}
@@ -182,6 +192,15 @@ export default function Conversation() {
           </button>
         </div>
       </form>
+
+      {otherUser && (
+        <GiftPanel
+          receiverId={otherUser.id}
+          receiverName={otherUser.username}
+          isOpen={showGiftPanel}
+          onClose={() => setShowGiftPanel(false)}
+        />
+      )}
     </div>
     </GuestGate>
   );
