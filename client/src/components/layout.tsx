@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Home, Clapperboard, Compass, Coins, MessageCircle, User, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import PullToRefresh from "./pull-to-refresh";
 
 export default function Layout({ children, hideNav = false }: { children: React.ReactNode; hideNav?: boolean }) {
   const [location] = useLocation();
@@ -20,7 +21,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
     return (
       <div className="min-h-screen bg-background text-foreground overflow-hidden">
         <main className="h-screen w-full overflow-y-auto no-scrollbar">
-          {children}
+          <PullToRefresh>{children}</PullToRefresh>
         </main>
       </div>
     );
@@ -29,7 +30,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 md:pb-0 md:pl-20 overflow-hidden">
       <main className="h-screen w-full overflow-y-auto no-scrollbar">
-        {children}
+        <PullToRefresh>{children}</PullToRefresh>
       </main>
 
       {/* Floating Go Live Button - only on Home and Shorts */}
