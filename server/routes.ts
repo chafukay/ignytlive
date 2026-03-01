@@ -791,6 +791,9 @@ export async function registerRoutes(
         viewersCount: 0,
         startedAt: new Date(),
       });
+
+      await storage.updateUser(userId, { isLive: true });
+
       res.json(stream);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
@@ -828,6 +831,8 @@ export async function registerRoutes(
         isLive: false,
         endedAt: new Date(),
       });
+
+      await storage.updateUser(stream.userId, { isLive: false });
       
       res.json(updatedStream);
     } catch (error) {
