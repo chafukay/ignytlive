@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRoute, useLocation } from "wouter";
-import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff, Shield, Crown, Lock } from "lucide-react";
+import { X, Heart, Gift, Send, Share2, Swords, Star, Video, UserPlus, Target, Volume2, VolumeX, RefreshCw, VideoOff, Shield, Crown, Lock, Menu, Users, Mic, MicOff, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -67,6 +67,7 @@ export default function LiveRoom() {
   const [agoraError, setAgoraError] = useState<string | null>(null);
   const [showModerationPanel, setShowModerationPanel] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{ userId: string; username: string } | null>(null);
+  const [showStreamMenu, setShowStreamMenu] = useState(false);
 
   const [liveEffects, setLiveEffects] = useState<{
     filter: string | null;
@@ -1014,9 +1015,8 @@ export default function LiveRoom() {
 
       {/* Header */}
       <div className="relative z-10 p-4 pt-6">
-        {/* Top row: Profile + Close button (always visible) */}
-        <div className="flex justify-between items-start mb-2">
-          <div className="glass rounded-full p-1 pr-4 flex items-center gap-2 min-w-0 flex-shrink">
+        <div className="flex justify-between items-center">
+          <div className="glass rounded-full p-1 pr-3 flex items-center gap-2 min-w-0">
             <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary flex-shrink-0">
               <img 
                 src={displayUser.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + displayUser.username} 
@@ -1026,7 +1026,7 @@ export default function LiveRoom() {
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1">
-                <h3 className="text-xs font-bold text-white truncate" data-testid="text-streamer-name">
+                <h3 className="text-xs font-bold text-white truncate max-w-[80px]" data-testid="text-streamer-name">
                   {displayUser.username}
                 </h3>
                 {streamerUser && <BadgesDisplay userId={streamerUser.id} size="sm" allowGifting={true} />}
@@ -1054,91 +1054,191 @@ export default function LiveRoom() {
 
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             <button 
-              onClick={() => setIsMuted(!isMuted)}
-              className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-white/20"
-              data-testid="button-mute"
+              onClick={() => setShowStreamMenu(true)}
+              className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-white/20 relative"
+              data-testid="button-stream-menu"
             >
-              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              <Menu className="w-5 h-5" />
+              {(pendingJoinRequests.length + pendingCallRequests.length) > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold flex items-center justify-center text-white">
+                  {pendingJoinRequests.length + pendingCallRequests.length}
+                </span>
+              )}
             </button>
-            {canModerate && (
-              <button 
-                onClick={() => setShowModerationPanel(true)}
-                className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-primary hover:bg-white/20"
-                data-testid="button-moderation"
-              >
-                <Shield className="w-4 h-4" />
-              </button>
-            )}
             <button 
               onClick={handleClose}
-              className="w-8 h-8 rounded-full bg-red-500/80 flex items-center justify-center text-white hover:bg-red-500"
+              className="w-9 h-9 rounded-full bg-red-500/80 flex items-center justify-center text-white hover:bg-red-500"
               data-testid="button-close"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
-
-        {/* Second row: Action buttons */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {isBroadcaster && (
-            <button 
-              onClick={() => setShowJoinRequests(!showJoinRequests)}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors relative flex-shrink-0",
-                (pendingJoinRequests.length > 0 || pendingCallRequests.length > 0)
-                  ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white animate-pulse" 
-                  : "bg-white/10 text-white hover:bg-white/20"
-              )}
-              data-testid="button-join-requests"
-            >
-              <UserPlus className="w-3 h-3" />
-              Requests
-              {(pendingJoinRequests.length + pendingCallRequests.length) > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center">
-                  {pendingJoinRequests.length + pendingCallRequests.length}
-                </span>
-              )}
-            </button>
-          )}
-
-          {user && streamerUser && user.id !== streamerUser.id && (
-            <button 
-              onClick={() => { if (isGuest) { requireAccount(); return; } joinVideoMutation.mutate(); }}
-              disabled={joinVideoMutation.isPending}
-              className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50 flex-shrink-0"
-              data-testid="button-join-video"
-            >
-              <UserPlus className="w-3 h-3" />
-              Join
-            </button>
-          )}
-
-          {isBroadcaster && (
-            <button 
-              onClick={() => togglePKMutation.mutate(!isPKMode)}
-              disabled={togglePKMutation.isPending}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-colors flex-shrink-0",
-                isPKMode ? "bg-red-600 text-white animate-pulse" : "bg-white/10 text-white hover:bg-white/20",
-                togglePKMutation.isPending && "opacity-50"
-              )}
-              data-testid="button-pk-mode"
-            >
-              <Swords className="w-3 h-3" />
-              {togglePKMutation.isPending ? "..." : isPKMode ? "End PK" : "Start PK"}
-            </button>
-          )}
-
-          <div className="flex -space-x-2 flex-shrink-0">
-            {[1,2,3].map(i => (
-              <div key={i} className="w-7 h-7 rounded-full border border-white/20 bg-white/10 overflow-hidden">
-                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} className="w-full h-full" />
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
+
+      {/* Stream Actions Menu Drawer */}
+      <AnimatePresence>
+        {showStreamMenu && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-[60]"
+              onClick={() => setShowStreamMenu(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed top-0 right-0 bottom-0 w-72 bg-gray-900/95 z-[61] flex flex-col shadow-2xl"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <h3 className="text-white font-bold text-sm">Stream Actions</h3>
+                <button
+                  onClick={() => setShowStreamMenu(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:bg-white/20"
+                  data-testid="button-close-stream-menu"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                <button
+                  onClick={() => { setIsMuted(!isMuted); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors"
+                  data-testid="button-mute"
+                >
+                  <div className={cn("w-9 h-9 rounded-full flex items-center justify-center", isMuted ? "bg-red-500/20 text-red-400" : "bg-white/10 text-white")}>
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-white text-sm font-medium">{isMuted ? "Unmute Audio" : "Mute Audio"}</p>
+                    <p className="text-white/40 text-[11px]">Toggle stream audio</p>
+                  </div>
+                </button>
+
+                {isBroadcaster && (
+                  <button
+                    onClick={() => { setShowJoinRequests(!showJoinRequests); setShowStreamMenu(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors"
+                    data-testid="button-join-requests"
+                  >
+                    <div className={cn(
+                      "w-9 h-9 rounded-full flex items-center justify-center relative",
+                      (pendingJoinRequests.length + pendingCallRequests.length) > 0
+                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
+                        : "bg-white/10 text-white"
+                    )}>
+                      <UserPlus className="w-4 h-4" />
+                      {(pendingJoinRequests.length + pendingCallRequests.length) > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold flex items-center justify-center text-white">
+                          {pendingJoinRequests.length + pendingCallRequests.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white text-sm font-medium">Requests</p>
+                      <p className="text-white/40 text-[11px]">View join & call requests</p>
+                    </div>
+                  </button>
+                )}
+
+                {user && streamerUser && user.id !== streamerUser.id && (
+                  <button
+                    onClick={() => { if (isGuest) { requireAccount(); return; } joinVideoMutation.mutate(); setShowStreamMenu(false); }}
+                    disabled={joinVideoMutation.isPending}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-50"
+                    data-testid="button-join-video"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white">
+                      <Video className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white text-sm font-medium">Join Stream</p>
+                      <p className="text-white/40 text-[11px]">Request to join as co-host</p>
+                    </div>
+                  </button>
+                )}
+
+                {isBroadcaster && (
+                  <button
+                    onClick={() => { togglePKMutation.mutate(!isPKMode); setShowStreamMenu(false); }}
+                    disabled={togglePKMutation.isPending}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-50"
+                    data-testid="button-pk-mode"
+                  >
+                    <div className={cn("w-9 h-9 rounded-full flex items-center justify-center", isPKMode ? "bg-red-500/20 text-red-400" : "bg-white/10 text-white")}>
+                      <Swords className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white text-sm font-medium">{isPKMode ? "End PK Battle" : "Start PK Battle"}</p>
+                      <p className="text-white/40 text-[11px]">Challenge another streamer</p>
+                    </div>
+                  </button>
+                )}
+
+                {canModerate && (
+                  <button
+                    onClick={() => { setShowModerationPanel(true); setShowStreamMenu(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors"
+                    data-testid="button-moderation"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white text-sm font-medium">Moderation</p>
+                      <p className="text-white/40 text-[11px]">Manage bans, mutes & mods</p>
+                    </div>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => { setShowStreamMenu(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors"
+                  data-testid="button-share-stream"
+                >
+                  <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white">
+                    <Share2 className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-white text-sm font-medium">Share Stream</p>
+                    <p className="text-white/40 text-[11px]">Share link with friends</p>
+                  </div>
+                </button>
+
+                <div className="pt-2 border-t border-white/10 mt-2">
+                  <p className="text-white/30 text-[10px] uppercase tracking-wider px-4 py-2">Viewers</p>
+                  <div className="flex items-center gap-2 px-4 py-2">
+                    <div className="flex -space-x-2">
+                      {[1,2,3].map(i => (
+                        <div key={i} className="w-8 h-8 rounded-full border-2 border-gray-900 bg-white/10 overflow-hidden">
+                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} className="w-full h-full" />
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-white/50 text-xs">{viewerCount} watching</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-white/10">
+                <button
+                  onClick={() => { setShowStreamMenu(false); handleClose(); }}
+                  className="w-full py-3 rounded-xl bg-red-500/20 text-red-400 font-bold text-sm hover:bg-red-500/30 transition-colors flex items-center justify-center gap-2"
+                  data-testid="button-end-stream-menu"
+                >
+                  <VideoOff className="w-4 h-4" />
+                  {isBroadcaster ? "End Stream" : "Leave Stream"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Requests Panel (for broadcaster) - Join Requests & Call Requests */}
       <AnimatePresence>
