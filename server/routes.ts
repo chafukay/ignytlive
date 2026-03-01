@@ -293,7 +293,11 @@ export async function registerRoutes(
   // User routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
+      const body = { ...req.body };
+      if (body.birthdate && typeof body.birthdate === 'string') {
+        body.birthdate = new Date(body.birthdate);
+      }
+      const userData = insertUserSchema.parse(body);
       
       // Age gating - require birthdate and check 18+
       const ageCheck = verifyAge(userData.birthdate);
