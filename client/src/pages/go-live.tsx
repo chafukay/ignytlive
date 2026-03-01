@@ -1,6 +1,6 @@
 import { GuestGate } from "@/components/guest-gate";
 import LocationPickerModal from "@/components/location-picker-modal";
-import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield, Sparkles, Wand2, Frame, Sticker, Stars, SunMedium, Contrast, Palette, Share2, Copy, Check } from "lucide-react";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield, Sparkles, Wand2, Frame, Sticker, Stars, SunMedium, Contrast, Palette, Share2, Copy, Check, Radio, UserPlus, Gem } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +34,7 @@ export default function GoLive() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Chat");
+  const [streamType, setStreamType] = useState<"solo" | "multi" | "premium" | "vip">("solo");
   const [isPrivate, setIsPrivate] = useState(false);
   const [requireVip, setRequireVip] = useState(false);
   const [minVipTier, setMinVipTier] = useState(1);
@@ -182,10 +183,11 @@ export default function GoLive() {
         title: title.trim(),
         category,
         thumbnail: thumbnail || undefined,
-        isPrivate: groupId ? true : isPrivate,
-        accessType: groupId ? "group" : (requireVip ? "vip" : (isPrivate ? "private" : "public")),
-        minVipTier: requireVip ? minVipTier : 0,
+        isPrivate: groupId ? true : (streamType === "premium" ? true : isPrivate),
+        accessType: groupId ? "group" : (streamType === "vip" ? "vip" : (streamType === "premium" ? "premium" : (isPrivate ? "private" : "public"))),
+        minVipTier: streamType === "vip" ? minVipTier : 0,
         groupId: groupId || undefined,
+        allowGuests: streamType === "multi",
         showCountry: showCountryOnStream,
       });
       
@@ -753,76 +755,115 @@ export default function GoLive() {
         </div>
       )}
 
-      <div>
-        <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Visibility</p>
-        {!groupId ? (
-          <div className="grid grid-cols-2 gap-1.5">
-            <button onClick={() => setIsPrivate(false)} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${!isPrivate ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-public">
-              <UsersIcon className="w-4 h-4" /> Public
+      {!groupId && (
+        <div>
+          <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Stream Type</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => { setStreamType("solo"); setRequireVip(false); }} className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl text-[10px] font-medium transition-all border ${streamType === "solo" ? 'bg-green-500/15 border-green-500/60 text-green-400' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`} data-testid="button-type-solo">
+              <Radio className={`w-5 h-5 ${streamType === "solo" ? 'text-green-400' : 'text-white/30'}`} />
+              <span className="font-bold text-xs">Solo</span>
+              <span className="text-[9px] text-white/40">Free public broadcast</span>
             </button>
-            <button onClick={() => setIsPrivate(true)} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${isPrivate ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-private">
-              <Lock className="w-4 h-4" /> Private
+            <button onClick={() => { setStreamType("multi"); setRequireVip(false); }} className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl text-[10px] font-medium transition-all border ${streamType === "multi" ? 'bg-blue-500/15 border-blue-500/60 text-blue-400' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`} data-testid="button-type-multi">
+              <UserPlus className={`w-5 h-5 ${streamType === "multi" ? 'text-blue-400' : 'text-white/30'}`} />
+              <span className="font-bold text-xs">Multi-Guest</span>
+              <span className="text-[9px] text-white/40">Invite guests to join</span>
+            </button>
+            <button onClick={() => { setStreamType("premium"); setRequireVip(false); setIsPrivate(true); }} className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl text-[10px] font-medium transition-all border ${streamType === "premium" ? 'bg-purple-500/15 border-purple-500/60 text-purple-400' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`} data-testid="button-type-premium">
+              <Gem className={`w-5 h-5 ${streamType === "premium" ? 'text-purple-400' : 'text-white/30'}`} />
+              <span className="font-bold text-xs">Premium</span>
+              <span className="text-[9px] text-white/40">Paid access stream</span>
+            </button>
+            <button onClick={() => { setStreamType("vip"); setRequireVip(true); }} className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl text-[10px] font-medium transition-all border ${streamType === "vip" ? 'bg-yellow-500/15 border-yellow-500/60 text-yellow-400' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`} data-testid="button-type-vip">
+              <Crown className={`w-5 h-5 ${streamType === "vip" ? 'text-yellow-400' : 'text-white/30'}`} />
+              <span className="font-bold text-xs">VIP Only</span>
+              <span className="text-[9px] text-white/40">VIP members only</span>
             </button>
           </div>
-        ) : (
-          <div className="flex justify-center">
-            <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium bg-violet-500/20 border border-violet-500 text-violet-400">
-              <UsersIcon className="w-4 h-4" /> Group Only
-            </div>
-          </div>
-        )}
-      </div>
 
-      <div className={`rounded-2xl border-2 transition-all overflow-hidden ${requireVip ? 'border-yellow-500/60 bg-gradient-to-br from-yellow-500/15 via-amber-500/10 to-yellow-600/5' : 'border-white/10 bg-white/5'}`}>
-        <button onClick={() => setRequireVip(!requireVip)} className="w-full flex items-center justify-between px-4 py-3" data-testid="button-toggle-vip">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${requireVip ? 'bg-gradient-to-br from-yellow-400 to-amber-600 shadow-lg shadow-yellow-500/30' : 'bg-white/10'}`}>
-              <Crown className={`w-5 h-5 ${requireVip ? 'text-white' : 'text-white/40'}`} />
-            </div>
-            <div className="text-left">
-              <p className={`text-sm font-bold ${requireVip ? 'text-yellow-400' : 'text-white/60'}`}>VIP Only</p>
-              <p className="text-white/40 text-[10px]">Restrict stream to VIP members</p>
-            </div>
-          </div>
-          <div className={`relative w-11 h-6 rounded-full transition-all ${requireVip ? 'bg-yellow-500' : 'bg-white/15'}`}>
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${requireVip ? 'left-[22px]' : 'left-1'}`} />
-          </div>
-        </button>
-        {requireVip && (
-          <div className="px-4 pb-4 space-y-3">
-            <div className={`rounded-xl p-3 ${isPrivate ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
-              {isPrivate ? (
-                <div className="flex gap-2">
-                  <Lock className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-purple-300 text-xs font-semibold mb-0.5">Private + VIP Stream</p>
-                    <p className="text-white/50 text-[10px] leading-relaxed">Stream is hidden from non-VIP users. Only VIP Tier {minVipTier}+ members can discover and watch this stream.</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Eye className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-yellow-300 text-xs font-semibold mb-0.5">Public + VIP Stream</p>
-                    <p className="text-white/50 text-[10px] leading-relaxed">Stream thumbnail will be visible to everyone, but only VIP Tier {minVipTier}+ members can watch. Non-VIP users will see the thumbnail and get an option to upgrade their VIP status.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div>
-              <p className="text-white/50 text-[10px] uppercase tracking-wider mb-2">Minimum VIP Tier Required</p>
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5].map((tier) => (
-                  <button key={tier} onClick={() => setMinVipTier(tier)} className={`flex-1 h-10 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${minVipTier === tier ? 'bg-gradient-to-b from-yellow-400 to-amber-600 text-white shadow-lg shadow-yellow-500/20' : tier < minVipTier ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-white/5 text-white/30 border border-white/10'}`} data-testid={`button-vip-tier-${tier}`}>
-                    <Crown className={`w-3 h-3 ${minVipTier === tier ? 'text-white' : tier < minVipTier ? 'text-yellow-400' : 'text-white/20'}`} />
-                    <span>{tier}</span>
-                  </button>
-                ))}
+          {streamType === "solo" && (
+            <div className="mt-3">
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Visibility</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={() => setIsPrivate(false)} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${!isPrivate ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-public">
+                  <Eye className="w-3.5 h-3.5" /> Public
+                </button>
+                <button onClick={() => setIsPrivate(true)} className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${isPrivate ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`} data-testid="button-access-private">
+                  <Lock className="w-3.5 h-3.5" /> Private
+                </button>
               </div>
             </div>
+          )}
+
+          {streamType === "multi" && (
+            <div className="mt-3 rounded-xl p-3 bg-blue-500/10 border border-blue-500/20">
+              <div className="flex gap-2">
+                <UserPlus className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-blue-300 text-xs font-semibold mb-0.5">Multi-Guest Broadcast</p>
+                  <p className="text-white/50 text-[10px] leading-relaxed">Viewers can request to join your stream. You'll be able to accept or decline requests while live.</p>
+                </div>
+              </div>
+              <div className="mt-2">
+                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Visibility</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button onClick={() => setIsPrivate(false)} className={`flex flex-col items-center gap-1 p-2 rounded-lg text-[10px] font-medium transition-all border ${!isPrivate ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50'}`} data-testid="button-multi-public">
+                    <Eye className="w-3 h-3" /> Public
+                  </button>
+                  <button onClick={() => setIsPrivate(true)} className={`flex flex-col items-center gap-1 p-2 rounded-lg text-[10px] font-medium transition-all border ${isPrivate ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-white/50'}`} data-testid="button-multi-private">
+                    <Lock className="w-3 h-3" /> Private
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {streamType === "premium" && (
+            <div className="mt-3 rounded-xl p-3 bg-purple-500/10 border border-purple-500/20">
+              <div className="flex gap-2">
+                <Gem className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-purple-300 text-xs font-semibold mb-0.5">Premium Broadcast</p>
+                  <p className="text-white/50 text-[10px] leading-relaxed">Only users who pay can access this stream. Set your price and earn from your content.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {streamType === "vip" && (
+            <div className="mt-3 space-y-3">
+              <div className="rounded-xl p-3 bg-yellow-500/10 border border-yellow-500/20">
+                <div className="flex gap-2">
+                  <Crown className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-yellow-300 text-xs font-semibold mb-0.5">VIP Only Broadcast</p>
+                    <p className="text-white/50 text-[10px] leading-relaxed">Stream thumbnail visible to everyone, but only VIP members at the required tier can watch. Non-VIP users will see an upgrade prompt.</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-white/50 text-[10px] uppercase tracking-wider mb-2">Minimum VIP Tier Required</p>
+                <div className="flex gap-1.5">
+                  {[1, 2, 3, 4, 5].map((tier) => (
+                    <button key={tier} onClick={() => setMinVipTier(tier)} className={`flex-1 h-10 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${minVipTier === tier ? 'bg-gradient-to-b from-yellow-400 to-amber-600 text-white shadow-lg shadow-yellow-500/20' : tier < minVipTier ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-white/5 text-white/30 border border-white/10'}`} data-testid={`button-vip-tier-${tier}`}>
+                      <Crown className={`w-3 h-3 ${minVipTier === tier ? 'text-white' : tier < minVipTier ? 'text-yellow-400' : 'text-white/20'}`} />
+                      <span>{tier}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {groupId && (
+        <div className="flex justify-center">
+          <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium bg-violet-500/20 border border-violet-500 text-violet-400">
+            <UsersIcon className="w-4 h-4" /> Group Only
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2.5 border border-white/10">
