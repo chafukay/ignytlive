@@ -464,8 +464,6 @@ export default function LiveRoom() {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
         },
         audio: true
       });
