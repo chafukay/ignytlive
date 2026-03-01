@@ -899,12 +899,16 @@ export async function registerRoutes(
         ...req.body
       });
       
-      // Broadcast to WebSocket clients
+      const commentUser = await storage.getUser(userId);
+      const broadcastData = {
+        ...comment,
+        username: commentUser?.username || 'User',
+      };
       const streamWs = streamConnections.get(req.params.id);
       if (streamWs) {
         streamWs.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'comment', data: comment }));
+            client.send(JSON.stringify({ type: 'comment', data: broadcastData }));
           }
         });
       }

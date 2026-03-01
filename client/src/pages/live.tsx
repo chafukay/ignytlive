@@ -298,14 +298,14 @@ export default function LiveRoom() {
           const message = JSON.parse(event.data);
           
           if (message.type === 'comment') {
-            // Skip if this comment is from the current user (we already added it locally)
-            const currentUsername = user?.username;
-            if (message.data.username === currentUsername) {
-              return; // Skip to avoid duplicates
+            const senderId = message.data.userId;
+            if (senderId && senderId === user?.id) {
+              return;
             }
             setComments(prev => [...prev.slice(-30), {
               id: message.data.id || Date.now().toString(),
-              user: message.data.username || 'User',
+              user: message.data.username || message.data.user || 'User',
+              userId: senderId,
               text: message.data.content,
               isGift: message.data.isGift,
             }]);
