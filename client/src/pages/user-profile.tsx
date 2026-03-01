@@ -6,7 +6,7 @@ import Layout from "@/components/layout";
 import UserAvatar from "@/components/user-avatar";
 import BadgesDisplay from "@/components/badges-display";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Clock, Sparkles } from "lucide-react";
+import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Sparkles, MapPin, Crown, Share2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useGuestCheck } from "@/components/guest-gate";
+import { getWealthLevel } from "@shared/wealth-utils";
 import type { UserItem, StoreItem } from "@shared/schema";
 
 type UserItemWithItem = UserItem & { item: StoreItem };
@@ -62,6 +63,7 @@ export default function UserProfile() {
   const isLive = liveStreams?.some(stream => stream.userId === userId) ?? false;
   const liveStream = liveStreams?.find(stream => stream.userId === userId);
   const isFollowing = isFollowingData?.isFollowing ?? false;
+  const isOwnProfile = currentUser?.id === userId;
 
   const followMutation = useMutation({
     mutationFn: () => api.followUser(currentUser!.id, userId!),
@@ -90,34 +92,33 @@ export default function UserProfile() {
       const description = error?.code === "DND_ENABLED" 
         ? "This user has Do Not Disturb enabled"
         : error.message;
-      toast({
-        title: "Cannot start call",
-        description,
-        variant: "destructive",
-      });
+      toast({ title: "Cannot start call", description, variant: "destructive" });
     },
   });
 
   const handleFollow = () => {
     if (isGuest) { requireAccount(); return; }
-    if (isFollowing) {
-      unfollowMutation.mutate();
-    } else {
-      followMutation.mutate();
-    }
+    if (isFollowing) unfollowMutation.mutate();
+    else followMutation.mutate();
   };
 
   const handlePrivateCall = () => {
     if (isGuest) { requireAccount(); return; }
     if (!profileUser?.availableForPrivateCall) {
-      toast({
-        title: "Not Available",
-        description: "This user is not accepting private calls right now",
-        variant: "destructive",
-      });
+      toast({ title: "Not Available", description: "This user is not accepting private calls right now", variant: "destructive" });
       return;
     }
     setShowCallDialog(true);
+  };
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/profile/${userId}`;
+    if (navigator.share) {
+      navigator.share({ title: `${profileUser?.username} on IgnytLIVE`, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url);
+      toast({ title: "Profile link copied!" });
+    }
   };
 
   const formatNumber = (num: number) => {
@@ -146,21 +147,32 @@ export default function UserProfile() {
     );
   }
 
-  const isOwnProfile = currentUser?.id === userId;
+  const wealthLevel = getWealthLevel(profileUser.totalSpent || 0);
+  const vipName = profileUser.vipTier === 1 ? "Bronze" : profileUser.vipTier === 2 ? "Silver" : profileUser.vipTier === 3 ? "Gold" : profileUser.vipTier === 4 ? "Platinum" : profileUser.vipTier === 5 ? "Millionaire" : null;
+  const location = profileUser.city ? `${profileUser.city}, ${profileUser.country || ''}` : profileUser.country || null;
 
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black pb-20">
         <div className="relative">
-          <div className="h-32 bg-gradient-to-br from-pink-500/30 to-purple-600/30" />
-          
-          <button
-            onClick={() => setLocation('/')}
-            className="absolute top-4 left-4 p-2 rounded-full bg-black/50 text-white"
-            data-testid="btn-back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <div className="h-36 bg-gradient-to-br from-pink-500/30 via-purple-600/30 to-blue-500/20" />
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
+            <button
+              onClick={() => window.history.length > 1 ? window.history.back() : setLocation('/')}
+              className="p-2 rounded-full bg-black/50 text-white"
+              data-testid="btn-back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-white/50 text-xs bg-black/30 px-3 py-1 rounded-full">
+                ID: {profileUser.id.slice(0, 8)}
+              </span>
+              <button onClick={handleShare} className="p-2 rounded-full bg-black/50 text-white" data-testid="btn-share">
+                <Share2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="px-4 -mt-16">
@@ -188,7 +200,7 @@ export default function UserProfile() {
                 linkToProfile={false}
                 className="w-28 h-28 relative z-10"
               />
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-20">
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2.5 py-0.5 rounded-full z-20" data-testid="badge-level">
                 {profileUser.level}
               </span>
               {equippedBadge && (
@@ -205,101 +217,147 @@ export default function UserProfile() {
                 </h1>
                 <BadgesDisplay userId={profileUser.id} size="md" />
               </div>
-              {profileUser.bio && (
-                <p className="text-gray-400 mt-2 max-w-xs">{profileUser.bio}</p>
-              )}
-            </div>
 
-            <div className="flex justify-center gap-8 mt-6 text-center">
-              <div>
-                <div className="font-bold text-white text-lg">{formatNumber(profileUser.followersCount)}</div>
-                <div className="text-xs text-gray-400">Followers</div>
-              </div>
-              <div>
-                <div className="font-bold text-white text-lg">{formatNumber(profileUser.followingCount)}</div>
-                <div className="text-xs text-gray-400">Following</div>
-              </div>
-              <div>
-                <div className="font-bold text-white text-lg">{formatNumber(profileUser.totalLikes)}</div>
-                <div className="text-xs text-gray-400">Likes</div>
-              </div>
-            </div>
-
-            {!isOwnProfile && (
-              <div className="flex gap-3 mt-6">
-                <Button
-                  onClick={handleFollow}
-                  variant={isFollowing ? "outline" : "default"}
-                  className={isFollowing ? "border-pink-500 text-pink-500" : "bg-pink-500 hover:bg-pink-600"}
-                  data-testid="btn-follow"
-                >
-                  {isFollowing ? (
-                    <>
-                      <UserCheck className="w-4 h-4 mr-2" />
-                      Following
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Follow
-                    </>
-                  )}
-                </Button>
-                
-                <Button
-                  onClick={() => { if (isGuest) { requireAccount(); return; } setLocation(`/chat/${userId}`); }}
-                  variant="outline"
-                  className="border-gray-600"
-                  data-testid="btn-message"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Message
-                </Button>
-
-                {profileUser.availableForPrivateCall && (
-                  <Button
-                    onClick={handlePrivateCall}
-                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
-                    data-testid="btn-private-call"
-                  >
-                    <Video className="w-4 h-4 mr-2" />
-                    Call
-                  </Button>
+              <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
+                {location && (
+                  <span className="flex items-center gap-1 text-xs text-gray-400 bg-white/5 px-2.5 py-1 rounded-full" data-testid="text-location">
+                    <MapPin className="w-3 h-3" /> {location}
+                  </span>
                 )}
+                {vipName && (
+                  <span className="flex items-center gap-1 text-xs font-bold bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-500/30 px-2.5 py-1 rounded-full" data-testid="badge-vip">
+                    <Crown className="w-3 h-3" /> {vipName}
+                  </span>
+                )}
+                <span className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full ${wealthLevel.color} bg-black/30`} data-testid="badge-wealth">
+                  {wealthLevel.emoji} {wealthLevel.name}
+                </span>
+                {profileUser.isVerified && (
+                  <span className="text-xs bg-blue-500 text-white px-2.5 py-1 rounded-full font-bold" data-testid="badge-verified">
+                    Verified
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-6 mt-6 text-center w-full max-w-sm">
+              <div className="flex-1">
+                <div className="font-bold text-white text-lg" data-testid="stat-followers">{formatNumber(profileUser.followersCount)}</div>
+                <div className="text-[11px] text-gray-500">Followers</div>
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-white text-lg" data-testid="stat-following">{formatNumber(profileUser.followingCount)}</div>
+                <div className="text-[11px] text-gray-500">Following</div>
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-white text-lg flex items-center justify-center gap-1" data-testid="stat-received">
+                  <span className="text-yellow-400 text-sm">💎</span> {formatNumber(profileUser.diamonds || 0)}
+                </div>
+                <div className="text-[11px] text-gray-500">Received</div>
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-white text-lg flex items-center justify-center gap-1" data-testid="stat-sent">
+                  <span className="text-yellow-400 text-sm">🪙</span> {formatNumber(profileUser.totalSpent || 0)}
+                </div>
+                <div className="text-[11px] text-gray-500">Sent</div>
+              </div>
+            </div>
+
+            {profileUser.bio && (
+              <div className="mt-4 w-full max-w-sm">
+                <p className="text-gray-400 text-sm" data-testid="text-bio">
+                  <span className="text-gray-500 font-medium">About: </span>{profileUser.bio}
+                </p>
               </div>
             )}
 
             {isLive && liveStream && (
-              <Button
+              <button
                 onClick={() => setLocation(`/live/${liveStream.id}`)}
-                className="mt-4 bg-red-500 hover:bg-red-600"
+                className="mt-4 w-full max-w-sm py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold flex items-center justify-center gap-2 transition-colors animate-pulse"
                 data-testid="btn-watch-live"
               >
+                <span className="w-2 h-2 bg-white rounded-full" />
                 Watch Live Now
-              </Button>
+              </button>
             )}
 
-            {profileUser.availableForPrivateCall && (
-              <div className="mt-6 bg-white/5 rounded-xl p-4 w-full max-w-sm">
-                <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-                  <Video className="w-4 h-4 text-pink-500" />
-                  Private Video Call
-                </h3>
-                <div className="flex items-center gap-4 text-sm">
-                  {profileUser.privateCallBillingMode === "per_minute" ? (
-                    <div className="flex items-center gap-1 text-yellow-400">
-                      <Coins className="w-4 h-4" />
-                      <span>{profileUser.privateCallRate} coins/min</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-yellow-400">
-                      <Coins className="w-4 h-4" />
-                      <span>{profileUser.privateCallSessionPrice} coins/session</span>
-                    </div>
-                  )}
-                </div>
+            {!isOwnProfile && (
+              <div className="flex gap-3 mt-5 w-full max-w-sm">
+                <button
+                  onClick={handleFollow}
+                  className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${
+                    isFollowing 
+                      ? "bg-white/10 text-pink-400 border border-pink-500/30" 
+                      : "bg-pink-500 text-white hover:bg-pink-600"
+                  }`}
+                  data-testid="btn-follow"
+                >
+                  {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                  {isFollowing ? "Following" : "Follow"}
+                </button>
+                
+                <button
+                  onClick={() => { if (isGuest) { requireAccount(); return; } setLocation(`/chat/${userId}`); }}
+                  className="flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-white/10 text-white border border-white/10 hover:bg-white/15 transition-colors"
+                  data-testid="btn-message"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Message
+                </button>
               </div>
             )}
+
+            {!isOwnProfile && (
+              <button
+                onClick={handlePrivateCall}
+                className="mt-3 w-full max-w-sm py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:opacity-90 transition-opacity border border-yellow-400/50"
+                data-testid="btn-private-call"
+              >
+                <Video className="w-5 h-5" />
+                Private Call
+                {profileUser.availableForPrivateCall && profileUser.privateCallBillingMode === "per_minute" && (
+                  <span className="text-xs opacity-70 ml-1">({profileUser.privateCallRate} coins/min)</span>
+                )}
+                {profileUser.availableForPrivateCall && profileUser.privateCallBillingMode === "per_session" && (
+                  <span className="text-xs opacity-70 ml-1">({profileUser.privateCallSessionPrice} coins)</span>
+                )}
+              </button>
+            )}
+
+            {isOwnProfile && (
+              <div className="flex gap-3 mt-5 w-full max-w-sm">
+                <button
+                  onClick={() => setLocation('/edit-profile')}
+                  className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/10 text-white border border-white/10 hover:bg-white/15 transition-colors"
+                  data-testid="btn-edit-profile"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="py-3 px-5 rounded-xl bg-white/10 text-white border border-white/10 hover:bg-white/15 transition-colors"
+                  data-testid="btn-share-profile"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="mt-8 w-full">
+              <div className="border-t border-white/10 pt-4">
+                <div className="grid grid-cols-3 gap-1">
+                  {[1,2,3,4,5,6].map(i => (
+                    <div key={i} className="aspect-square bg-white/5 rounded-lg overflow-hidden" data-testid={`content-grid-${i}`}>
+                      <div className="w-full h-full flex items-center justify-center text-white/10">
+                        <Eye className="w-6 h-6" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-gray-600 text-xs mt-4">No posts yet</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
