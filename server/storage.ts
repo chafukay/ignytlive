@@ -37,6 +37,9 @@ import {
   userAchievements,
   profileVisits,
   coinPurchases,
+  userBlocks,
+  userReports,
+  userMutedCalls,
   type PhoneVerificationCode,
   type InsertPhoneVerificationCode,
   type User,
@@ -300,6 +303,20 @@ export interface IStorage {
   getCoinPurchaseHistory(userId: string, limit?: number): Promise<CoinPurchase[]>;
   findPurchaseByStripeSessionId(stripeSessionId: string): Promise<CoinPurchase | null>;
   purchaseCoins(userId: string, packageCoins: number, priceUsd: number, stripeSessionId?: string): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }>;
+
+  // User Block operations
+  blockUser(blockerId: string, blockedId: string): Promise<void>;
+  unblockUser(blockerId: string, blockedId: string): Promise<void>;
+  isUserBlocked(blockerId: string, blockedId: string): Promise<boolean>;
+  getBlockedUsers(userId: string): Promise<User[]>;
+
+  // User Report operations
+  reportUser(reporterId: string, reportedId: string, reason: string, description?: string): Promise<void>;
+
+  // Muted Calls operations
+  muteCallsFromUser(userId: string, mutedUserId: string): Promise<void>;
+  unmuteCallsFromUser(userId: string, mutedUserId: string): Promise<void>;
+  isCallMuted(userId: string, mutedUserId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2003,6 +2020,58 @@ export class DatabaseStorage implements IStorage {
         bonusCoins,
       };
     });
+  }
+
+  async blockUser(blockerId: string, blockedId: string): Promise<void> {
+    const existing = await db.select().from(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+    if (existing.length === 0) {
+      await db.insert(userBlocks).values({ blockerId, blockedId });
+    }
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    await db.delete(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+  }
+
+  async isUserBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    const result = await db.select().from(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+    return result.length > 0;
+  }
+
+  async getBlockedUsers(userId: string): Promise<User[]> {
+    const blocks = await db.select().from(userBlocks)
+      .where(eq(userBlocks.blockerId, userId));
+    if (blocks.length === 0) return [];
+    const blockedIds = blocks.map(b => b.blockedId);
+    const result = await db.select().from(users)
+      .where(sql`${users.id} IN (${sql.join(blockedIds.map(id => sql`${id}`), sql`, `)})`);
+    return result;
+  }
+
+  async reportUser(reporterId: string, reportedId: string, reason: string, description?: string): Promise<void> {
+    await db.insert(userReports).values({ reporterId, reportedId, reason, description: description || null });
+  }
+
+  async muteCallsFromUser(userId: string, mutedUserId: string): Promise<void> {
+    const existing = await db.select().from(userMutedCalls)
+      .where(and(eq(userMutedCalls.userId, userId), eq(userMutedCalls.mutedUserId, mutedUserId)));
+    if (existing.length === 0) {
+      await db.insert(userMutedCalls).values({ userId, mutedUserId });
+    }
+  }
+
+  async unmuteCallsFromUser(userId: string, mutedUserId: string): Promise<void> {
+    await db.delete(userMutedCalls)
+      .where(and(eq(userMutedCalls.userId, userId), eq(userMutedCalls.mutedUserId, mutedUserId)));
+  }
+
+  async isCallMuted(userId: string, mutedUserId: string): Promise<boolean> {
+    const result = await db.select().from(userMutedCalls)
+      .where(and(eq(userMutedCalls.userId, userId), eq(userMutedCalls.mutedUserId, mutedUserId)));
+    return result.length > 0;
   }
 }
 

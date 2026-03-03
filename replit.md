@@ -79,6 +79,23 @@ Core data models include:
 - **Authorization**: All moderation endpoints verify host/moderator status before execution
 - **WebSocket Enforcement**: Moderation rules enforced both in REST API and WebSocket message handling to prevent bypass
 
+### User Block/Report/Mute System
+- **User Blocks**: Users can block/unblock others; blocked users cannot send messages in either direction
+- **User Reports**: Report users with reason selection (spam, harassment, inappropriate content, fake profile, underage, other) + optional description
+- **Muted Calls**: Mute/unmute incoming calls from specific users
+- **DB Tables**: `user_blocks`, `user_reports`, `user_muted_calls`
+- **Server Enforcement**: Message send route checks block status before allowing delivery
+
+### Conversation View Features
+- **Header**: Avatar, username, last seen/level, voice call button, video call button, 3-dot menu
+- **Bottom Sheet Menu**: View Profile, Mute/Unmute Calls, Report and Block, Delete Conversation
+- **Delete Confirmation Dialog**: Centered modal with red delete button and cancel
+- **Report Dialog**: Bottom sheet with reason selection, optional description, Report & Block action
+- **Input Bar**: Plus button, message input ("Say something..."), gift button, emoji/send toggle
+- **Blocked State**: Shows blocked banner with unblock option, hides message input
+- **Date Grouping**: Messages grouped by date with emerald date badges
+- **Message Styling**: Outgoing messages amber-orange gradient, incoming zinc dark
+
 ### Private Video Calls
 - Per-minute billing: Charged every 60 seconds during call
 - Per-session billing: Flat fee upfront for entire session

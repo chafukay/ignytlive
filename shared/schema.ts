@@ -1008,5 +1008,75 @@ export const insertCoinPurchaseSchema = createInsertSchema(coinPurchases).omit({
 export type InsertCoinPurchase = z.infer<typeof insertCoinPurchaseSchema>;
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 
+export const userBlocks = pgTable("user_blocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  blockerId: varchar("blocker_id").notNull().references(() => users.id),
+  blockedId: varchar("blocked_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  blockerIdIdx: index("user_blocks_blocker_id_idx").on(table.blockerId),
+  blockedIdIdx: index("user_blocks_blocked_id_idx").on(table.blockedId),
+}));
+
+export const userBlocksRelations = relations(userBlocks, ({ one }) => ({
+  blocker: one(users, { fields: [userBlocks.blockerId], references: [users.id] }),
+  blocked: one(users, { fields: [userBlocks.blockedId], references: [users.id] }),
+}));
+
+export const insertUserBlockSchema = createInsertSchema(userBlocks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertUserBlock = z.infer<typeof insertUserBlockSchema>;
+export type UserBlock = typeof userBlocks.$inferSelect;
+
+export const userReports = pgTable("user_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reporterId: varchar("reporter_id").notNull().references(() => users.id),
+  reportedId: varchar("reported_id").notNull().references(() => users.id),
+  reason: text("reason").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  reporterIdIdx: index("user_reports_reporter_id_idx").on(table.reporterId),
+  reportedIdIdx: index("user_reports_reported_id_idx").on(table.reportedId),
+}));
+
+export const userReportsRelations = relations(userReports, ({ one }) => ({
+  reporter: one(users, { fields: [userReports.reporterId], references: [users.id] }),
+  reported: one(users, { fields: [userReports.reportedId], references: [users.id] }),
+}));
+
+export const insertUserReportSchema = createInsertSchema(userReports).omit({
+  id: true,
+  status: true,
+  createdAt: true,
+});
+export type InsertUserReport = z.infer<typeof insertUserReportSchema>;
+export type UserReport = typeof userReports.$inferSelect;
+
+export const userMutedCalls = pgTable("user_muted_calls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  mutedUserId: varchar("muted_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: index("user_muted_calls_user_id_idx").on(table.userId),
+  mutedUserIdIdx: index("user_muted_calls_muted_user_id_idx").on(table.mutedUserId),
+}));
+
+export const userMutedCallsRelations = relations(userMutedCalls, ({ one }) => ({
+  user: one(users, { fields: [userMutedCalls.userId], references: [users.id] }),
+  mutedUser: one(users, { fields: [userMutedCalls.mutedUserId], references: [users.id] }),
+}));
+
+export const insertUserMutedCallSchema = createInsertSchema(userMutedCalls).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertUserMutedCall = z.infer<typeof insertUserMutedCallSchema>;
+export type UserMutedCall = typeof userMutedCalls.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";

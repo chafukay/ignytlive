@@ -410,6 +410,68 @@ export const api = {
     return res.json() as Promise<Array<{ user: User; lastMessage: Message }>>;
   },
 
+  async deleteConversation(userId1: string, userId2: string) {
+    const res = await fetch(`${API_BASE}/api/messages/conversation/${userId1}/${userId2}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async blockUser(userId: string, blockedId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/block/${blockedId}`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async unblockUser(userId: string, blockedId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/block/${blockedId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async isUserBlocked(userId: string, otherUserId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/blocked/${otherUserId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ blocked: boolean }>;
+  },
+
+  async reportUser(userId: string, reportedId: string, reason: string, description?: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/report/${reportedId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, description }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async muteCallsFromUser(userId: string, mutedUserId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/mute-calls/${mutedUserId}`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async unmuteCallsFromUser(userId: string, mutedUserId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/mute-calls/${mutedUserId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async isCallMuted(userId: string, mutedUserId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/mute-calls/${mutedUserId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ muted: boolean }>;
+  },
+
   // Leaderboard
   async getLeaderboard(period: "daily" | "weekly" | "alltime") {
     const res = await fetch(`${API_BASE}/api/leaderboard/${period}`);

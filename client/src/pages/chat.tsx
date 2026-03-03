@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, UserPlus, UserMinus, Flag, Trash2 } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
@@ -8,14 +8,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import UserAvatar from "@/components/user-avatar";
+import GiftPanel from "@/components/gift-panel";
 import type { User, Message } from "@shared/schema";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function Chat() {
   const { user } = useAuth();
@@ -27,6 +22,12 @@ export default function Chat() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileShowConversation, setMobileShowConversation] = useState(false);
   const [activeTab, setActiveTab] = useState<"main" | "others">("main");
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showGiftPanel, setShowGiftPanel] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDescription, setReportDescription] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedUserId = params?.userId || null;
@@ -71,6 +72,21 @@ export default function Chat() {
     refetchIntervalInBackground: false,
   });
 
+  const { data: callMutedData } = useQuery({
+    queryKey: ['callMuted', user?.id, selectedUserId],
+    queryFn: () => api.isCallMuted(user!.id, selectedUserId!),
+    enabled: !!user?.id && !!selectedUserId,
+  });
+
+  const { data: blockData } = useQuery({
+    queryKey: ['blocked', user?.id, selectedUserId],
+    queryFn: () => api.isUserBlocked(user!.id, selectedUserId!),
+    enabled: !!user?.id && !!selectedUserId,
+  });
+
+  const isCallMuted = callMutedData?.muted || false;
+  const isBlocked = blockData?.blocked || false;
+
   const sendMessageMutation = useMutation({
     mutationFn: (content: string) => api.sendMessage(user!.id, selectedUserId!, content),
     onSuccess: () => {
@@ -81,49 +97,80 @@ export default function Chat() {
     onError: (error: any) => {
       if (error?.code === "DND_ENABLED") {
         toast({ title: "Cannot send message", description: "This user has Do Not Disturb enabled", variant: "destructive" });
+      } else if (error?.code === "BLOCKED") {
+        toast({ title: "Cannot send message", description: "You cannot message this user", variant: "destructive" });
       } else {
         toast({ title: "Failed to send message", variant: "destructive" });
       }
     },
   });
 
-  const { data: followStatus } = useQuery({
-    queryKey: ['isFollowing', user?.id, selectedUserId],
-    queryFn: () => api.isFollowing(user!.id, selectedUserId!),
-    enabled: !!user?.id && !!selectedUserId,
-  });
-
-  const followMutation = useMutation({
-    mutationFn: () => api.followUser(user!.id, selectedUserId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['isFollowing', user?.id, selectedUserId] });
-      queryClient.invalidateQueries({ queryKey: ['following', user?.id] });
-      toast({ title: "Followed successfully" });
-    },
-  });
-
-  const unfollowMutation = useMutation({
-    mutationFn: () => api.unfollowUser(user!.id, selectedUserId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['isFollowing', user?.id, selectedUserId] });
-      queryClient.invalidateQueries({ queryKey: ['following', user?.id] });
-      toast({ title: "Unfollowed" });
-    },
-  });
-
-  const clearChatMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/messages/conversation/${user!.id}/${selectedUserId!}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(await res.text());
-    },
+  const deleteConversationMutation = useMutation({
+    mutationFn: () => api.deleteConversation(user!.id, selectedUserId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversation', user?.id, selectedUserId] });
       queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
-      toast({ title: "Conversation cleared" });
+      toast({ title: "Chat deleted" });
+      setShowDeleteConfirm(false);
+      goBackToList();
     },
     onError: () => {
-      toast({ title: "Failed to clear conversation", variant: "destructive" });
+      toast({ title: "Failed to delete chat", variant: "destructive" });
     },
+  });
+
+  const blockUserMutation = useMutation({
+    mutationFn: () => {
+      if (isBlocked) {
+        return api.unblockUser(user!.id, selectedUserId!);
+      }
+      return api.blockUser(user!.id, selectedUserId!);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['blocked', user?.id, selectedUserId] });
+      toast({ title: isBlocked ? "User unblocked" : "User blocked" });
+      setShowOptionsMenu(false);
+    },
+  });
+
+  const muteCallsMutation = useMutation({
+    mutationFn: () => {
+      if (isCallMuted) {
+        return api.unmuteCallsFromUser(user!.id, selectedUserId!);
+      }
+      return api.muteCallsFromUser(user!.id, selectedUserId!);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['callMuted', user?.id, selectedUserId] });
+      toast({ title: isCallMuted ? "Calls unmuted" : "Calls muted" });
+      setShowOptionsMenu(false);
+    },
+  });
+
+  const reportUserMutation = useMutation({
+    mutationFn: () => {
+      return Promise.all([
+        api.reportUser(user!.id, selectedUserId!, reportReason, reportDescription),
+        api.blockUser(user!.id, selectedUserId!),
+      ]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['blocked', user?.id, selectedUserId] });
+      toast({ title: "User reported and blocked" });
+      setShowReportDialog(false);
+      setShowOptionsMenu(false);
+      setReportReason("");
+      setReportDescription("");
+    },
+    onError: () => {
+      toast({ title: "Failed to report user", variant: "destructive" });
+    },
+  });
+
+  const { data: following } = useQuery({
+    queryKey: ['following', user?.id],
+    queryFn: () => api.getFollowing(user!.id),
+    enabled: !!user?.id,
   });
 
   useEffect(() => {
@@ -165,11 +212,49 @@ export default function Chat() {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const { data: following } = useQuery({
-    queryKey: ['following', user?.id],
-    queryFn: () => api.getFollowing(user!.id),
-    enabled: !!user?.id,
-  });
+  const formatDate = (date: Date | string) => {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const handleVoiceCall = () => {
+    if (!otherUser?.availableForPrivateCall) {
+      toast({ title: "User is not available for calls", variant: "destructive" });
+      return;
+    }
+    if (isCallMuted) {
+      toast({ title: "You have muted calls from this user", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Calling...", description: "Voice call feature" });
+  };
+
+  const handleVideoCall = () => {
+    if (!otherUser?.availableForPrivateCall) {
+      toast({ title: "User is not available for calls", variant: "destructive" });
+      return;
+    }
+    if (isCallMuted) {
+      toast({ title: "You have muted calls from this user", variant: "destructive" });
+      return;
+    }
+    if (selectedUserId) {
+      api.requestPrivateCall(user!.id, selectedUserId).then(() => {
+        toast({ title: "Call requested", description: "Waiting for response..." });
+      }).catch(() => {
+        toast({ title: "Failed to start call", variant: "destructive" });
+      });
+    }
+  };
+
+  const reportReasons = [
+    "Spam or scam",
+    "Harassment or bullying",
+    "Inappropriate content",
+    "Fake profile",
+    "Underage user",
+    "Other",
+  ];
 
   const followingIds = new Set(following?.map((f: User) => f.id) || []);
 
@@ -183,6 +268,13 @@ export default function Chat() {
     if (activeTab === "main") return followingIds.has(chatUser.id);
     return !followingIds.has(chatUser.id);
   });
+
+  const groupedMessages = messages?.reduce((groups: Record<string, Message[]>, msg: Message) => {
+    const dateKey = formatDate(msg.createdAt);
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey]!.push(msg);
+    return groups;
+  }, {});
 
   if (!user) {
     return (
@@ -200,7 +292,7 @@ export default function Chat() {
     <GuestGate>
     <Layout>
       <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-        {/* Left Panel - Chat List (30%) */}
+        {/* Left Panel - Chat List */}
         <div className={`w-full md:w-[30%] md:min-w-[280px] md:max-w-[360px] border-r border-border flex flex-col bg-background ${
           mobileShowConversation ? 'hidden md:flex' : 'flex'
         }`}>
@@ -369,19 +461,19 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* Right Panel - Conversation (70%) */}
-        <div className={`w-full md:flex-1 flex flex-col bg-background ${
+        {/* Right Panel - Conversation */}
+        <div className={`w-full md:flex-1 flex flex-col bg-black ${
           !mobileShowConversation ? 'hidden md:flex' : 'flex'
         }`}>
           {selectedUserId && otherUser ? (
             <>
-              <div className="bg-card/80 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3 shrink-0">
+              <div className="bg-black/95 border-b border-white/10 px-3 py-3 flex items-center gap-3 shrink-0">
                 <button
                   onClick={goBackToList}
-                  className="p-2 hover:bg-muted rounded-full transition-colors md:hidden"
+                  className="p-1.5 hover:bg-white/10 rounded-full transition-colors md:hidden"
                   data-testid="button-back-to-chats"
                 >
-                  <ArrowLeft className="w-5 h-5 text-foreground" />
+                  <ArrowLeft className="w-5 h-5 text-white" />
                 </button>
                 <div
                   onClick={() => setLocation(`/profile/${otherUser.id}`)}
@@ -399,124 +491,156 @@ export default function Chat() {
                     linkToProfile={false}
                   />
                   <div>
-                    <h2 className="font-bold text-foreground text-sm" data-testid="text-chat-partner-username">{otherUser.username}</h2>
-                    <p className="text-xs text-muted-foreground" data-testid="text-chat-partner-status">
-                      {otherUser.isLive ? "Online" : `Level ${otherUser.level}`}
+                    <h2 className="font-semibold text-white text-sm" data-testid="text-chat-partner-username">{otherUser.username}</h2>
+                    <p className="text-[11px] text-white/50" data-testid="text-chat-partner-status">
+                      {otherUser.isLive ? "Live now" : `Level ${otherUser.level}`}
                     </p>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="p-2 hover:bg-muted rounded-full transition-colors" data-testid="button-chat-options">
-                      <MoreVertical className="w-5 h-5 text-muted-foreground" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem
-                      onClick={() => setLocation(`/profile/${otherUser.id}`)}
-                      data-testid="menu-view-profile"
-                    >
-                      <UserRound className="w-4 h-4 mr-2" />
-                      View Profile
-                    </DropdownMenuItem>
-                    {followStatus?.isFollowing ? (
-                      <DropdownMenuItem
-                        onClick={() => unfollowMutation.mutate()}
-                        data-testid="menu-unfollow"
-                      >
-                        <UserMinus className="w-4 h-4 mr-2" />
-                        Unfollow
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem
-                        onClick={() => followMutation.mutate()}
-                        data-testid="menu-follow"
-                      >
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Follow
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => clearChatMutation.mutate()}
-                      className="text-destructive focus:text-destructive"
-                      data-testid="menu-clear-chat"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Clear Chat
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      data-testid="menu-report"
-                      onClick={() => toast({ title: "Report submitted", description: "We'll review this user's activity" })}
-                    >
-                      <Flag className="w-4 h-4 mr-2" />
-                      Report User
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleVoiceCall}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                    data-testid="button-voice-call"
+                  >
+                    <Phone className="w-5 h-5 text-white" />
+                  </button>
+                  <button
+                    onClick={handleVideoCall}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                    data-testid="button-video-call"
+                  >
+                    <Video className="w-5 h-5 text-white" />
+                  </button>
+                  <button
+                    onClick={() => setShowOptionsMenu(true)}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                    data-testid="button-chat-options"
+                  >
+                    <MoreVertical className="w-5 h-5 text-white" />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <div className="flex-1 overflow-y-auto px-4 py-3">
                 {messagesLoading ? (
                   <div className="flex flex-col gap-3">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
-                        <div className="h-10 w-48 bg-muted rounded-2xl animate-pulse" />
+                        <div className="h-10 w-48 bg-white/10 rounded-2xl animate-pulse" />
                       </div>
                     ))}
                   </div>
                 ) : messages && messages.length > 0 ? (
-                  messages.map((msg: Message) => {
-                    const isOwn = msg.senderId === user.id;
-                    return (
-                      <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
-                            isOwn
-                              ? 'bg-primary text-white rounded-br-sm'
-                              : 'bg-muted text-foreground rounded-bl-sm'
-                          }`}
-                        >
-                          <p className="text-sm">{msg.content}</p>
-                          <p className={`text-[10px] mt-1 ${isOwn ? 'text-white/60' : 'text-muted-foreground'}`}>
-                            {formatTime(msg.createdAt)}
-                          </p>
+                  <>
+                    {groupedMessages && Object.entries(groupedMessages).map(([dateKey, msgs]) => (
+                      <div key={dateKey}>
+                        <div className="flex justify-center my-4">
+                          <span className="bg-emerald-600/80 text-white text-[11px] px-3 py-1 rounded-full font-medium">
+                            {dateKey}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {(msgs as Message[]).map((msg: Message) => {
+                            const isOwn = msg.senderId === user.id;
+                            return (
+                              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                                <div
+                                  className={`max-w-[75%] px-3.5 py-2 ${
+                                    isOwn
+                                      ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl rounded-br-md'
+                                      : 'bg-zinc-800 text-white rounded-2xl rounded-bl-md'
+                                  }`}
+                                >
+                                  <p className="text-[14px] leading-relaxed">{msg.content}</p>
+                                  <p className={`text-[10px] mt-0.5 ${isOwn ? 'text-white/70 text-right' : 'text-white/40'}`}>
+                                    {formatTime(msg.createdAt)}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    );
-                  })
+                    ))}
+                  </>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-muted-foreground">
+                    <div className="text-center text-white/40">
                       <p className="text-sm">No messages yet</p>
-                      <p className="text-xs mt-1">Say hello! 👋</p>
+                      <p className="text-xs mt-1">Say hello!</p>
                     </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
-              <form onSubmit={handleSend} className="p-3 border-t border-border bg-card/30 backdrop-blur-sm shrink-0">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-muted border border-border rounded-full py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-colors placeholder:text-muted-foreground"
-                    data-testid="input-message"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!message.trim() || sendMessageMutation.isPending}
-                    className="p-2.5 bg-primary rounded-full text-white disabled:opacity-50 hover:bg-primary/90 transition-colors shrink-0"
-                    data-testid="button-send"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
+              {isBlocked ? (
+                <div className="px-4 py-4 border-t border-white/10 bg-zinc-900/80 shrink-0">
+                  <div className="flex items-center justify-center gap-2 text-white/40">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm">You have blocked this user</span>
+                    <button
+                      onClick={() => blockUserMutation.mutate()}
+                      className="text-sm text-amber-500 font-medium ml-2"
+                      data-testid="button-unblock"
+                    >
+                      Unblock
+                    </button>
+                  </div>
                 </div>
-              </form>
+              ) : (
+                <form onSubmit={handleSend} className="px-3 py-3 border-t border-white/10 bg-black/95 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                      data-testid="button-plus-menu"
+                    >
+                      <Plus className="w-6 h-6 text-white/60" />
+                    </button>
+
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Say something..."
+                        className="w-full bg-zinc-800/80 border border-white/10 rounded-full py-2.5 px-4 text-white text-sm focus:outline-none focus:border-amber-500/50 transition-colors placeholder:text-white/30"
+                        data-testid="input-message"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowGiftPanel(true)}
+                      className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                      data-testid="button-gift-chat"
+                    >
+                      <Gift className="w-6 h-6 text-white/60" />
+                    </button>
+
+                    {message.trim() ? (
+                      <button
+                        type="submit"
+                        disabled={sendMessageMutation.isPending}
+                        className="p-2.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full text-white disabled:opacity-50 hover:opacity-90 transition-opacity shrink-0"
+                        data-testid="button-send"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                        data-testid="button-emoji"
+                      >
+                        <Smile className="w-6 h-6 text-white/60" />
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -531,6 +655,214 @@ export default function Chat() {
           )}
         </div>
       </div>
+
+      {otherUser && (
+        <GiftPanel
+          receiverId={otherUser.id}
+          receiverName={otherUser.username}
+          isOpen={showGiftPanel}
+          onClose={() => setShowGiftPanel(false)}
+        />
+      )}
+
+      <AnimatePresence>
+        {showOptionsMenu && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+            onClick={() => setShowOptionsMenu(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 350 }}
+              className="w-full max-w-lg bg-zinc-900 rounded-t-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="menu-chat-options"
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    if (otherUser) setLocation(`/profile/${otherUser.id}`);
+                    setShowOptionsMenu(false);
+                  }}
+                  className="w-full flex items-center justify-between px-5 py-4 text-white active:bg-white/5 transition-colors"
+                  data-testid="menu-item-view-profile"
+                >
+                  <span className="text-[15px]">View Profile</span>
+                  <UserRound className="w-5 h-5 text-white/40" />
+                </button>
+
+                <button
+                  onClick={() => muteCallsMutation.mutate()}
+                  className="w-full flex items-center justify-between px-5 py-4 text-white active:bg-white/5 transition-colors border-t border-white/5"
+                  data-testid="menu-item-mute-calls"
+                >
+                  <span className="text-[15px]">{isCallMuted ? "Unmute Calls" : "Mute Calls"}</span>
+                  <PhoneOff className="w-5 h-5 text-white/40" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowReportDialog(true);
+                    setShowOptionsMenu(false);
+                  }}
+                  className="w-full flex items-center justify-between px-5 py-4 text-white active:bg-white/5 transition-colors border-t border-white/5"
+                  data-testid="menu-item-report-block"
+                >
+                  <span className="text-[15px]">Report and Block</span>
+                  <AlertCircle className="w-5 h-5 text-white/40" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(true);
+                    setShowOptionsMenu(false);
+                  }}
+                  className="w-full flex items-center justify-between px-5 py-4 active:bg-white/5 transition-colors border-t border-white/5"
+                  data-testid="menu-item-delete-chat"
+                >
+                  <span className="text-[15px] text-red-500">Delete conversation</span>
+                  <Trash2 className="w-5 h-5 text-red-500/40" />
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-zinc-900 rounded-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="dialog-delete-chat"
+            >
+              <div className="p-6 text-center">
+                <h3 className="text-xl font-bold text-white mb-2">Delete the chat</h3>
+                <p className="text-white/50 text-sm">
+                  Are you sure you want to delete the chat with this user?
+                </p>
+              </div>
+              <div className="px-6 pb-6 space-y-3">
+                <button
+                  onClick={() => deleteConversationMutation.mutate()}
+                  disabled={deleteConversationMutation.isPending}
+                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteConversationMutation.isPending ? "Deleting..." : "Delete the chat"}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl transition-colors border border-white/10"
+                  data-testid="button-cancel-delete"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showReportDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
+            onClick={() => setShowReportDialog(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-lg bg-zinc-900 rounded-t-2xl overflow-hidden max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="dialog-report"
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+              <div className="p-5">
+                <h3 className="text-lg font-bold text-white mb-1">Report and Block</h3>
+                <p className="text-white/50 text-sm mb-4">
+                  This user will be blocked and reported. Select a reason:
+                </p>
+                
+                <div className="space-y-2 mb-4">
+                  {reportReasons.map((reason) => (
+                    <button
+                      key={reason}
+                      onClick={() => setReportReason(reason)}
+                      className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors ${
+                        reportReason === reason 
+                          ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400' 
+                          : 'bg-zinc-800 border border-white/5 text-white hover:bg-zinc-700'
+                      }`}
+                      data-testid={`button-report-reason-${reason}`}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+
+                {reportReason && (
+                  <textarea
+                    value={reportDescription}
+                    onChange={(e) => setReportDescription(e.target.value)}
+                    placeholder="Additional details (optional)..."
+                    className="w-full bg-zinc-800 border border-white/10 rounded-xl p-3 text-white text-sm resize-none h-20 focus:outline-none focus:border-amber-500/50 placeholder:text-white/30 mb-4"
+                    data-testid="input-report-description"
+                  />
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowReportDialog(false);
+                      setReportReason("");
+                      setReportDescription("");
+                    }}
+                    className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-xl transition-colors border border-white/10"
+                    data-testid="button-cancel-report"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => reportUserMutation.mutate()}
+                    disabled={!reportReason || reportUserMutation.isPending}
+                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                    data-testid="button-confirm-report"
+                  >
+                    {reportUserMutation.isPending ? "Reporting..." : "Report & Block"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
     </GuestGate>
   );

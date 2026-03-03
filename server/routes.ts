@@ -1259,7 +1259,14 @@ export async function registerRoutes(
       // Guest restriction
       if (await checkGuestRestriction(messageData.senderId, res, storage)) return;
       
-      // Check if recipient has DND enabled
+      const [blocked1, blocked2] = await Promise.all([
+        storage.isUserBlocked(messageData.senderId, messageData.receiverId),
+        storage.isUserBlocked(messageData.receiverId, messageData.senderId),
+      ]);
+      if (blocked1 || blocked2) {
+        return res.status(403).json({ error: "Cannot send message to this user", code: "BLOCKED" });
+      }
+
       const recipient = await storage.getUser(messageData.receiverId);
       if (recipient?.dndEnabled) {
         return res.status(403).json({ error: "User has Do Not Disturb enabled", code: "DND_ENABLED" });
@@ -1288,6 +1295,71 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to clear conversation" });
+    }
+  });
+
+  app.post("/api/users/:userId/block/:blockedId", async (req, res) => {
+    try {
+      await storage.blockUser(req.params.userId, req.params.blockedId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to block user" });
+    }
+  });
+
+  app.delete("/api/users/:userId/block/:blockedId", async (req, res) => {
+    try {
+      await storage.unblockUser(req.params.userId, req.params.blockedId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to unblock user" });
+    }
+  });
+
+  app.get("/api/users/:userId/blocked/:otherUserId", async (req, res) => {
+    try {
+      const blocked = await storage.isUserBlocked(req.params.userId, req.params.otherUserId);
+      res.json({ blocked });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check block status" });
+    }
+  });
+
+  app.post("/api/users/:userId/report/:reportedId", async (req, res) => {
+    try {
+      const { reason, description } = req.body;
+      if (!reason) return res.status(400).json({ error: "Reason is required" });
+      await storage.reportUser(req.params.userId, req.params.reportedId, reason, description);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to report user" });
+    }
+  });
+
+  app.post("/api/users/:userId/mute-calls/:mutedUserId", async (req, res) => {
+    try {
+      await storage.muteCallsFromUser(req.params.userId, req.params.mutedUserId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mute calls" });
+    }
+  });
+
+  app.delete("/api/users/:userId/mute-calls/:mutedUserId", async (req, res) => {
+    try {
+      await storage.unmuteCallsFromUser(req.params.userId, req.params.mutedUserId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to unmute calls" });
+    }
+  });
+
+  app.get("/api/users/:userId/mute-calls/:mutedUserId", async (req, res) => {
+    try {
+      const muted = await storage.isCallMuted(req.params.userId, req.params.mutedUserId);
+      res.json({ muted });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check mute status" });
     }
   });
 
