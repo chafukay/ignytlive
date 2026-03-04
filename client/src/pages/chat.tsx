@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X, Pencil, Languages, Reply, Copy, Star, Pin, Forward, Info, CheckSquare } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X, Pencil, Languages, Reply, Copy, Star, Pin, Info, CheckSquare } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
@@ -1293,18 +1293,18 @@ export default function Chat() {
                     <button
                       onClick={() => { toast({ title: "Coming soon" }); setShowMessageActions(false); setLongPressedMessageId(null); }}
                       className={menuItem}
-                      data-testid="button-action-forward"
-                    >
-                      <Forward className="w-[18px] h-[18px] text-white/70" />
-                      <span className="text-white text-[14px]">Forward</span>
-                    </button>
-                    <button
-                      onClick={() => { toast({ title: "Coming soon" }); setShowMessageActions(false); setLongPressedMessageId(null); }}
-                      className={menuItem}
                       data-testid="button-action-star"
                     >
                       <Star className="w-[18px] h-[18px] text-white/70" />
                       <span className="text-white text-[14px]">Star</span>
+                    </button>
+                    <button
+                      onClick={() => { toast({ title: "Coming soon" }); setShowMessageActions(false); setLongPressedMessageId(null); }}
+                      className={menuItem}
+                      data-testid="button-action-pin"
+                    >
+                      <Pin className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Pin</span>
                     </button>
                     {isOwnMsg && (
                       <button
