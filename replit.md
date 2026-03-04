@@ -152,10 +152,12 @@ Core data models include:
 
 ### Private Video Calls (1:1)
 - **System**: Unified private calls system via `/api/private-calls/*` endpoints
-- **Flow**: Viewer clicks Call button → `requestPrivateCall` creates pending call → Host sees request in live room → Accept navigates both to `/private-call/:id` → Agora video connection established
+- **Flow**: Viewer clicks Call button (from chat header, profile, or live room) → `requestPrivateCall` creates pending call → Caller navigates to `/private-call/:id` "Calling..." screen → Host sees incoming call banner with ringtone → Accept navigates both to active call → Agora video connection established
 - **Billing**: Per-minute (charged every 60s) or per-session (flat fee upfront)
-- **Agora**: Both participants join as publishers with token authentication
-- **Components**: `CallButton` (initiates), `PrivateCallPage` (call UI with controls)
+- **Agora**: App ID fetched from server config endpoint (`/api/agora/config`), both participants join as publishers with token authentication
+- **Ringtone**: Web Audio API-generated dual-tone ring (440Hz + 480Hz), plays on incoming call banner and caller "Calling..." screen, stops on accept/decline/cancel
+- **Chat Integration**: Both voice and video call buttons in chat conversation header initiate private calls (same flow)
+- **Components**: `CallButton` (initiates), `PrivateCallPage` (call UI with controls), `IncomingCallBanner` (global incoming call overlay)
 
 ### Notification System
 - **Notifications Table**: `notifications` table with types: follow, gift, call_request, system, level_up

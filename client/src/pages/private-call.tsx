@@ -8,9 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Coins, Gift } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import GiftPanel from "@/components/gift-panel";
+import { startRingtone, stopRingtone } from "@/lib/ringtone";
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
-
-const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID;
 
 export default function PrivateCallPage() {
   const { id: callId } = useParams<{ id: string }>();
@@ -90,9 +89,22 @@ export default function PrivateCallPage() {
   };
 
   const initializeAgora = async () => {
-    if (!call?.agoraChannel || !AGORA_APP_ID) return;
+    if (!call?.agoraChannel) return;
 
     try {
+      const configRes = await fetch('/api/agora/config');
+      const configData = await configRes.json();
+      const appId = configData.appId;
+
+      if (!appId || !configData.configured) {
+        toast({
+          title: "Video calls not configured",
+          description: "Agora is not set up on this server",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
       setClient(agoraClient);
 
@@ -129,7 +141,7 @@ export default function PrivateCallPage() {
         console.warn("Could not fetch Agora token, joining without token");
       }
 
-      await agoraClient.join(AGORA_APP_ID, call.agoraChannel, token, null);
+      await agoraClient.join(appId, call.agoraChannel, token, null);
 
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       setLocalAudioTrack(audioTrack);
@@ -163,6 +175,11 @@ export default function PrivateCallPage() {
   };
 
   useEffect(() => {
+    if (call?.status === "pending") {
+      startRingtone();
+    } else {
+      stopRingtone();
+    }
     if (call?.status === "active" && !isConnected) {
       initializeAgora();
     }
@@ -174,6 +191,7 @@ export default function PrivateCallPage() {
 
   useEffect(() => {
     return () => {
+      stopRingtone();
       cleanup();
     };
   }, []);

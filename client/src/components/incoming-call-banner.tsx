@@ -4,7 +4,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { Phone, PhoneOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { startRingtone, stopRingtone } from "@/lib/ringtone";
 import type { User } from "@shared/schema";
 
 interface PendingCall {
@@ -36,13 +37,37 @@ export default function IncomingCallBanner() {
     (call: PendingCall) => !dismissedCallIds.has(call.id)
   );
 
+  const wasRingingRef = useRef(false);
+
+  useEffect(() => {
+    if (visibleCalls.length > 0 && !wasRingingRef.current) {
+      wasRingingRef.current = true;
+      startRingtone();
+    } else if (visibleCalls.length === 0 && wasRingingRef.current) {
+      wasRingingRef.current = false;
+      stopRingtone();
+    }
+    return () => {
+      if (wasRingingRef.current) {
+        stopRingtone();
+        wasRingingRef.current = false;
+      }
+    };
+  }, [visibleCalls.length]);
+
   const handleAccept = async (call: PendingCall) => {
     try {
+      stopRingtone();
       await api.acceptPrivateCall(call.id, user!.id);
+      wasRingingRef.current = false;
       queryClient.invalidateQueries({ queryKey: ['incomingCalls'] });
       setLocation(`/private-call/${call.id}`);
     } catch (e) {
       console.error("Failed to accept call:", e);
+      if (visibleCalls.length > 0) {
+        startRingtone();
+        wasRingingRef.current = true;
+      }
     }
   };
 
@@ -50,6 +75,8 @@ export default function IncomingCallBanner() {
     try {
       await api.declinePrivateCall(call.id, user!.id);
       setDismissedCallIds(prev => new Set(prev).add(call.id));
+      stopRingtone();
+      wasRingingRef.current = false;
       queryClient.invalidateQueries({ queryKey: ['incomingCalls'] });
     } catch (e) {
       console.error("Failed to decline call:", e);

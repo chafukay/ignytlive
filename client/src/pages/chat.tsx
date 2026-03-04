@@ -282,19 +282,7 @@ export default function Chat() {
     return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  const handleVoiceCall = () => {
-    if (!otherUser?.availableForPrivateCall) {
-      toast({ title: "User is not available for calls", variant: "destructive" });
-      return;
-    }
-    if (isCallMuted) {
-      toast({ title: "You have muted calls from this user", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Calling...", description: "Voice call feature" });
-  };
-
-  const handleVideoCall = () => {
+  const initiateCall = (callType: "voice" | "video") => {
     if (!otherUser?.availableForPrivateCall) {
       toast({ title: "User is not available for calls", variant: "destructive" });
       return;
@@ -304,13 +292,17 @@ export default function Chat() {
       return;
     }
     if (selectedUserId) {
-      api.requestPrivateCall(user!.id, selectedUserId).then(() => {
-        toast({ title: "Call requested", description: "Waiting for response..." });
-      }).catch(() => {
-        toast({ title: "Failed to start call", variant: "destructive" });
+      api.requestPrivateCall(user!.id, selectedUserId).then((data) => {
+        setLocation(`/private-call/${data.id}`);
+      }).catch((err) => {
+        const msg = err?.message || "Failed to start call";
+        toast({ title: msg, variant: "destructive" });
       });
     }
   };
+
+  const handleVoiceCall = () => initiateCall("voice");
+  const handleVideoCall = () => initiateCall("video");
 
   const handleMessageLongPress = (msgId: string) => {
     if (longPressTimerRef.current) {
