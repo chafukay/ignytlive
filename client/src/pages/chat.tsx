@@ -52,6 +52,25 @@ export default function Chat() {
     refetchIntervalInBackground: false,
   });
 
+  const { data: unreadData } = useQuery({
+    queryKey: ['unreadMessageCount', user?.id],
+    queryFn: () => api.getUnreadMessageCount(user!.id),
+    enabled: !!user?.id,
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
+  });
+
+  const unreadBySender = new Map<string, number>(
+    (unreadData?.perSender || []).map((item: { senderId: string; count: number }) => [item.senderId, item.count])
+  );
+
+  const markReadMutation = useMutation({
+    mutationFn: (otherUserId: string) => api.markMessagesAsRead(user!.id, otherUserId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unreadMessageCount', user?.id] });
+    },
+  });
+
   const { data: searchResults, isLoading: searchLoading } = useQuery({
     queryKey: ['searchUsers', debouncedSearch],
     queryFn: () => api.searchUsers(debouncedSearch),
@@ -180,6 +199,9 @@ export default function Chat() {
   useEffect(() => {
     if (selectedUserId) {
       setMobileShowConversation(true);
+      if (user) {
+        markReadMutation.mutate(selectedUserId);
+      }
     }
   }, [selectedUserId]);
 
@@ -192,6 +214,9 @@ export default function Chat() {
   const selectChat = (userId: string) => {
     setLocation(`/chat/${userId}`);
     setMobileShowConversation(true);
+    if (user && unreadBySender.has(userId)) {
+      markReadMutation.mutate(userId);
+    }
   };
 
   const goBackToList = () => {
@@ -410,42 +435,56 @@ export default function Chat() {
               </div>
             ) : filteredChats && filteredChats.length > 0 ? (
               <div className="p-2">
-                {filteredChats.map(({ user: chatUser, lastMessage }) => (
-                  <div
-                    key={chatUser.id}
-                    onClick={() => selectChat(chatUser.id)}
-                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
-                      selectedUserId === chatUser.id
-                        ? 'bg-primary/10 border border-primary/20'
-                        : 'hover:bg-muted/50'
-                    }`}
-                    data-testid={`chat-${chatUser.id}`}
-                  >
-                    <div className="shrink-0">
-                      <UserAvatar
-                        userId={chatUser.id}
-                        username={chatUser.username}
-                        avatar={chatUser.avatar}
-                        isLive={chatUser.isLive}
-                        isOnline={chatUser.isLive}
-                        size="md"
-                        showStatus={true}
-                        linkToProfile={false}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <h3 className="font-semibold text-foreground text-sm truncate">{chatUser.username}</h3>
-                        <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
-                          {formatTime(lastMessage.createdAt)}
-                        </span>
+                {filteredChats.map(({ user: chatUser, lastMessage }) => {
+                  const unreadCount = unreadBySender.get(chatUser.id) || 0;
+                  const hasUnread = unreadCount > 0;
+                  return (
+                    <div
+                      key={chatUser.id}
+                      onClick={() => selectChat(chatUser.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
+                        selectedUserId === chatUser.id
+                          ? 'bg-primary/10 border border-primary/20'
+                          : 'hover:bg-muted/50'
+                      }`}
+                      data-testid={`chat-${chatUser.id}`}
+                    >
+                      <div className="shrink-0">
+                        <UserAvatar
+                          userId={chatUser.id}
+                          username={chatUser.username}
+                          avatar={chatUser.avatar}
+                          isLive={chatUser.isLive}
+                          isOnline={chatUser.isLive}
+                          size="md"
+                          showStatus={true}
+                          linkToProfile={false}
+                        />
                       </div>
-                      <p className="text-muted-foreground text-xs truncate">
-                        {lastMessage.senderId === user.id ? 'You: ' : ''}{lastMessage.content}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <h3 className={`text-sm truncate ${hasUnread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>{chatUser.username}</h3>
+                          <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
+                            {formatTime(lastMessage.createdAt)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className={`text-xs truncate ${hasUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                            {lastMessage.senderId === user.id ? 'You: ' : ''}{lastMessage.content}
+                          </p>
+                          {hasUnread && (
+                            <span
+                              className="shrink-0 ml-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
+                              data-testid={`badge-unread-${chatUser.id}`}
+                            >
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center p-6">

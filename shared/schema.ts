@@ -1078,5 +1078,31 @@ export const insertUserMutedCallSchema = createInsertSchema(userMutedCalls).omit
 export type InsertUserMutedCall = z.infer<typeof insertUserMutedCallSchema>;
 export type UserMutedCall = typeof userMutedCalls.$inferSelect;
 
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // follow, gift, call_request, system, level_up
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  metadata: text("metadata"), // JSON string for extra data
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: index("notifications_user_id_idx").on(table.userId),
+  createdAtIdx: index("notifications_created_at_idx").on(table.createdAt),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+}));
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";

@@ -157,6 +157,17 @@ Core data models include:
 - **Agora**: Both participants join as publishers with token authentication
 - **Components**: `CallButton` (initiates), `PrivateCallPage` (call UI with controls)
 
+### Notification System
+- **Notifications Table**: `notifications` table with types: follow, gift, call_request, system, level_up
+- **Auto-triggers**: Notifications created automatically on follow, gift send, and private call request
+- **Unread Message Counts**: `GET /api/messages/unread-count/:userId` returns total + per-sender breakdown
+- **Mark Messages Read**: `POST /api/messages/mark-read` marks conversation as read on open
+- **Notification CRUD**: `GET /api/notifications/:userId`, `GET /api/notifications/:userId/unread-count`, `POST /api/notifications/:userId/mark-read`, `POST /api/notifications/:notifId/read`
+- **Nav Badges**: Chats icon shows red count badge for unread messages (15s poll); Profile icon shows red dot for unread notifications (30s poll)
+- **Chat Unread Indicators**: Per-conversation unread count badges, bold text for unread conversations, auto-mark-read on open
+- **Notifications Page**: Groups by time (Today, Yesterday, This Week, Earlier), type-based icons, marks all read on open
+- **Global Incoming Call Banner**: Polls pending private calls every 5s, shows slide-down banner with accept/decline on any page, respects DND setting
+
 ### Performance Optimizations
 - **Polling**: All `refetchInterval` queries use `refetchIntervalInBackground: false` to stop polling when tab is backgrounded
 - **Intervals**: Home page 15s (streams), 30s (following), 60s (suggestions); Live room 10s; Chat 5-15s

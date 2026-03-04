@@ -1122,6 +1122,19 @@ export async function registerRoutes(
       await awardXP(followData.followerId, "FOLLOW_USER").catch(() => {});
       await awardXP(followData.followingId, "GET_FOLLOWED").catch(() => {});
       
+      // Create follow notification for the followed user
+      const followerUser = await storage.getUser(followData.followerId);
+      if (followerUser) {
+        storage.createNotification({
+          userId: followData.followingId,
+          type: "follow",
+          title: "New Follower",
+          message: `${followerUser.username} started following you`,
+          metadata: JSON.stringify({ followerId: followData.followerId, followerUsername: followerUser.username, followerAvatar: followerUser.avatar }),
+          isRead: false,
+        }).catch(() => {});
+      }
+      
       res.json(follow);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to follow" });
@@ -1222,6 +1235,20 @@ export async function registerRoutes(
       await awardXP(transactionData.senderId, "SEND_GIFT", quantity).catch(() => {});
       await awardXP(transactionData.receiverId, "RECEIVE_GIFT", quantity).catch(() => {});
       
+      // Create gift notification for the receiver
+      const senderUser = await storage.getUser(transactionData.senderId);
+      if (senderUser) {
+        const gift = await storage.getGifts().then(g => g.find(gi => gi.id === transactionData.giftId));
+        storage.createNotification({
+          userId: transactionData.receiverId,
+          type: "gift",
+          title: "Gift Received",
+          message: `${senderUser.username} sent you ${gift?.emoji || '🎁'} ${gift?.name || 'a gift'} x${quantity}`,
+          metadata: JSON.stringify({ senderId: transactionData.senderId, senderUsername: senderUser.username, giftName: gift?.name, giftEmoji: gift?.emoji, quantity, totalCoins: transactionData.totalCoins }),
+          isRead: false,
+        }).catch(() => {});
+      }
+      
       // Broadcast gift to stream viewers (only if recipient doesn't have DND)
       if (transaction.streamId && !recipientHasDND) {
         const streamWs = streamConnections.get(transaction.streamId);
@@ -1287,6 +1314,28 @@ export async function registerRoutes(
     const { userId1, userId2 } = req.query as { userId1: string; userId2: string };
     const messages = await storage.getConversation(userId1, userId2);
     res.json(messages);
+  });
+
+  app.get("/api/messages/unread-count/:userId", async (req, res) => {
+    try {
+      const result = await storage.getUnreadMessageCount(req.params.userId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get unread count" });
+    }
+  });
+
+  app.post("/api/messages/mark-read", async (req, res) => {
+    try {
+      const { userId, otherUserId } = req.body;
+      if (!userId || !otherUserId) {
+        return res.status(400).json({ error: "userId and otherUserId are required" });
+      }
+      await storage.markMessagesAsRead(userId, otherUserId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark messages as read" });
+    }
   });
 
   app.delete("/api/messages/conversation/:userId1/:userId2", async (req, res) => {
@@ -1939,6 +1988,16 @@ export async function registerRoutes(
       if (existingCall) {
         return res.status(400).json({ error: "You already have an active call" });
       }
+      
+      // Create call request notification for the host
+      storage.createNotification({
+        userId: hostId,
+        type: "call_request",
+        title: "Incoming Call Request",
+        message: `${viewer.username} wants to start a private call with you`,
+        metadata: JSON.stringify({ callerId: viewerId, callerUsername: viewer.username, callerAvatar: viewer.avatar }),
+        isRead: false,
+      }).catch(() => {});
       
       // Create the call request
       const agoraChannel = `private_${Date.now()}_${viewerId}_${hostId}`;
@@ -3234,6 +3293,49 @@ export async function registerRoutes(
       res.json({ success: true, bonusCoins: 100 });
     } catch (error) {
       res.status(400).json({ error: "Failed to apply referral code" });
+    }
+  });
+
+  // ========== Notification API Routes ==========
+
+  app.get("/api/notifications/:userId", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const notifs = await storage.getNotifications(req.params.userId, limit, offset);
+      res.json(notifs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/notifications/:userId/unread-count", async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.params.userId);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch unread count" });
+    }
+  });
+
+  app.post("/api/notifications/:userId/mark-read", async (req, res) => {
+    try {
+      await storage.markAllNotificationsRead(req.params.userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark notifications as read" });
+    }
+  });
+
+  app.post("/api/notifications/:notifId/read", async (req, res) => {
+    try {
+      const notif = await storage.markNotificationRead(req.params.notifId);
+      if (!notif) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      res.json(notif);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark notification as read" });
     }
   });
 

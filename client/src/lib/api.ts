@@ -1,4 +1,4 @@
-import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest, Group, GroupMember, GroupMessage, MediaUnlock } from "@shared/schema";
+import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest, Group, GroupMember, GroupMessage, MediaUnlock, Notification } from "@shared/schema";
 
 const API_BASE = "";
 
@@ -408,6 +408,22 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/users/${userId}/chats`);
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Array<{ user: User; lastMessage: Message }>>;
+  },
+
+  async getUnreadMessageCount(userId: string) {
+    const res = await fetch(`${API_BASE}/api/messages/unread-count/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ total: number; perSender: Array<{ senderId: string; count: number }> }>;
+  },
+
+  async markMessagesAsRead(userId: string, otherUserId: string) {
+    const res = await fetch(`${API_BASE}/api/messages/mark-read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, otherUserId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ success: boolean }>;
   },
 
   async deleteConversation(userId1: string, userId2: string) {
@@ -1052,6 +1068,34 @@ export const api = {
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<DailyLoginResult>;
+  },
+
+  async getNotifications(userId: string, limit = 50, offset = 0) {
+    const res = await fetch(`${API_BASE}/api/notifications/${userId}?limit=${limit}&offset=${offset}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Notification[]>;
+  },
+
+  async getUnreadNotificationCount(userId: string) {
+    const res = await fetch(`${API_BASE}/api/notifications/${userId}/unread-count`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ count: number }>;
+  },
+
+  async markAllNotificationsRead(userId: string) {
+    const res = await fetch(`${API_BASE}/api/notifications/${userId}/mark-read`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async markNotificationRead(notifId: string) {
+    const res = await fetch(`${API_BASE}/api/notifications/${notifId}/read`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<Notification>;
   },
 };
 

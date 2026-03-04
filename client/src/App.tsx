@@ -43,6 +43,7 @@ import Achievements from "@/pages/achievements";
 import LinkAccount from "@/pages/link-account";
 import Referrals from "@/pages/referrals";
 import ProfileVisitors from "@/pages/profile-visitors";
+import IncomingCallBanner from "@/components/incoming-call-banner";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -106,6 +107,7 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <DailyLoginModal />
+            <IncomingCallBanner />
             <Router />
           </TooltipProvider>
         </AuthProvider>
