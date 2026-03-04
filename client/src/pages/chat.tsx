@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X, Pencil, Languages } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
@@ -33,7 +33,13 @@ export default function Chat() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
   const [showDeleteMessageConfirm, setShowDeleteMessageConfirm] = useState(false);
+  const [showMessageActions, setShowMessageActions] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [translatedMessages, setTranslatedMessages] = useState<Map<string, string>>(new Map());
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const selectedUserId = params?.userId || null;
@@ -156,6 +162,26 @@ export default function Chat() {
     },
     onError: () => {
       toast({ title: "Failed to delete message", variant: "destructive" });
+    },
+  });
+
+  const editMessageMutation = useMutation({
+    mutationFn: ({ messageId, content }: { messageId: string; content: string }) =>
+      api.editMessage(messageId, user!.id, content),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', user?.id, selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
+      setTranslatedMessages(prev => {
+        const next = new Map(prev);
+        next.delete(variables.messageId);
+        return next;
+      });
+      toast({ title: "Message edited" });
+      setEditingMessageId(null);
+      setEditContent("");
+    },
+    onError: () => {
+      toast({ title: "Failed to edit message", variant: "destructive" });
     },
   });
 
@@ -310,7 +336,7 @@ export default function Chat() {
     }
     longPressTimerRef.current = setTimeout(() => {
       setLongPressedMessageId(msgId);
-      setShowDeleteMessageConfirm(true);
+      setShowMessageActions(true);
     }, 500);
   };
 
@@ -318,6 +344,38 @@ export default function Chat() {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
+    }
+  };
+
+  const handleStartEdit = (msg: Message) => {
+    setShowMessageActions(false);
+    setLongPressedMessageId(null);
+    setEditingMessageId(msg.id);
+    setEditContent(msg.content);
+    setTimeout(() => editInputRef.current?.focus(), 100);
+  };
+
+  const handleSubmitEdit = () => {
+    if (!editingMessageId || !editContent.trim()) return;
+    editMessageMutation.mutate({ messageId: editingMessageId, content: editContent.trim() });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
+  const handleTranslate = async (msgId: string, content: string) => {
+    setShowMessageActions(false);
+    setLongPressedMessageId(null);
+    setTranslatingId(msgId);
+    try {
+      const result = await api.translateText(content);
+      setTranslatedMessages(prev => new Map(prev).set(msgId, result.translatedText));
+    } catch {
+      toast({ title: "Translation failed", variant: "destructive" });
+    } finally {
+      setTranslatingId(null);
     }
   };
 
@@ -765,7 +823,7 @@ export default function Chat() {
                                 onContextMenu={(e) => {
                                   e.preventDefault();
                                   setLongPressedMessageId(msg.id);
-                                  setShowDeleteMessageConfirm(true);
+                                  setShowMessageActions(true);
                                 }}
                               >
                                 <div
@@ -776,10 +834,59 @@ export default function Chat() {
                                   }`}
                                   data-testid={`message-bubble-${msg.id}`}
                                 >
-                                  <p className="text-[14px] leading-relaxed">{msg.content}</p>
-                                  <p className={`text-[10px] mt-0.5 ${isOwn ? 'text-white/70 text-right' : 'text-white/40'}`}>
-                                    {formatTime(msg.createdAt)}
-                                  </p>
+                                  {editingMessageId === msg.id ? (
+                                    <div className="flex flex-col gap-1.5">
+                                      <input
+                                        ref={editInputRef}
+                                        type="text"
+                                        value={editContent}
+                                        onChange={(e) => setEditContent(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleSubmitEdit();
+                                          if (e.key === 'Escape') handleCancelEdit();
+                                        }}
+                                        className="bg-white/20 text-white text-[14px] px-2 py-1 rounded-lg focus:outline-none focus:ring-1 focus:ring-white/40 w-full"
+                                        data-testid="input-edit-message"
+                                      />
+                                      <div className="flex gap-2 justify-end">
+                                        <button
+                                          onClick={handleCancelEdit}
+                                          className="text-[11px] text-white/70 hover:text-white px-2 py-0.5"
+                                          data-testid="button-cancel-edit"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          onClick={handleSubmitEdit}
+                                          className="text-[11px] text-white font-semibold bg-white/20 rounded px-2 py-0.5"
+                                          data-testid="button-save-edit"
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="text-[14px] leading-relaxed">{msg.content}</p>
+                                      {translatedMessages.has(msg.id) && (
+                                        <div className="mt-1.5 pt-1.5 border-t border-white/20">
+                                          <p className="text-[11px] text-white/60 italic mb-0.5">Translation:</p>
+                                          <p className="text-[13px] leading-relaxed">{translatedMessages.get(msg.id)}</p>
+                                        </div>
+                                      )}
+                                      {translatingId === msg.id && (
+                                        <p className="text-[11px] text-white/50 mt-1 italic">Translating...</p>
+                                      )}
+                                      <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? 'justify-end' : ''}`}>
+                                        {msg.isEdited && (
+                                          <span className={`text-[10px] italic ${isOwn ? 'text-white/60' : 'text-white/40'}`}>edited</span>
+                                        )}
+                                        <p className={`text-[10px] ${isOwn ? 'text-white/70' : 'text-white/40'}`}>
+                                          {formatTime(msg.createdAt)}
+                                        </p>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -1003,6 +1110,69 @@ export default function Chat() {
                 >
                   Cancel
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Message Actions Menu */}
+      <AnimatePresence>
+        {showMessageActions && longPressedMessageId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
+            onClick={() => { setShowMessageActions(false); setLongPressedMessageId(null); }}
+          >
+            <motion.div
+              initial={{ y: 200, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 200, opacity: 0 }}
+              className="w-full max-w-md bg-zinc-900 rounded-t-2xl overflow-hidden pb-6"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="dialog-message-actions"
+            >
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-4" />
+              <div className="px-4 space-y-1">
+                {(() => {
+                  const selectedMsg = (messages as Message[] | undefined)?.find((m: Message) => m.id === longPressedMessageId);
+                  const isOwnMsg = selectedMsg?.senderId === user?.id;
+                  return (
+                    <>
+                      {isOwnMsg && (
+                        <button
+                          onClick={() => selectedMsg && handleStartEdit(selectedMsg)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl transition-colors"
+                          data-testid="button-action-edit"
+                        >
+                          <Pencil className="w-5 h-5 text-amber-400" />
+                          <span className="text-white font-medium">Edit message</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => selectedMsg && handleTranslate(selectedMsg.id, selectedMsg.content)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl transition-colors"
+                        data-testid="button-action-translate"
+                      >
+                        <Languages className="w-5 h-5 text-blue-400" />
+                        <span className="text-white font-medium">Translate</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowMessageActions(false);
+                          setShowDeleteMessageConfirm(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl transition-colors"
+                        data-testid="button-action-delete"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-400" />
+                        <span className="text-red-400 font-medium">Delete message</span>
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </motion.div>
           </motion.div>

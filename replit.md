@@ -89,6 +89,9 @@ Core data models include:
 ### Conversation View Features
 - **Header**: Avatar, username, last seen/level, voice call button, video call button, 3-dot menu
 - **Bottom Sheet Menu**: View Profile, Mute/Unmute Calls, Report and Block, Delete Conversation
+- **Message Actions**: Long-press/right-click opens bottom sheet with Edit (own messages only), Translate, Delete
+- **Message Editing**: Inline edit input with Save/Cancel, PATCH `/api/messages/:messageId`, shows "edited" label, encrypted at rest
+- **Translation**: Server-side proxy via MyMemory API (no key needed), `POST /api/translate`, inline translated text below original
 - **Delete Confirmation Dialog**: Centered modal with red delete button and cancel
 - **Report Dialog**: Bottom sheet with reason selection, optional description, Report & Block action
 - **Input Bar**: Plus button, message input ("Say something..."), gift button, emoji/send toggle

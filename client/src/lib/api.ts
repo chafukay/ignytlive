@@ -444,6 +444,26 @@ export const api = {
     return res.json();
   },
 
+  async editMessage(messageId: string, userId: string, content: string) {
+    const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, content }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async translateText(text: string, targetLang: string = "en") {
+    const res = await fetch(`${API_BASE}/api/translate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, targetLang }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
   async deleteMultipleConversations(userId: string, otherUserIds: string[]) {
     const res = await fetch(`${API_BASE}/api/messages/delete-conversations`, {
       method: "POST",

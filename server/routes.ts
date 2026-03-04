@@ -1363,6 +1363,44 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/messages/:messageId", async (req, res) => {
+    try {
+      const { userId, content } = req.body;
+      if (!userId || !content?.trim()) {
+        return res.status(400).json({ error: "userId and content are required" });
+      }
+      const updated = await storage.updateMessage(req.params.messageId, userId, content.trim());
+      if (!updated) {
+        return res.status(404).json({ error: "Message not found or you can only edit your own messages" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to edit message" });
+    }
+  });
+
+  app.post("/api/translate", async (req, res) => {
+    try {
+      const { text, targetLang } = req.body;
+      if (!text) {
+        return res.status(400).json({ error: "text is required" });
+      }
+      const target = targetLang || "en";
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=autodetect|${target}`
+      );
+      if (!response.ok) {
+        return res.status(502).json({ error: "Translation service unavailable" });
+      }
+      const data = await response.json() as any;
+      const translatedText = data?.responseData?.translatedText || text;
+      const detectedLang = data?.responseData?.match?.source || "unknown";
+      res.json({ translatedText, detectedLanguage: detectedLang });
+    } catch (error) {
+      res.status(500).json({ error: "Translation failed" });
+    }
+  });
+
   app.post("/api/messages/delete-conversations", async (req, res) => {
     try {
       const { userId, otherUserIds } = req.body;
