@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X, Pencil, Languages, Reply, Copy, Star, Pin, Info, CheckSquare } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X, Pencil, Languages, Reply, Copy, Star, Pin, Info, CheckSquare, Archive, BellOff, Bell, Eye, EyeOff } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
@@ -40,6 +40,20 @@ export default function Chat() {
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const [messageSelectMode, setMessageSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [chatContextMenu, setChatContextMenu] = useState<{ userId: string; x: number; y: number } | null>(null);
+  const [pinnedChats, setPinnedChats] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('pinnedChats') || '[]')); } catch { return new Set(); }
+  });
+  const [mutedChats, setMutedChats] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('mutedChats') || '[]')); } catch { return new Set(); }
+  });
+  const [archivedChats, setArchivedChats] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('archivedChats') || '[]')); } catch { return new Set(); }
+  });
+  const [markedUnread, setMarkedUnread] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('markedUnread') || '[]')); } catch { return new Set(); }
+  });
+  const chatLongPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [translatedMessages, setTranslatedMessages] = useState<Map<string, string>>(new Map());
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -375,6 +389,76 @@ export default function Chat() {
     setReplyToMessage(null);
   };
 
+  const persistSet = (key: string, set: Set<string>) => {
+    localStorage.setItem(key, JSON.stringify([...set]));
+  };
+
+  const togglePinChat = (chatUserId: string) => {
+    setPinnedChats(prev => {
+      const next = new Set(prev);
+      if (next.has(chatUserId)) next.delete(chatUserId); else next.add(chatUserId);
+      persistSet('pinnedChats', next);
+      return next;
+    });
+    setChatContextMenu(null);
+    toast({ title: pinnedChats.has(chatUserId) ? "Chat unpinned" : "Chat pinned" });
+  };
+
+  const toggleMuteChat = (chatUserId: string) => {
+    setMutedChats(prev => {
+      const next = new Set(prev);
+      if (next.has(chatUserId)) next.delete(chatUserId); else next.add(chatUserId);
+      persistSet('mutedChats', next);
+      return next;
+    });
+    setChatContextMenu(null);
+    toast({ title: mutedChats.has(chatUserId) ? "Notifications unmuted" : "Notifications muted" });
+  };
+
+  const toggleArchiveChat = (chatUserId: string) => {
+    setArchivedChats(prev => {
+      const next = new Set(prev);
+      if (next.has(chatUserId)) next.delete(chatUserId); else next.add(chatUserId);
+      persistSet('archivedChats', next);
+      return next;
+    });
+    setChatContextMenu(null);
+    toast({ title: archivedChats.has(chatUserId) ? "Chat unarchived" : "Chat archived" });
+  };
+
+  const toggleMarkUnread = (chatUserId: string) => {
+    const hasRealUnread = unreadBySender.has(chatUserId) && (unreadBySender.get(chatUserId) || 0) > 0;
+    if (hasRealUnread) {
+      markReadMutation.mutate(chatUserId);
+    } else {
+      setMarkedUnread(prev => {
+        const next = new Set(prev);
+        if (next.has(chatUserId)) next.delete(chatUserId); else next.add(chatUserId);
+        persistSet('markedUnread', next);
+        return next;
+      });
+    }
+    setChatContextMenu(null);
+    toast({ title: hasRealUnread ? "Marked as read" : (markedUnread.has(chatUserId) ? "Unmarked" : "Marked as unread") });
+  };
+
+  const handleChatLongPress = (chatUserId: string, e: React.TouchEvent | React.MouseEvent) => {
+    if (selectMode) return;
+    if (chatLongPressTimerRef.current) clearTimeout(chatLongPressTimerRef.current);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    chatLongPressTimerRef.current = setTimeout(() => {
+      setChatContextMenu({ userId: chatUserId, x: clientX, y: clientY });
+    }, 500);
+  };
+
+  const handleChatLongPressEnd = () => {
+    if (chatLongPressTimerRef.current) {
+      clearTimeout(chatLongPressTimerRef.current);
+      chatLongPressTimerRef.current = null;
+    }
+  };
+
   const handleStartEdit = (msg: Message) => {
     setShowMessageActions(false);
     setLongPressedMessageId(null);
@@ -418,21 +502,32 @@ export default function Chat() {
 
   const followingIds = new Set(following?.map((f: User) => f.id) || []);
 
-  const mainChats = useMemo(() => chats?.filter(({ user: chatUser }) => {
+  const sortWithPinned = (list: typeof chats) => {
+    if (!list) return [];
+    return [...list].sort((a, b) => {
+      const aPinned = pinnedChats.has(a.user.id) ? 1 : 0;
+      const bPinned = pinnedChats.has(b.user.id) ? 1 : 0;
+      return bPinned - aPinned;
+    });
+  };
+
+  const mainChats = useMemo(() => sortWithPinned(chats?.filter(({ user: chatUser }) => {
+    if (archivedChats.has(chatUser.id)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (chatUser.username ?? '').toLowerCase().includes(q);
     }
     return followingIds.has(chatUser.id);
-  }) || [], [chats, followingIds, searchQuery]);
+  })), [chats, followingIds, searchQuery, archivedChats, pinnedChats]);
 
-  const othersChats = useMemo(() => chats?.filter(({ user: chatUser }) => {
+  const othersChats = useMemo(() => sortWithPinned(chats?.filter(({ user: chatUser }) => {
+    if (archivedChats.has(chatUser.id)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (chatUser.username ?? '').toLowerCase().includes(q);
     }
     return !followingIds.has(chatUser.id);
-  }) || [], [chats, followingIds, searchQuery]);
+  })), [chats, followingIds, searchQuery, archivedChats, pinnedChats]);
 
   const filteredChats = activeTab === "main" ? mainChats : othersChats;
 
@@ -684,12 +779,38 @@ export default function Chat() {
               <div className="p-2">
                 {filteredChats.map(({ user: chatUser, lastMessage }) => {
                   const unreadCount = unreadBySender.get(chatUser.id) || 0;
-                  const hasUnread = unreadCount > 0;
+                  const hasUnread = unreadCount > 0 || markedUnread.has(chatUser.id);
                   const isSelected = selectedChatIds.has(chatUser.id);
+                  const isPinned = pinnedChats.has(chatUser.id);
+                  const isMuted = mutedChats.has(chatUser.id);
                   return (
                     <div
                       key={chatUser.id}
-                      onClick={() => selectChat(chatUser.id)}
+                      onClick={() => {
+                        if (chatContextMenu) { setChatContextMenu(null); return; }
+                        selectChat(chatUser.id);
+                        if (markedUnread.has(chatUser.id)) {
+                          setMarkedUnread(prev => {
+                            const next = new Set(prev);
+                            next.delete(chatUser.id);
+                            persistSet('markedUnread', next);
+                            return next;
+                          });
+                        }
+                      }}
+                      onMouseDown={(e) => handleChatLongPress(chatUser.id, e)}
+                      onMouseUp={handleChatLongPressEnd}
+                      onMouseLeave={handleChatLongPressEnd}
+                      onTouchStart={(e) => handleChatLongPress(chatUser.id, e)}
+                      onTouchEnd={handleChatLongPressEnd}
+                      onDoubleClick={(e) => {
+                        e.preventDefault();
+                        setChatContextMenu({ userId: chatUser.id, x: e.clientX, y: e.clientY });
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setChatContextMenu({ userId: chatUser.id, x: e.clientX, y: e.clientY });
+                      }}
                       className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
                         isSelected
                           ? 'bg-primary/10 border border-primary/20'
@@ -720,7 +841,11 @@ export default function Chat() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <h3 className={`text-sm truncate ${hasUnread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>{chatUser.username}</h3>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <h3 className={`text-sm truncate ${hasUnread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>{chatUser.username}</h3>
+                            {isPinned && <Pin className="w-3 h-3 text-muted-foreground shrink-0 rotate-45" data-testid={`pin-icon-${chatUser.id}`} />}
+                            {isMuted && <BellOff className="w-3 h-3 text-muted-foreground shrink-0" data-testid={`mute-icon-${chatUser.id}`} />}
+                          </div>
                           <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
                             {formatTime(lastMessage.createdAt)}
                           </span>
@@ -734,7 +859,7 @@ export default function Chat() {
                               className="shrink-0 ml-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
                               data-testid={`badge-unread-${chatUser.id}`}
                             >
-                              {unreadCount > 99 ? '99+' : unreadCount}
+                              {unreadCount > 99 ? '99+' : (unreadCount || '•')}
                             </span>
                           )}
                         </div>
@@ -1186,6 +1311,83 @@ export default function Chat() {
                   <Trash2 className="w-5 h-5 text-red-500/40" />
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Chat List Context Menu */}
+      <AnimatePresence>
+        {chatContextMenu && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50"
+            onClick={() => setChatContextMenu(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute bg-zinc-900 border border-white/10 rounded-xl shadow-2xl shadow-black/60 py-1.5 w-52 overflow-hidden"
+              style={{
+                top: Math.min(chatContextMenu.y, window.innerHeight - 260),
+                left: Math.min(Math.max(chatContextMenu.x - 104, 8), window.innerWidth - 220),
+              }}
+              onClick={(e) => e.stopPropagation()}
+              data-testid="dialog-chat-context-menu"
+            >
+              {(() => {
+                const cId = chatContextMenu.userId;
+                const isPinned = pinnedChats.has(cId);
+                const isMuted = mutedChats.has(cId);
+                const realUnread = (unreadBySender.get(cId) || 0) > 0;
+                const fakeUnread = markedUnread.has(cId);
+                const menuItem = "w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left";
+                return (
+                  <>
+                    <button onClick={() => togglePinChat(cId)} className={menuItem} data-testid="button-chat-pin">
+                      <Pin className={`w-[18px] h-[18px] ${isPinned ? 'text-amber-400' : 'text-white/70'} ${isPinned ? '' : 'rotate-45'}`} />
+                      <span className="text-white text-[14px]">{isPinned ? 'Unpin' : 'Pin'}</span>
+                    </button>
+                    <button onClick={() => toggleMuteChat(cId)} className={menuItem} data-testid="button-chat-mute">
+                      {isMuted
+                        ? <Bell className="w-[18px] h-[18px] text-white/70" />
+                        : <BellOff className="w-[18px] h-[18px] text-white/70" />
+                      }
+                      <span className="text-white text-[14px]">{isMuted ? 'Unmute' : 'Mute'}</span>
+                    </button>
+                    <button onClick={() => toggleArchiveChat(cId)} className={menuItem} data-testid="button-chat-archive">
+                      <Archive className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Archive</span>
+                    </button>
+                    <button onClick={() => toggleMarkUnread(cId)} className={menuItem} data-testid="button-chat-mark-read">
+                      {realUnread
+                        ? <Eye className="w-[18px] h-[18px] text-white/70" />
+                        : fakeUnread
+                          ? <Eye className="w-[18px] h-[18px] text-white/70" />
+                          : <EyeOff className="w-[18px] h-[18px] text-white/70" />
+                      }
+                      <span className="text-white text-[14px]">{realUnread ? 'Mark as read' : fakeUnread ? 'Mark as read' : 'Mark as unread'}</span>
+                    </button>
+                    <div className="mx-3 my-1 border-t border-white/10" />
+                    <button
+                      onClick={() => {
+                        setLocation(`/chat/${cId}`);
+                        setChatContextMenu(null);
+                        setTimeout(() => setShowDeleteConfirm(true), 100);
+                      }}
+                      className={menuItem}
+                      data-testid="button-chat-delete"
+                    >
+                      <Trash2 className="w-[18px] h-[18px] text-red-400" />
+                      <span className="text-red-400 text-[14px]">Delete</span>
+                    </button>
+                  </>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}
