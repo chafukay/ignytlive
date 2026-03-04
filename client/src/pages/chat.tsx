@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X, Pencil, Languages } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X, Pencil, Languages, Reply, Copy, Star, Pin, Forward, Info, CheckSquare } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
@@ -34,8 +34,12 @@ export default function Chat() {
   const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
   const [showDeleteMessageConfirm, setShowDeleteMessageConfirm] = useState(false);
   const [showMessageActions, setShowMessageActions] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  const [messageSelectMode, setMessageSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [translatedMessages, setTranslatedMessages] = useState<Map<string, string>>(new Map());
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -119,11 +123,12 @@ export default function Chat() {
   const isBlocked = blockData?.blocked || false;
 
   const sendMessageMutation = useMutation({
-    mutationFn: (content: string) => api.sendMessage(user!.id, selectedUserId!, content),
+    mutationFn: (content: string) => api.sendMessage(user!.id, selectedUserId!, content, replyToMessage?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversation', user?.id, selectedUserId] });
       queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
       setMessage("");
+      setReplyToMessage(null);
     },
     onError: (error: any) => {
       if (error?.code === "DND_ENABLED") {
@@ -330,12 +335,15 @@ export default function Chat() {
   const handleVoiceCall = () => initiateCall("voice");
   const handleVideoCall = () => initiateCall("video");
 
-  const handleMessageLongPress = (msgId: string) => {
+  const handleMessageLongPress = (msgId: string, e?: React.TouchEvent | React.MouseEvent) => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
     }
+    const clientX = e ? ('touches' in e ? e.touches[0].clientX : e.clientX) : window.innerWidth / 2;
+    const clientY = e ? ('touches' in e ? e.touches[0].clientY : e.clientY) : window.innerHeight / 2;
     longPressTimerRef.current = setTimeout(() => {
       setLongPressedMessageId(msgId);
+      setContextMenuPosition({ x: clientX, y: clientY });
       setShowMessageActions(true);
     }, 500);
   };
@@ -345,6 +353,26 @@ export default function Chat() {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+  };
+
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      toast({ title: "Message copied" });
+    }).catch(() => {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    });
+    setShowMessageActions(false);
+    setLongPressedMessageId(null);
+  };
+
+  const handleReply = (msg: Message) => {
+    setReplyToMessage(msg);
+    setShowMessageActions(false);
+    setLongPressedMessageId(null);
+  };
+
+  const handleCancelReply = () => {
+    setReplyToMessage(null);
   };
 
   const handleStartEdit = (msg: Message) => {
@@ -814,18 +842,35 @@ export default function Chat() {
                             return (
                               <div
                                 key={msg.id}
-                                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
-                                onMouseDown={() => handleMessageLongPress(msg.id)}
-                                onMouseUp={handleMessageTouchEnd}
-                                onMouseLeave={handleMessageTouchEnd}
-                                onTouchStart={() => handleMessageLongPress(msg.id)}
-                                onTouchEnd={handleMessageTouchEnd}
+                                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group items-center gap-2 ${messageSelectMode ? 'cursor-pointer' : ''} ${messageSelectMode && selectedMessageIds.has(msg.id) ? 'bg-amber-500/10 rounded-lg -mx-1 px-1' : ''}`}
+                                onMouseDown={(e) => !messageSelectMode && handleMessageLongPress(msg.id, e)}
+                                onMouseUp={() => !messageSelectMode && handleMessageTouchEnd()}
+                                onMouseLeave={() => !messageSelectMode && handleMessageTouchEnd()}
+                                onTouchStart={(e) => !messageSelectMode && handleMessageLongPress(msg.id, e)}
+                                onTouchEnd={() => !messageSelectMode && handleMessageTouchEnd()}
+                                onClick={() => {
+                                  if (messageSelectMode) {
+                                    setSelectedMessageIds(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(msg.id)) next.delete(msg.id);
+                                      else next.add(msg.id);
+                                      return next;
+                                    });
+                                  }
+                                }}
                                 onContextMenu={(e) => {
+                                  if (messageSelectMode) return;
                                   e.preventDefault();
                                   setLongPressedMessageId(msg.id);
+                                  setContextMenuPosition({ x: e.clientX, y: e.clientY });
                                   setShowMessageActions(true);
                                 }}
                               >
+                                {messageSelectMode && (
+                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedMessageIds.has(msg.id) ? 'bg-amber-500 border-amber-500' : 'border-white/30'}`}>
+                                    {selectedMessageIds.has(msg.id) && <Check className="w-3 h-3 text-white" />}
+                                  </div>
+                                )}
                                 <div
                                   className={`max-w-[75%] px-3.5 py-2 relative ${
                                     isOwn
@@ -867,6 +912,19 @@ export default function Chat() {
                                     </div>
                                   ) : (
                                     <>
+                                      {msg.replyToId && (() => {
+                                        const repliedMsg = (messages as Message[] | undefined)?.find((m: Message) => m.id === msg.replyToId);
+                                        if (!repliedMsg) return null;
+                                        const repliedIsOwn = repliedMsg.senderId === user.id;
+                                        return (
+                                          <div className={`mb-1.5 px-2 py-1 rounded-lg border-l-2 ${isOwn ? 'bg-white/10 border-white/40' : 'bg-white/5 border-amber-500/60'}`}>
+                                            <p className={`text-[10px] font-semibold ${isOwn ? 'text-white/70' : 'text-amber-400/80'}`}>
+                                              {repliedIsOwn ? 'You' : otherUser?.username}
+                                            </p>
+                                            <p className="text-[12px] text-white/60 truncate">{repliedMsg.content}</p>
+                                          </div>
+                                        );
+                                      })()}
                                       <p className="text-[14px] leading-relaxed">{msg.content}</p>
                                       {translatedMessages.has(msg.id) && (
                                         <div className="mt-1.5 pt-1.5 border-t border-white/20">
@@ -906,7 +964,49 @@ export default function Chat() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {isBlocked ? (
+              {messageSelectMode ? (
+                <div className="px-4 py-3 border-t border-white/10 bg-zinc-900/95 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => { setMessageSelectMode(false); setSelectedMessageIds(new Set()); }}
+                      className="text-sm text-white/70 hover:text-white font-medium"
+                      data-testid="button-cancel-select"
+                    >
+                      Cancel
+                    </button>
+                    <span className="text-sm text-white/50">{selectedMessageIds.size} selected</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          const selectedMsgs = (messages as Message[] | undefined)?.filter((m: Message) => selectedMessageIds.has(m.id));
+                          const text = selectedMsgs?.map(m => m.content).join('\n') || '';
+                          navigator.clipboard.writeText(text);
+                          toast({ title: `${selectedMessageIds.size} message(s) copied` });
+                          setMessageSelectMode(false);
+                          setSelectedMessageIds(new Set());
+                        }}
+                        disabled={selectedMessageIds.size === 0}
+                        className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-30"
+                        data-testid="button-copy-selected"
+                      >
+                        <Copy className="w-5 h-5 text-white/70" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          selectedMessageIds.forEach(id => deleteMessageMutation.mutate(id));
+                          setMessageSelectMode(false);
+                          setSelectedMessageIds(new Set());
+                        }}
+                        disabled={selectedMessageIds.size === 0}
+                        className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-30"
+                        data-testid="button-delete-selected"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : isBlocked ? (
                 <div className="px-4 py-4 border-t border-white/10 bg-zinc-900/80 shrink-0">
                   <div className="flex items-center justify-center gap-2 text-white/40">
                     <AlertCircle className="w-4 h-4" />
@@ -921,7 +1021,27 @@ export default function Chat() {
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSend} className="px-3 py-3 border-t border-white/10 bg-black/95 shrink-0">
+                <div className="border-t border-white/10 bg-black/95 shrink-0">
+                  {replyToMessage && (
+                    <div className="px-4 pt-2 pb-0">
+                      <div className="flex items-start gap-2 bg-zinc-800/80 rounded-xl px-3 py-2 border-l-2 border-amber-500">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-amber-400">
+                            {replyToMessage.senderId === user?.id ? 'You' : otherUser?.username}
+                          </p>
+                          <p className="text-[13px] text-white/60 truncate">{replyToMessage.content}</p>
+                        </div>
+                        <button
+                          onClick={handleCancelReply}
+                          className="p-0.5 hover:bg-white/10 rounded-full shrink-0"
+                          data-testid="button-cancel-reply"
+                        >
+                          <X className="w-4 h-4 text-white/40" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <form onSubmit={handleSend} className="px-3 py-3">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -971,6 +1091,7 @@ export default function Chat() {
                     )}
                   </div>
                 </form>
+                </div>
               )}
             </>
           ) : (
@@ -1116,64 +1237,116 @@ export default function Chat() {
         )}
       </AnimatePresence>
 
-      {/* Message Actions Menu */}
+      {/* WhatsApp-style Floating Context Menu */}
       <AnimatePresence>
-        {showMessageActions && longPressedMessageId && (
+        {showMessageActions && longPressedMessageId && contextMenuPosition && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
-            onClick={() => { setShowMessageActions(false); setLongPressedMessageId(null); }}
+            className="fixed inset-0 z-50"
+            onClick={() => { setShowMessageActions(false); setLongPressedMessageId(null); setContextMenuPosition(null); }}
           >
             <motion.div
-              initial={{ y: 200, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 200, opacity: 0 }}
-              className="w-full max-w-md bg-zinc-900 rounded-t-2xl overflow-hidden pb-6"
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute bg-zinc-900 border border-white/10 rounded-xl shadow-2xl shadow-black/60 py-1.5 w-48 overflow-hidden"
+              style={{
+                top: Math.min(contextMenuPosition.y, window.innerHeight - 380),
+                left: Math.min(Math.max(contextMenuPosition.x - 96, 8), window.innerWidth - 200),
+              }}
               onClick={(e) => e.stopPropagation()}
               data-testid="dialog-message-actions"
             >
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-4" />
-              <div className="px-4 space-y-1">
-                {(() => {
-                  const selectedMsg = (messages as Message[] | undefined)?.find((m: Message) => m.id === longPressedMessageId);
-                  const isOwnMsg = selectedMsg?.senderId === user?.id;
-                  return (
-                    <>
-                      {isOwnMsg && (
-                        <button
-                          onClick={() => selectedMsg && handleStartEdit(selectedMsg)}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl transition-colors"
-                          data-testid="button-action-edit"
-                        >
-                          <Pencil className="w-5 h-5 text-amber-400" />
-                          <span className="text-white font-medium">Edit message</span>
-                        </button>
-                      )}
+              {(() => {
+                const selectedMsg = (messages as Message[] | undefined)?.find((m: Message) => m.id === longPressedMessageId);
+                const isOwnMsg = selectedMsg?.senderId === user?.id;
+                const menuItem = "w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left";
+                return (
+                  <>
+                    <button
+                      onClick={() => selectedMsg && handleReply(selectedMsg)}
+                      className={menuItem}
+                      data-testid="button-action-reply"
+                    >
+                      <Reply className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Reply</span>
+                    </button>
+                    <button
+                      onClick={() => selectedMsg && handleCopyMessage(selectedMsg.content)}
+                      className={menuItem}
+                      data-testid="button-action-copy"
+                    >
+                      <Copy className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Copy</span>
+                    </button>
+                    <button
+                      onClick={() => selectedMsg && handleTranslate(selectedMsg.id, selectedMsg.content)}
+                      className={menuItem}
+                      data-testid="button-action-translate"
+                    >
+                      <Languages className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Translate</span>
+                    </button>
+                    <button
+                      onClick={() => { toast({ title: "Coming soon" }); setShowMessageActions(false); setLongPressedMessageId(null); }}
+                      className={menuItem}
+                      data-testid="button-action-forward"
+                    >
+                      <Forward className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Forward</span>
+                    </button>
+                    <button
+                      onClick={() => { toast({ title: "Coming soon" }); setShowMessageActions(false); setLongPressedMessageId(null); }}
+                      className={menuItem}
+                      data-testid="button-action-star"
+                    >
+                      <Star className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Star</span>
+                    </button>
+                    {isOwnMsg && (
                       <button
-                        onClick={() => selectedMsg && handleTranslate(selectedMsg.id, selectedMsg.content)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl transition-colors"
-                        data-testid="button-action-translate"
+                        onClick={() => selectedMsg && handleStartEdit(selectedMsg)}
+                        className={menuItem}
+                        data-testid="button-action-edit"
                       >
-                        <Languages className="w-5 h-5 text-blue-400" />
-                        <span className="text-white font-medium">Translate</span>
+                        <Pencil className="w-[18px] h-[18px] text-white/70" />
+                        <span className="text-white text-[14px]">Edit</span>
                       </button>
-                      <button
-                        onClick={() => {
-                          setShowMessageActions(false);
-                          setShowDeleteMessageConfirm(true);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl transition-colors"
-                        data-testid="button-action-delete"
-                      >
-                        <Trash2 className="w-5 h-5 text-red-400" />
-                        <span className="text-red-400 font-medium">Delete message</span>
-                      </button>
-                    </>
-                  );
-                })()}
-              </div>
+                    )}
+                    <div className="mx-3 my-1 border-t border-white/10" />
+                    <button
+                      onClick={() => {
+                        setShowMessageActions(false);
+                        setContextMenuPosition(null);
+                        setShowDeleteMessageConfirm(true);
+                      }}
+                      className={menuItem}
+                      data-testid="button-action-delete"
+                    >
+                      <Trash2 className="w-[18px] h-[18px] text-red-400" />
+                      <span className="text-red-400 text-[14px]">Delete</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const initialId = longPressedMessageId;
+                        setShowMessageActions(false);
+                        setLongPressedMessageId(null);
+                        setContextMenuPosition(null);
+                        setMessageSelectMode(true);
+                        if (initialId) setSelectedMessageIds(new Set([initialId]));
+                      }}
+                      className={menuItem}
+                      data-testid="button-action-select"
+                    >
+                      <CheckSquare className="w-[18px] h-[18px] text-white/70" />
+                      <span className="text-white text-[14px]">Select messages</span>
+                    </button>
+                  </>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}

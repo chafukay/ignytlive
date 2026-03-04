@@ -383,11 +383,11 @@ export const api = {
   },
 
   // Messages
-  async sendMessage(senderId: string, receiverId: string, content: string) {
+  async sendMessage(senderId: string, receiverId: string, content: string, replyToId?: string) {
     const res = await fetch(`${API_BASE}/api/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senderId, receiverId, content }),
+      body: JSON.stringify({ senderId, receiverId, content, ...(replyToId ? { replyToId } : {}) }),
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: "Failed to send message" }));
