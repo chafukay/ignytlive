@@ -1347,6 +1347,35 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/messages/:messageId", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      const deleted = await storage.deleteMessage(req.params.messageId, userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Message not found or unauthorized" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete message" });
+    }
+  });
+
+  app.post("/api/messages/delete-conversations", async (req, res) => {
+    try {
+      const { userId, otherUserIds } = req.body;
+      if (!userId || !otherUserIds || !Array.isArray(otherUserIds)) {
+        return res.status(400).json({ error: "userId and otherUserIds array are required" });
+      }
+      const count = await storage.deleteMultipleConversations(userId, otherUserIds);
+      res.json({ success: true, deleted: count });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete conversations" });
+    }
+  });
+
   app.post("/api/users/:userId/block/:blockedId", async (req, res) => {
     try {
       await storage.blockUser(req.params.userId, req.params.blockedId);

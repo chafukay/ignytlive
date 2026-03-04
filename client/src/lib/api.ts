@@ -434,6 +434,26 @@ export const api = {
     return res.json();
   },
 
+  async deleteMessage(messageId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async deleteMultipleConversations(userId: string, otherUserIds: string[]) {
+    const res = await fetch(`${API_BASE}/api/messages/delete-conversations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, otherUserIds }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
   async blockUser(userId: string, blockedId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/block/${blockedId}`, {
       method: "POST",

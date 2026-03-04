@@ -172,6 +172,8 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   getConversation(userId1: string, userId2: string): Promise<Message[]>;
   deleteConversation(userId1: string, userId2: string): Promise<void>;
+  deleteMessage(messageId: string, userId: string): Promise<boolean>;
+  deleteMultipleConversations(userId: string, otherUserIds: string[]): Promise<number>;
   getRecentChats(userId: string): Promise<Array<{ user: User; lastMessage: Message }>>;
   getUnreadMessageCount(userId: string): Promise<{ total: number; perSender: Array<{ senderId: string; count: number }> }>;
   markMessagesAsRead(userId: string, otherUserId: string): Promise<void>;
@@ -966,6 +968,31 @@ export class DatabaseStorage implements IStorage {
           )
         )
       );
+  }
+
+  async deleteMessage(messageId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(messages)
+      .where(
+        and(
+          eq(messages.id, messageId),
+          or(
+            eq(messages.senderId, userId),
+            eq(messages.receiverId, userId)
+          )
+        )
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteMultipleConversations(userId: string, otherUserIds: string[]): Promise<number> {
+    let deleted = 0;
+    for (const otherId of otherUserIds) {
+      await this.deleteConversation(userId, otherId);
+      deleted++;
+    }
+    return deleted;
   }
 
   async getRecentChats(userId: string): Promise<Array<{ user: User; lastMessage: Message }>> {

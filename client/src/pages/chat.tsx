@@ -1,11 +1,11 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, MoreVertical, Search, Users, UserRound, Phone, Video, PhoneOff, AlertCircle, Trash2, Plus, Gift, Smile, Check, CheckCheck, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import UserAvatar from "@/components/user-avatar";
 import GiftPanel from "@/components/gift-panel";
@@ -28,7 +28,13 @@ export default function Chat() {
   const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDescription, setReportDescription] = useState("");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
+  const [showDeleteMessageConfirm, setShowDeleteMessageConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const selectedUserId = params?.userId || null;
 
@@ -138,6 +144,36 @@ export default function Chat() {
     },
   });
 
+  const deleteMessageMutation = useMutation({
+    mutationFn: (messageId: string) => api.deleteMessage(messageId, user!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', user?.id, selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['unreadMessageCount', user?.id] });
+      toast({ title: "Message deleted" });
+      setShowDeleteMessageConfirm(false);
+      setLongPressedMessageId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to delete message", variant: "destructive" });
+    },
+  });
+
+  const deleteBulkConversationsMutation = useMutation({
+    mutationFn: (otherUserIds: string[]) => api.deleteMultipleConversations(user!.id, otherUserIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['unreadMessageCount', user?.id] });
+      toast({ title: `${selectedChatIds.size} conversation${selectedChatIds.size > 1 ? 's' : ''} deleted` });
+      setShowBulkDeleteConfirm(false);
+      setSelectedChatIds(new Set());
+      setSelectMode(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to delete conversations", variant: "destructive" });
+    },
+  });
+
   const blockUserMutation = useMutation({
     mutationFn: () => {
       if (isBlocked) {
@@ -212,6 +248,10 @@ export default function Chat() {
   };
 
   const selectChat = (userId: string) => {
+    if (selectMode) {
+      toggleChatSelection(userId);
+      return;
+    }
     setLocation(`/chat/${userId}`);
     setMobileShowConversation(true);
     if (user && unreadBySender.has(userId)) {
@@ -272,6 +312,23 @@ export default function Chat() {
     }
   };
 
+  const handleMessageLongPress = (msgId: string) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressedMessageId(msgId);
+      setShowDeleteMessageConfirm(true);
+    }, 500);
+  };
+
+  const handleMessageTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
   const reportReasons = [
     "Spam or scam",
     "Harassment or bullying",
@@ -283,16 +340,69 @@ export default function Chat() {
 
   const followingIds = new Set(following?.map((f: User) => f.id) || []);
 
-  const filteredChats = chats?.filter(({ user: chatUser, lastMessage }) => {
+  const mainChats = useMemo(() => chats?.filter(({ user: chatUser }) => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const nameMatch = (chatUser.username ?? '').toLowerCase().includes(q);
-      const messageMatch = (lastMessage.content ?? '').toLowerCase().includes(q);
-      if (!nameMatch && !messageMatch) return false;
+      return (chatUser.username ?? '').toLowerCase().includes(q);
     }
-    if (activeTab === "main") return followingIds.has(chatUser.id);
+    return followingIds.has(chatUser.id);
+  }) || [], [chats, followingIds, searchQuery]);
+
+  const othersChats = useMemo(() => chats?.filter(({ user: chatUser }) => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (chatUser.username ?? '').toLowerCase().includes(q);
+    }
     return !followingIds.has(chatUser.id);
-  });
+  }) || [], [chats, followingIds, searchQuery]);
+
+  const filteredChats = activeTab === "main" ? mainChats : othersChats;
+
+  const mainUnreadCount = useMemo(() => {
+    let count = 0;
+    for (const { user: chatUser } of (chats || [])) {
+      if (followingIds.has(chatUser.id)) {
+        count += unreadBySender.get(chatUser.id) || 0;
+      }
+    }
+    return count;
+  }, [chats, followingIds, unreadBySender]);
+
+  const othersUnreadCount = useMemo(() => {
+    let count = 0;
+    for (const { user: chatUser } of (chats || [])) {
+      if (!followingIds.has(chatUser.id)) {
+        count += unreadBySender.get(chatUser.id) || 0;
+      }
+    }
+    return count;
+  }, [chats, followingIds, unreadBySender]);
+
+  const toggleChatSelection = (userId: string) => {
+    setSelectedChatIds(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const selectAllChats = () => {
+    const allIds = filteredChats.map(({ user: chatUser }) => chatUser.id);
+    if (selectedChatIds.size === allIds.length) {
+      setSelectedChatIds(new Set());
+    } else {
+      setSelectedChatIds(new Set(allIds));
+    }
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedChatIds(new Set());
+  };
 
   const groupedMessages = messages?.reduce((groups: Record<string, Message[]>, msg: Message) => {
     const dateKey = formatDate(msg.createdAt);
@@ -322,18 +432,63 @@ export default function Chat() {
           mobileShowConversation ? 'hidden md:flex' : 'flex'
         }`}>
           <div className="p-4 border-b border-border shrink-0">
-            <h1 className="text-xl font-bold text-foreground mb-3" data-testid="text-chat-title">Messages</h1>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..."
-                className="w-full bg-muted rounded-full py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-                data-testid="input-search-chats"
-              />
-            </div>
+            {selectMode ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={exitSelectMode}
+                    className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
+                    data-testid="button-exit-select-mode"
+                  >
+                    <X className="w-5 h-5 text-foreground" />
+                  </button>
+                  <span className="text-foreground font-semibold">{selectedChatIds.size} selected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={selectAllChats}
+                    className="text-xs text-primary font-medium px-3 py-1.5 bg-primary/10 rounded-full hover:bg-primary/20 transition-colors"
+                    data-testid="button-select-all"
+                  >
+                    {selectedChatIds.size === filteredChats.length ? "Deselect All" : "Select All"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedChatIds.size > 0) setShowBulkDeleteConfirm(true);
+                    }}
+                    disabled={selectedChatIds.size === 0}
+                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors disabled:opacity-30"
+                    data-testid="button-delete-selected"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <h1 className="text-xl font-bold text-foreground" data-testid="text-chat-title">Messages</h1>
+                  <button
+                    onClick={() => { setSelectMode(true); setSearchQuery(""); setDebouncedSearch(""); }}
+                    className="text-xs text-muted-foreground font-medium px-3 py-1.5 bg-muted rounded-full hover:bg-muted/80 transition-colors"
+                    data-testid="button-enter-select-mode"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search conversations..."
+                    className="w-full bg-muted rounded-full py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    data-testid="input-search-chats"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex border-b border-border shrink-0">
@@ -346,7 +501,14 @@ export default function Chat() {
               }`}
               data-testid="tab-main"
             >
-              Main
+              <span className="inline-flex items-center gap-1.5">
+                Main
+                {mainUnreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1" data-testid="badge-main-unread">
+                    {mainUnreadCount > 99 ? '99+' : mainUnreadCount}
+                  </span>
+                )}
+              </span>
               {activeTab === "main" && (
                 <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
               )}
@@ -360,7 +522,14 @@ export default function Chat() {
               }`}
               data-testid="tab-others"
             >
-              Others
+              <span className="inline-flex items-center gap-1.5">
+                Others
+                {othersUnreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1" data-testid="badge-others-unread">
+                    {othersUnreadCount > 99 ? '99+' : othersUnreadCount}
+                  </span>
+                )}
+              </span>
               {activeTab === "others" && (
                 <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
               )}
@@ -438,17 +607,27 @@ export default function Chat() {
                 {filteredChats.map(({ user: chatUser, lastMessage }) => {
                   const unreadCount = unreadBySender.get(chatUser.id) || 0;
                   const hasUnread = unreadCount > 0;
+                  const isSelected = selectedChatIds.has(chatUser.id);
                   return (
                     <div
                       key={chatUser.id}
                       onClick={() => selectChat(chatUser.id)}
                       className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
-                        selectedUserId === chatUser.id
+                        isSelected
                           ? 'bg-primary/10 border border-primary/20'
-                          : 'hover:bg-muted/50'
+                          : selectedUserId === chatUser.id
+                            ? 'bg-primary/10 border border-primary/20'
+                            : 'hover:bg-muted/50'
                       }`}
                       data-testid={`chat-${chatUser.id}`}
                     >
+                      {selectMode && (
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected ? 'bg-primary border-primary' : 'border-white/30'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                      )}
                       <div className="shrink-0">
                         <UserAvatar
                           userId={chatUser.id}
@@ -472,7 +651,7 @@ export default function Chat() {
                           <p className={`text-xs truncate ${hasUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                             {lastMessage.senderId === user.id ? 'You: ' : ''}{lastMessage.content}
                           </p>
-                          {hasUnread && (
+                          {hasUnread && !selectMode && (
                             <span
                               className="shrink-0 ml-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
                               data-testid={`badge-unread-${chatUser.id}`}
@@ -583,13 +762,27 @@ export default function Chat() {
                           {(msgs as Message[]).map((msg: Message) => {
                             const isOwn = msg.senderId === user.id;
                             return (
-                              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                              <div
+                                key={msg.id}
+                                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
+                                onMouseDown={() => handleMessageLongPress(msg.id)}
+                                onMouseUp={handleMessageTouchEnd}
+                                onMouseLeave={handleMessageTouchEnd}
+                                onTouchStart={() => handleMessageLongPress(msg.id)}
+                                onTouchEnd={handleMessageTouchEnd}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  setLongPressedMessageId(msg.id);
+                                  setShowDeleteMessageConfirm(true);
+                                }}
+                              >
                                 <div
-                                  className={`max-w-[75%] px-3.5 py-2 ${
+                                  className={`max-w-[75%] px-3.5 py-2 relative ${
                                     isOwn
                                       ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl rounded-br-md'
                                       : 'bg-zinc-800 text-white rounded-2xl rounded-bl-md'
                                   }`}
+                                  data-testid={`message-bubble-${msg.id}`}
                                 >
                                   <p className="text-[14px] leading-relaxed">{msg.content}</p>
                                   <p className={`text-[10px] mt-0.5 ${isOwn ? 'text-white/70 text-right' : 'text-white/40'}`}>
@@ -704,6 +897,7 @@ export default function Chat() {
         />
       )}
 
+      {/* Options Menu Bottom Sheet */}
       <AnimatePresence>
         {showOptionsMenu && (
           <motion.div
@@ -777,6 +971,7 @@ export default function Chat() {
         )}
       </AnimatePresence>
 
+      {/* Delete Conversation Confirm Dialog */}
       <AnimatePresence>
         {showDeleteConfirm && (
           <motion.div
@@ -822,6 +1017,99 @@ export default function Chat() {
         )}
       </AnimatePresence>
 
+      {/* Delete Message Confirm Dialog */}
+      <AnimatePresence>
+        {showDeleteMessageConfirm && longPressedMessageId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
+            onClick={() => { setShowDeleteMessageConfirm(false); setLongPressedMessageId(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-zinc-900 rounded-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="dialog-delete-message"
+            >
+              <div className="p-6 text-center">
+                <h3 className="text-xl font-bold text-white mb-2">Delete message</h3>
+                <p className="text-white/50 text-sm">
+                  Are you sure you want to delete this message?
+                </p>
+              </div>
+              <div className="px-6 pb-6 space-y-3">
+                <button
+                  onClick={() => deleteMessageMutation.mutate(longPressedMessageId)}
+                  disabled={deleteMessageMutation.isPending}
+                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+                  data-testid="button-confirm-delete-message"
+                >
+                  {deleteMessageMutation.isPending ? "Deleting..." : "Delete message"}
+                </button>
+                <button
+                  onClick={() => { setShowDeleteMessageConfirm(false); setLongPressedMessageId(null); }}
+                  className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl transition-colors border border-white/10"
+                  data-testid="button-cancel-delete-message"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Delete Conversations Confirm Dialog */}
+      <AnimatePresence>
+        {showBulkDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
+            onClick={() => setShowBulkDeleteConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-zinc-900 rounded-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="dialog-bulk-delete"
+            >
+              <div className="p-6 text-center">
+                <h3 className="text-xl font-bold text-white mb-2">Delete {selectedChatIds.size} conversation{selectedChatIds.size > 1 ? 's' : ''}?</h3>
+                <p className="text-white/50 text-sm">
+                  This action cannot be undone. All messages in the selected conversations will be permanently deleted.
+                </p>
+              </div>
+              <div className="px-6 pb-6 space-y-3">
+                <button
+                  onClick={() => deleteBulkConversationsMutation.mutate(Array.from(selectedChatIds))}
+                  disabled={deleteBulkConversationsMutation.isPending}
+                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+                  data-testid="button-confirm-bulk-delete"
+                >
+                  {deleteBulkConversationsMutation.isPending ? "Deleting..." : `Delete ${selectedChatIds.size} conversation${selectedChatIds.size > 1 ? 's' : ''}`}
+                </button>
+                <button
+                  onClick={() => setShowBulkDeleteConfirm(false)}
+                  className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl transition-colors border border-white/10"
+                  data-testid="button-cancel-bulk-delete"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Report Dialog */}
       <AnimatePresence>
         {showReportDialog && (
           <motion.div
