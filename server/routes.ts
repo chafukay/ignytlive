@@ -19,6 +19,7 @@ import {
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
+import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -91,6 +92,9 @@ export async function registerRoutes(
   // Setup Replit Auth (MUST be before other routes)
   await setupAuth(app);
   registerAuthRoutes(app);
+  
+  // Initialize Web Push service
+  initPushService();
   
   // Cleanup stale streams on server startup
   try {
@@ -1122,9 +1126,10 @@ export async function registerRoutes(
       await awardXP(followData.followerId, "FOLLOW_USER").catch(() => {});
       await awardXP(followData.followingId, "GET_FOLLOWED").catch(() => {});
       
-      // Create follow notification for the followed user
+      // Create follow notification + push for the followed user
       const followerUser = await storage.getUser(followData.followerId);
       if (followerUser) {
+        const followedUser = await storage.getUser(followData.followingId);
         storage.createNotification({
           userId: followData.followingId,
           type: "follow",
@@ -1133,6 +1138,14 @@ export async function registerRoutes(
           metadata: JSON.stringify({ followerId: followData.followerId, followerUsername: followerUser.username, followerAvatar: followerUser.avatar }),
           isRead: false,
         }).catch(() => {});
+        if (shouldSendAlert(followedUser?.notificationSettings, "followerAlerts")) {
+          sendPushToUser(followData.followingId, {
+            title: "New Follower",
+            body: `${followerUser.username} started following you`,
+            tag: `follow-${followData.followerId}`,
+            data: { url: `/profile/${followerUser.username}` },
+          }).catch(() => {});
+        }
       }
       
       res.json(follow);
@@ -1235,18 +1248,27 @@ export async function registerRoutes(
       await awardXP(transactionData.senderId, "SEND_GIFT", quantity).catch(() => {});
       await awardXP(transactionData.receiverId, "RECEIVE_GIFT", quantity).catch(() => {});
       
-      // Create gift notification for the receiver
+      // Create gift notification + push for the receiver
       const senderUser = await storage.getUser(transactionData.senderId);
       if (senderUser) {
         const gift = await storage.getGifts().then(g => g.find(gi => gi.id === transactionData.giftId));
+        const giftMsg = `${senderUser.username} sent you ${gift?.emoji || '🎁'} ${gift?.name || 'a gift'} x${quantity}`;
         storage.createNotification({
           userId: transactionData.receiverId,
           type: "gift",
           title: "Gift Received",
-          message: `${senderUser.username} sent you ${gift?.emoji || '🎁'} ${gift?.name || 'a gift'} x${quantity}`,
+          message: giftMsg,
           metadata: JSON.stringify({ senderId: transactionData.senderId, senderUsername: senderUser.username, giftName: gift?.name, giftEmoji: gift?.emoji, quantity, totalCoins: transactionData.totalCoins }),
           isRead: false,
         }).catch(() => {});
+        if (!recipientHasDND && shouldSendAlert(recipient?.notificationSettings, "giftAlerts")) {
+          sendPushToUser(transactionData.receiverId, {
+            title: "Gift Received 🎁",
+            body: giftMsg,
+            tag: `gift-${transactionData.senderId}`,
+            data: { url: "/notifications" },
+          }).catch(() => {});
+        }
       }
       
       // Broadcast gift to stream viewers (only if recipient doesn't have DND)
@@ -1303,6 +1325,19 @@ export async function registerRoutes(
       
       // Award XP for sending messages
       await awardXP(messageData.senderId, "SEND_MESSAGE").catch(() => {});
+      
+      // Send push notification for new message
+      if (shouldSendAlert(recipient?.notificationSettings, "messageAlerts")) {
+        const sender = await storage.getUser(messageData.senderId);
+        if (sender) {
+          sendPushToUser(messageData.receiverId, {
+            title: sender.username,
+            body: messageData.content.length > 100 ? messageData.content.slice(0, 100) + "..." : messageData.content,
+            tag: `msg-${messageData.senderId}`,
+            data: { url: `/chat/${messageData.senderId}` },
+          }).catch(() => {});
+        }
+      }
       
       res.json(message);
     } catch (error) {
@@ -2056,15 +2091,25 @@ export async function registerRoutes(
         return res.status(400).json({ error: "You already have an active call" });
       }
       
-      // Create call request notification for the host
+      // Create call request notification + push for the host
+      const callMsg = `${viewer.username} wants to start a private call with you`;
       storage.createNotification({
         userId: hostId,
         type: "call_request",
         title: "Incoming Call Request",
-        message: `${viewer.username} wants to start a private call with you`,
+        message: callMsg,
         metadata: JSON.stringify({ callerId: viewerId, callerUsername: viewer.username, callerAvatar: viewer.avatar }),
         isRead: false,
       }).catch(() => {});
+      const hostUser = await storage.getUser(hostId);
+      if (!hostUser?.dndEnabled) {
+        sendPushToUser(hostId, {
+          title: "Incoming Call 📞",
+          body: callMsg,
+          tag: `call-${viewerId}`,
+          data: { url: "/" },
+        }).catch(() => {});
+      }
       
       // Create the call request
       const agoraChannel = `private_${Date.now()}_${viewerId}_${hostId}`;
@@ -3403,6 +3448,39 @@ export async function registerRoutes(
       res.json(notif);
     } catch (error) {
       res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  // ========== Push Notification Routes ==========
+
+  app.get("/api/push/vapid-key", (req, res) => {
+    const key = getVapidPublicKey();
+    res.json({ key: key || null });
+  });
+
+  app.post("/api/push/subscribe", async (req, res) => {
+    try {
+      const { userId, endpoint, p256dh, auth } = req.body;
+      if (!userId || !endpoint || !p256dh || !auth) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      const sub = await storage.savePushSubscription(userId, endpoint, p256dh, auth);
+      res.json({ success: true, id: sub.id });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save push subscription" });
+    }
+  });
+
+  app.post("/api/push/unsubscribe", async (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ error: "Endpoint is required" });
+      }
+      await storage.removePushSubscription(endpoint);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove push subscription" });
     }
   });
 

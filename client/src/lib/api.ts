@@ -1137,6 +1137,33 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Notification>;
   },
+
+  async getVapidPublicKey() {
+    const res = await fetch(`${API_BASE}/api/push/vapid-key`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.key as string | null;
+  },
+
+  async savePushSubscription(userId: string, endpoint: string, p256dh: string, auth: string) {
+    const res = await fetch(`${API_BASE}/api/push/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, endpoint, p256dh, auth }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async removePushSubscription(endpoint: string) {
+    const res = await fetch(`${API_BASE}/api/push/unsubscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 };
 
 export interface TopGifter {

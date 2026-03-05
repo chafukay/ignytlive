@@ -41,6 +41,7 @@ import {
   userReports,
   userMutedCalls,
   notifications,
+  pushSubscriptions,
   type PhoneVerificationCode,
   type InsertPhoneVerificationCode,
   type User,
@@ -113,6 +114,8 @@ import {
   type InsertCoinPurchase,
   type Notification,
   type InsertNotification,
+  type PushSubscription as PushSub,
+  type InsertPushSubscription,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -332,6 +335,11 @@ export interface IStorage {
   getUnreadNotificationCount(userId: string): Promise<number>;
   markNotificationRead(notificationId: string, userId?: string): Promise<Notification | undefined>;
   markAllNotificationsRead(userId: string): Promise<void>;
+
+  // Push Subscription operations
+  savePushSubscription(userId: string, endpoint: string, p256dh: string, auth: string): Promise<PushSub>;
+  removePushSubscription(endpoint: string): Promise<void>;
+  getUserPushSubscriptions(userId: string): Promise<PushSub[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2206,6 +2214,20 @@ export class DatabaseStorage implements IStorage {
       .update(notifications)
       .set({ isRead: true })
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  }
+
+  async savePushSubscription(userId: string, endpoint: string, p256dh: string, auth: string): Promise<PushSub> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+    const [sub] = await db.insert(pushSubscriptions).values({ userId, endpoint, p256dh, auth }).returning();
+    return sub;
+  }
+
+  async removePushSubscription(endpoint: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  }
+
+  async getUserPushSubscriptions(userId: string): Promise<PushSub[]> {
+    return await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
   }
 }
 

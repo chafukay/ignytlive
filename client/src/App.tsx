@@ -44,6 +44,18 @@ import LinkAccount from "@/pages/link-account";
 import Referrals from "@/pages/referrals";
 import ProfileVisitors from "@/pages/profile-visitors";
 import IncomingCallBanner from "@/components/incoming-call-banner";
+import { useEffect } from "react";
+import { initPushNotifications } from "@/lib/push-notifications";
+
+function PushInit() {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (user?.id && !user.isGuest) {
+      initPushNotifications(user.id).catch(() => {});
+    }
+  }, [user?.id]);
+  return null;
+}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -108,6 +120,7 @@ function App() {
             <Toaster />
             <DailyLoginModal />
             <IncomingCallBanner />
+            <PushInit />
             <Router />
           </TooltipProvider>
         </AuthProvider>

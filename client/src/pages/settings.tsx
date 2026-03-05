@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme-context";
+import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-notifications";
 import type { User as UserType } from "@shared/schema";
 
 const LANGUAGES = [
@@ -119,10 +120,20 @@ export default function Settings() {
     },
   });
 
-  const handleNotificationToggle = () => {
-    const newSettings = { ...notificationSettings, pushEnabled: !notificationSettings.pushEnabled };
+  const handleNotificationToggle = async () => {
+    const enabling = !notificationSettings.pushEnabled;
+    const newSettings = { ...notificationSettings, pushEnabled: enabling };
     setNotificationSettings(newSettings);
     updateNotificationsMutation.mutate(newSettings);
+    
+    if (enabling && user) {
+      const ok = await subscribeToPush(user.id);
+      if (!ok) {
+        toast({ title: "Please allow notifications in your browser settings", variant: "destructive" });
+      }
+    } else if (!enabling) {
+      await unsubscribeFromPush();
+    }
   };
 
   const currentLanguage = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0];
