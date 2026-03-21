@@ -97,6 +97,12 @@ export default function LiveRoom() {
     enabled: !!stream?.userId,
   });
 
+  const { data: pkOpponentUser } = useQuery({
+    queryKey: ['user', stream?.pkOpponentId],
+    queryFn: () => api.getUser(stream!.pkOpponentId!),
+    enabled: !!stream?.pkOpponentId && stream?.isPKBattle === true,
+  });
+
   const { data: gifts } = useQuery({
     queryKey: ['gifts'],
     queryFn: () => api.getGifts(),
@@ -733,7 +739,7 @@ export default function LiveRoom() {
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Background Video / PK View */}
       {isPKMode ? (
-        <PKBattleView streamer={displayUser} currentScore={pkScore} />
+        <PKBattleView streamer={displayUser} currentScore={pkScore} opponent={pkOpponentUser ? { username: pkOpponentUser.username, avatar: pkOpponentUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${pkOpponentUser.username}`, score: 0, winStreak: 0 } : null} />
       ) : (
         <div className="absolute inset-0 z-0">
           {isBroadcaster ? (
