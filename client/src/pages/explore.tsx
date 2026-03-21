@@ -8,81 +8,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import type { Stream, User } from "@shared/schema";
 
-const DUMMY_STREAMS: any[] = [
-  {
-    id: "demo-1", userId: "demo-u1", title: "Late Night Vibes 🌙", thumbnail: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
-    isLive: true, viewersCount: 12400, category: "Music", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u1", username: "DJ_Luna", displayName: "DJ Luna", email: "luna@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Luna", bio: "Music producer", level: 42, xp: 5000, coins: 1000, diamonds: 500, role: "user", vipTier: "gold", isVerified: true, followersCount: 85000, followingCount: 120, totalLikes: 230000, totalGiftsReceived: 15000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 5, replitId: null }
-  },
-  {
-    id: "demo-2", userId: "demo-u2", title: "Cooking Masterclass 🍳", thumbnail: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=500&fit=crop",
-    isLive: true, viewersCount: 8700, category: "Cooking", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u2", username: "ChefMaria", displayName: "Chef Maria", email: "maria@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Maria", bio: "Pro chef", level: 35, xp: 3500, coins: 800, diamonds: 300, role: "user", vipTier: "silver", isVerified: true, followersCount: 42000, followingCount: 200, totalLikes: 90000, totalGiftsReceived: 8000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 3, replitId: null }
-  },
-  {
-    id: "demo-3", userId: "demo-u3", title: "Gaming Tournament 🎮", thumbnail: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=400&fit=crop",
-    isLive: true, viewersCount: 45200, category: "Gaming", description: "", isPKBattle: true, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u3", username: "ProGamer99", displayName: "ProGamer", email: "gamer@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Gamer", bio: "Esports", level: 58, xp: 9000, coins: 5000, diamonds: 2000, role: "user", vipTier: "diamond", isVerified: true, followersCount: 250000, followingCount: 50, totalLikes: 800000, totalGiftsReceived: 50000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 7, replitId: null }
-  },
-  {
-    id: "demo-4", userId: "demo-u4", title: "Sunset Yoga Flow 🧘", thumbnail: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=600&fit=crop",
-    isLive: true, viewersCount: 3200, category: "Fitness", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u4", username: "YogaWithSara", displayName: "Sara", email: "sara@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sara", bio: "Yoga", level: 28, xp: 2800, coins: 600, diamonds: 200, role: "user", vipTier: null, isVerified: false, followersCount: 15000, followingCount: 300, totalLikes: 45000, totalGiftsReceived: 3000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 2, replitId: null }
-  },
-  {
-    id: "demo-5", userId: "demo-u5", title: "Digital Art Live ✨", thumbnail: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400&h=500&fit=crop",
-    isLive: true, viewersCount: 6800, category: "Art", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u5", username: "ArtByKai", displayName: "Kai", email: "kai@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kai", bio: "Artist", level: 31, xp: 3100, coins: 900, diamonds: 400, role: "user", vipTier: "gold", isVerified: true, followersCount: 67000, followingCount: 150, totalLikes: 180000, totalGiftsReceived: 12000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 4, replitId: null }
-  },
-  {
-    id: "demo-6", userId: "demo-u6", title: "Street Fashion 👗", thumbnail: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400&h=600&fit=crop",
-    isLive: true, viewersCount: 19300, category: "Fashion", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u6", username: "StyleQueen", displayName: "Bella", email: "bella@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bella", bio: "Fashion", level: 45, xp: 4500, coins: 2000, diamonds: 800, role: "user", vipTier: "diamond", isVerified: true, followersCount: 120000, followingCount: 80, totalLikes: 400000, totalGiftsReceived: 25000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 6, replitId: null }
-  },
-  {
-    id: "demo-7", userId: "demo-u7", title: "Guitar Jam Session 🎸", thumbnail: "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=400&fit=crop",
-    isLive: true, viewersCount: 5500, category: "Music", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u7", username: "GuitarHero", displayName: "Jake", email: "jake@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jake", bio: "Musician", level: 22, xp: 2200, coins: 400, diamonds: 150, role: "user", vipTier: null, isVerified: false, followersCount: 8000, followingCount: 500, totalLikes: 22000, totalGiftsReceived: 2000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 1, replitId: null }
-  },
-  {
-    id: "demo-8", userId: "demo-u8", title: "Travel Vlog Tokyo 🗼", thumbnail: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=500&fit=crop",
-    isLive: true, viewersCount: 15800, category: "Travel", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u8", username: "WanderLust", displayName: "Alex", email: "alex@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex", bio: "Traveler", level: 38, xp: 3800, coins: 1200, diamonds: 600, role: "user", vipTier: "gold", isVerified: true, followersCount: 95000, followingCount: 100, totalLikes: 300000, totalGiftsReceived: 18000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 5, replitId: null }
-  },
-  {
-    id: "demo-9", userId: "demo-u9", title: "Comedy Night 😂", thumbnail: "https://images.unsplash.com/photo-1527224857830-43a7acc85260?w=400&h=600&fit=crop",
-    isLive: true, viewersCount: 28900, category: "Entertainment", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u9", username: "FunnyMax", displayName: "Max", email: "max@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Max", bio: "Comedian", level: 50, xp: 7000, coins: 3000, diamonds: 1500, role: "user", vipTier: "diamond", isVerified: true, followersCount: 180000, followingCount: 60, totalLikes: 600000, totalGiftsReceived: 35000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 6, replitId: null }
-  },
-  {
-    id: "demo-10", userId: "demo-u10", title: "Meditation & Chill 🕯️", thumbnail: "https://images.unsplash.com/photo-1528715471579-d1bcf0ba5e83?w=400&h=400&fit=crop",
-    isLive: true, viewersCount: 2100, category: "Wellness", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u10", username: "ZenMaster", displayName: "Zara", email: "zara@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Zara", bio: "Mindfulness", level: 19, xp: 1900, coins: 300, diamonds: 100, role: "user", vipTier: null, isVerified: false, followersCount: 5000, followingCount: 400, totalLikes: 12000, totalGiftsReceived: 1000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 1, replitId: null }
-  },
-  {
-    id: "demo-11", userId: "demo-u11", title: "Dance Battle 💃", thumbnail: "https://images.unsplash.com/photo-1547153760-18fc86324498?w=400&h=600&fit=crop",
-    isLive: true, viewersCount: 34600, category: "Dance", description: "", isPKBattle: true, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u11", username: "DanceQueen", displayName: "Mia", email: "mia@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia", bio: "Dancer", level: 55, xp: 8500, coins: 4000, diamonds: 1800, role: "user", vipTier: "diamond", isVerified: true, followersCount: 210000, followingCount: 70, totalLikes: 750000, totalGiftsReceived: 42000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 7, replitId: null }
-  },
-  {
-    id: "demo-12", userId: "demo-u12", title: "Makeup Tutorial 💄", thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&h=500&fit=crop",
-    isLive: true, viewersCount: 11200, category: "Beauty", description: "", isPKBattle: false, pkBattleId: null, latitude: null, longitude: null,
-    createdAt: new Date(), updatedAt: new Date(), tags: [], agoraChannelName: null, agoraToken: null,
-    user: { id: "demo-u12", username: "GlamGirl", displayName: "Lily", email: "lily@demo.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Lily", bio: "Beauty guru", level: 33, xp: 3300, coins: 700, diamonds: 350, role: "user", vipTier: "silver", isVerified: true, followersCount: 55000, followingCount: 180, totalLikes: 150000, totalGiftsReceived: 9000, dndEnabled: false, password: null, phone: null, birthdate: null, gender: null, country: null, createdAt: new Date(), lastLoginDate: null, loginStreak: 0, lastStreakClaimDate: null, profileViews: 0, referralCode: null, referredBy: null, wealthLevel: 3, replitId: null }
-  },
-];
-
 const formatViewers = (count: number) => {
   if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
   if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
@@ -236,15 +161,10 @@ export default function Explore() {
   const realPopularStreams = popularData?.pages.flatMap(p => p.streams) ?? [];
 
   const displayStreams = useMemo(() => {
-    const real = activeTab === 'new' ? realNewStreams
+    return activeTab === 'new' ? realNewStreams
       : activeTab === 'popular' ? realPopularStreams
       : nearbyStreams ?? [];
-
-    if (real.length > 0) return real;
-    return DUMMY_STREAMS;
   }, [activeTab, realNewStreams, realPopularStreams, nearbyStreams]);
-
-  const isDummy = displayStreams === DUMMY_STREAMS;
 
   const isLoading = activeTab === 'new' ? newLoading
     : activeTab === 'popular' ? popularLoading
@@ -396,24 +316,27 @@ export default function Explore() {
               </div>
             ) : (
               <>
-                {isDummy && (
-                  <div className="mb-3 px-1">
-                    <p className="text-muted-foreground/60 text-xs text-center">Preview with sample streams</p>
+                {displayStreams.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Flame className="w-12 h-12 text-muted-foreground/30 mb-3" />
+                    <p className="text-muted-foreground text-sm font-medium">No live streams right now</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">Check back soon or go live yourself!</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 lg:grid-cols-4 gap-2">
+                    {displayStreams.map((stream, index) => {
+                      const popularRank = activeTab === 'popular' ? index + 1 : undefined;
+                      return (
+                        <ExploreStreamCard
+                          key={stream.id}
+                          stream={stream}
+                          featured={isFeatured(index)}
+                          rank={popularRank}
+                        />
+                      );
+                    })}
                   </div>
                 )}
-                <div className="grid grid-cols-3 lg:grid-cols-4 gap-2">
-                  {displayStreams.map((stream, index) => {
-                    const popularRank = activeTab === 'popular' ? index + 1 : undefined;
-                    return (
-                      <ExploreStreamCard
-                        key={stream.id}
-                        stream={stream}
-                        featured={isFeatured(index)}
-                        rank={popularRank}
-                      />
-                    );
-                  })}
-                </div>
               </>
             )}
 
