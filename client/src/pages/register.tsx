@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Flame, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Flame, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -14,14 +14,42 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [birthdate, setBirthdate] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [ageError, setAgeError] = useState("");
+
+  const validateAge = (dob: string): boolean => {
+    if (!dob) return false;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 18;
+  };
+
+  const handleBirthdateChange = (value: string) => {
+    setBirthdate(value);
+    if (value && !validateAge(value)) {
+      setAgeError("You must be at least 18 years old to use IgnytLIVE");
+    } else {
+      setAgeError("");
+    }
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username.trim() || !email.trim() || !password.trim()) {
+    if (!username.trim() || !email.trim() || !password.trim() || !birthdate) {
       toast({ title: "Please fill in all fields", variant: "destructive" });
+      return;
+    }
+
+    if (!validateAge(birthdate)) {
+      toast({ title: "You must be at least 18 years old", variant: "destructive" });
       return;
     }
 
@@ -101,6 +129,25 @@ export default function Register() {
               data-testid="input-email"
             />
           </div>
+          <div>
+            <label className="block text-white/50 text-sm mb-1 px-1">Date of Birth</label>
+            <input
+              type="date"
+              value={birthdate}
+              onChange={(e) => handleBirthdateChange(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              className={`w-full bg-white/5 border rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary/50 ${
+                ageError ? "border-red-500" : "border-white/10"
+              }`}
+              data-testid="input-birthdate"
+            />
+            {ageError && (
+              <div className="flex items-center gap-2 mt-1 px-1">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                <p className="text-red-400 text-xs" data-testid="text-age-error">{ageError}</p>
+              </div>
+            )}
+          </div>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -130,7 +177,7 @@ export default function Register() {
           </div>
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !!ageError}
             className="w-full bg-gradient-to-r from-primary to-pink-500 text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
             data-testid="button-register"
           >
@@ -147,7 +194,7 @@ export default function Register() {
           By creating an account, you confirm you are 18+ and agree to our{" "}
           <span onClick={() => setLocation("/terms")} className="text-primary/70 hover:text-primary cursor-pointer underline" data-testid="link-terms">Terms of Service</span>
           {" "}and{" "}
-          <span onClick={() => setLocation("/privacy-policy")} className="text-primary/70 hover:text-primary cursor-pointer underline" data-testid="link-privacy">Privacy Policy</span>
+          <span onClick={() => setLocation("/privacy")} className="text-primary/70 hover:text-primary cursor-pointer underline" data-testid="link-privacy">Privacy Policy</span>
         </motion.p>
       </div>
     </div>

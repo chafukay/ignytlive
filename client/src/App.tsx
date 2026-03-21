@@ -78,6 +78,7 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
+      <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/community-guidelines" component={CommunityGuidelines} />
       <Route path="/">{user ? <Home /> : <Redirect to="/login" />}</Route>
       <Route path="/notifications">{() => <ProtectedRoute component={Notifications} />}</Route>
@@ -103,7 +104,7 @@ function Router() {
       <Route path="/item-bag">{() => <ProtectedRoute component={ItemBag} />}</Route>
       <Route path="/vip-plans">{() => <ProtectedRoute component={VIPPlans} />}</Route>
       <Route path="/edit-profile">{() => <ProtectedRoute component={EditProfile} />}</Route>
-      <Route path="/privacy">{() => <ProtectedRoute component={Privacy} />}</Route>
+      <Route path="/privacy-settings">{() => <ProtectedRoute component={Privacy} />}</Route>
       <Route path="/help">{() => <ProtectedRoute component={Help} />}</Route>
       <Route path="/about">{() => <ProtectedRoute component={About} />}</Route>
       <Route path="/families">{() => <ProtectedRoute component={Families} />}</Route>

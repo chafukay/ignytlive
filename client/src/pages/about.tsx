@@ -56,7 +56,7 @@ export default function About() {
             <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
           </div>
           <div
-            onClick={() => setLocation("/privacy-policy")}
+            onClick={() => setLocation("/privacy")}
             className="flex items-center gap-3 py-3 px-2 border-b border-border cursor-pointer hover:bg-muted/30 rounded"
             data-testid="link-privacy-policy"
           >

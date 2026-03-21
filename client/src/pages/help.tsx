@@ -102,7 +102,7 @@ export default function Help() {
             </div>
           </div>
           <div
-            onClick={() => setLocation("/privacy-policy")}
+            onClick={() => setLocation("/privacy")}
             className="bg-card rounded-xl p-4 border border-border cursor-pointer hover:bg-muted/50"
             data-testid="link-privacy-policy"
           >

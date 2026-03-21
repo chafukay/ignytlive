@@ -153,7 +153,7 @@ export default function Settings() {
   }> = [
     { icon: User, label: "Edit Profile", href: "/edit-profile" },
     { icon: Bell, label: "Notifications", toggle: true, value: notificationSettings.pushEnabled, onChange: handleNotificationToggle, testId: "toggle-notifications" },
-    { icon: Lock, label: "Privacy", href: "/privacy" },
+    { icon: Lock, label: "Privacy", href: "/privacy-settings" },
     { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2 text-muted-foreground">🇺🇸 English</span>, disabled: true, testId: "language-disabled" },
     { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", onChange: toggleTheme, isTheme: true, testId: "toggle-dark-mode" },
     { icon: HelpCircle, label: "Help & Support", href: "/help" },

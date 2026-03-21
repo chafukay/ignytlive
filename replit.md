@@ -47,7 +47,7 @@ Preferred communication style: Simple, everyday language.
 - **Notification System**: In-app notifications for follows, gifts, call requests, and system messages, with unread counts and read/unread management.
 - **Admin Panel**: Separate application (`/admin`) with its own authentication (`admin_users` table), for managing users, viewing reports, and monitoring platform statistics.
 - **Event Scheduling**: Users can create, manage, and RSVP to scheduled events with categories, calendar views, and integrated authorization.
-- **Legal Pages**: Public (no auth required) Terms of Service (`/terms`), Privacy Policy (`/privacy-policy`), and Community Guidelines (`/community-guidelines`) pages. Linked from About, Help, and Register pages. Contact emails: support@ignytlive.com, privacy@ignytlive.com, safety@ignytlive.com.
+- **Legal Pages**: Public (no auth required) Terms of Service (`/terms`), Privacy Policy (`/privacy` and `/privacy-policy`), and Community Guidelines (`/community-guidelines`) pages. Linked from About, Help, and Register pages. Contact emails: support@ignytlive.com, privacy@ignytlive.com, safety@ignytlive.com. Privacy settings page moved to `/privacy-settings`.
 
 ## External Dependencies
 
