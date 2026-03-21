@@ -343,21 +343,22 @@ export async function registerRoutes(
 
   // User routes
   app.post("/api/auth/register", async (req, res) => {
-    try {
-      const registerKey = `register:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
-      const rateCheck = checkLoginRateLimit(registerKey);
-      if (!rateCheck.allowed) {
-        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
-        return res.status(429).json({ error: `Too many registration attempts. Please try again in ${retryMinutes} minute(s).` });
-      }
+    const registerKey = `register:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
+    const rateCheck = checkLoginRateLimit(registerKey);
+    if (!rateCheck.allowed) {
+      const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+      return res.status(429).json({ error: `Too many registration attempts. Please try again in ${retryMinutes} minute(s).` });
+    }
 
+    recordLoginFailure(registerKey);
+
+    try {
       const body = { ...req.body };
       if (body.birthdate && typeof body.birthdate === 'string') {
         body.birthdate = new Date(body.birthdate);
       }
       const userData = insertUserSchema.parse(body);
       
-      // Age gating - require birthdate and check 18+
       const ageCheck = verifyAge(userData.birthdate);
       if (!ageCheck.valid) {
         return res.status(400).json({ error: ageCheck.error });
@@ -371,10 +372,8 @@ export async function registerRoutes(
       
       const hashedPassword = await bcrypt.hash(userData.password, 10);
       const user = await storage.createUser({ ...userData, password: hashedPassword });
-      recordLoginFailure(registerKey);
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
-      recordLoginFailure(registerKey);
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
     }
   });
