@@ -122,6 +122,9 @@ import {
   type InsertScheduledEvent,
   type EventRsvp,
   type InsertEventRsvp,
+  adminUsers,
+  type AdminUser,
+  type InsertAdminUser,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -359,6 +362,11 @@ export interface IStorage {
   hasRsvped(eventId: string, userId: string): Promise<boolean>;
   getEventRsvps(eventId: string): Promise<(EventRsvp & { user: User })[]>;
   getUserRsvps(userId: string): Promise<(EventRsvp & { event: ScheduledEvent & { host: User } })[]>;
+
+  // Admin User operations
+  getAdminUser(id: string): Promise<AdminUser | undefined>;
+  getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
+  createAdminUser(user: InsertAdminUser): Promise<AdminUser>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2347,6 +2355,21 @@ export class DatabaseStorage implements IStorage {
       .where(eq(eventRsvps.userId, userId))
       .orderBy(scheduledEvents.scheduledAt);
     return results.map(r => ({ ...r.event_rsvps, event: { ...r.scheduled_events, host: r.users } }));
+  }
+
+  async getAdminUser(id: string): Promise<AdminUser | undefined> {
+    const [admin] = await db.select().from(adminUsers).where(eq(adminUsers.id, id));
+    return admin || undefined;
+  }
+
+  async getAdminUserByUsername(username: string): Promise<AdminUser | undefined> {
+    const [admin] = await db.select().from(adminUsers).where(eq(adminUsers.username, username));
+    return admin || undefined;
+  }
+
+  async createAdminUser(user: InsertAdminUser): Promise<AdminUser> {
+    const [admin] = await db.insert(adminUsers).values(user).returning();
+    return admin;
   }
 }
 

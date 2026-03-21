@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 // Seeding disabled - import { seedDatabase } from "./seed";
+import { seedAdminUser } from "./seed";
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,6 +24,37 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+
+// Global API rate limiter: 100 requests per minute per IP
+const apiRateLimiter = new Map<string, { count: number; resetAt: number }>();
+const API_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
+
+app.use("/api", (req, res, next) => {
+  const ip = req.ip || req.headers["x-forwarded-for"] as string || "unknown";
+  const now = Date.now();
+  const record = apiRateLimiter.get(ip);
+
+  if (record && record.resetAt > now) {
+    if (record.count >= API_RATE_LIMIT.maxRequests) {
+      const retryAfter = Math.ceil((record.resetAt - now) / 1000);
+      res.set("Retry-After", String(retryAfter));
+      return res.status(429).json({ error: "Too many requests. Please slow down." });
+    }
+    record.count++;
+  } else {
+    apiRateLimiter.set(ip, { count: 1, resetAt: now + API_RATE_LIMIT.windowMs });
+  }
+
+  next();
+});
+
+// Clean up stale rate limit entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of apiRateLimiter) {
+    if (record.resetAt <= now) apiRateLimiter.delete(ip);
+  }
+}, 5 * 60 * 1000);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -64,6 +96,8 @@ app.use((req, res, next) => {
 (async () => {
   // Seeding disabled - no sample data
   // await seedDatabase();
+  
+  await seedAdminUser();
   
   await registerRoutes(httpServer, app);
 

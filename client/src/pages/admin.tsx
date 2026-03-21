@@ -1,17 +1,14 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { 
   Shield, Users, Crown, Coins, Diamond, TrendingUp, 
-  Search, ArrowLeft, Edit, AlertTriangle, Eye, UserCheck,
-  Calendar, BarChart3, Award, Flame, X
+  Search, Edit, AlertTriangle, Eye, UserCheck,
+  Calendar, BarChart3, Award, Flame, X, LogOut
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth-context";
+import { useAdminAuth, adminFetch } from "@/lib/admin-auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
-
-const API_BASE = "";
 
 type AdminTab = 'dashboard' | 'users' | 'reports';
 
@@ -29,54 +26,51 @@ interface AdminStats {
   mostFollowed: User[];
 }
 
-export default function Admin() {
-  const [, setLocation] = useLocation();
-  const { user } = useAuth();
+export default function AdminDashboard() {
+  const { admin, token, logout } = useAdminAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [searchQuery, setSearchQuery] = useState("");
   const [editingUser, setEditingUser] = useState<any | null>(null);
 
-  const isAdmin = user?.isAdmin === true;
-
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ['admin', 'stats'],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/admin/stats?adminId=${user?.id}`);
+      const res = await adminFetch(`/api/admin/stats`, token!);
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    enabled: isAdmin && !!user?.id,
+    enabled: !!admin?.id && !!token,
     refetchInterval: 30000,
   });
 
   const { data: allUsers = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['admin', 'users'],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/admin/users?adminId=${user?.id}`);
+      const res = await adminFetch(`/api/admin/users`, token!);
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    enabled: isAdmin && activeTab === 'users' && !!user?.id,
+    enabled: activeTab === 'users' && !!token,
   });
 
   const { data: reports = [] } = useQuery<any[]>({
     queryKey: ['admin', 'reports'],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/admin/reports?adminId=${user?.id}`);
+      const res = await adminFetch(`/api/admin/reports`, token!);
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    enabled: isAdmin && activeTab === 'reports' && !!user?.id,
+    enabled: activeTab === 'reports' && !!token,
   });
 
   const updateUserMutation = useMutation({
     mutationFn: async (data: { userId: string; updates: any }) => {
-      const res = await fetch(`${API_BASE}/api/admin/update-user`, {
+      const res = await adminFetch(`/api/admin/update-user`, token!, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminId: user?.id, userId: data.userId, updates: data.updates }),
+        body: JSON.stringify({ userId: data.userId, updates: data.updates }),
       });
       if (!res.ok) throw new Error("Failed");
       return res.json();
@@ -91,25 +85,9 @@ export default function Admin() {
     },
   });
 
-  if (!user || !isAdmin) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
-        <div className="text-center">
-          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2" data-testid="text-access-denied">Access Denied</h1>
-          <p className="text-zinc-400 mb-6">You don't have admin privileges</p>
-          <button onClick={() => setLocation("/")} className="bg-orange-500 text-white px-6 py-2 rounded-lg" data-testid="button-go-home">
-            Go Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const filteredUsers = allUsers.filter(u =>
     u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const tabs = [
@@ -153,9 +131,13 @@ export default function Admin() {
         </nav>
 
         <div className="border-t border-zinc-800 pt-4 mt-4">
-          <button onClick={() => setLocation("/")} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 w-full" data-testid="button-back-to-app">
-            <ArrowLeft className="w-5 h-5" />
-            Back to App
+          <div className="px-3 py-2 mb-2">
+            <p className="text-zinc-400 text-xs">Logged in as</p>
+            <p className="text-white text-sm font-medium">{admin?.username}</p>
+          </div>
+          <button onClick={logout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400 hover:bg-red-500/10 w-full" data-testid="button-admin-logout">
+            <LogOut className="w-5 h-5" />
+            Sign Out
           </button>
         </div>
       </aside>
@@ -205,7 +187,7 @@ export default function Admin() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by username, email, or display name..."
+                placeholder="Search by username or email..."
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-3 pl-12 pr-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-orange-500/50"
                 data-testid="input-search-users"
               />
@@ -238,7 +220,6 @@ export default function Admin() {
                               <div className="flex items-center gap-2">
                                 <span className="text-white font-medium">{u.username}</span>
                                 {u.isVerified && <UserCheck className="w-3.5 h-3.5 text-blue-400" />}
-                                {u.isAdmin && <Shield className="w-3.5 h-3.5 text-orange-400" />}
                               </div>
                               <span className="text-zinc-500 text-xs">{u.email || 'No email'}</span>
                             </div>
@@ -349,10 +330,6 @@ export default function Admin() {
                 <input type="checkbox" checked={editingUser.isVerified || false} onChange={(e) => setEditingUser({ ...editingUser, isVerified: e.target.checked })} className="rounded" data-testid="checkbox-verified" />
                 <label className="text-zinc-300 text-sm">Verified User</label>
               </div>
-              <div className="flex items-center gap-3">
-                <input type="checkbox" checked={editingUser.isAdmin || false} onChange={(e) => setEditingUser({ ...editingUser, isAdmin: e.target.checked })} className="rounded" data-testid="checkbox-admin" />
-                <label className="text-zinc-300 text-sm">Admin Access</label>
-              </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setEditingUser(null)} className="flex-1 py-2.5 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700" data-testid="button-cancel">Cancel</button>
@@ -365,7 +342,6 @@ export default function Admin() {
                     diamonds: editingUser.diamonds,
                     level: editingUser.level,
                     isVerified: editingUser.isVerified,
-                    isAdmin: editingUser.isAdmin,
                   }
                 })}
                 disabled={updateUserMutation.isPending}

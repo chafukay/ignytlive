@@ -1,6 +1,7 @@
 import { db } from "./db";
-import { users, gifts, badges, wheelPrizes } from "@shared/schema";
+import { users, gifts, badges, wheelPrizes, adminUsers } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
@@ -226,5 +227,49 @@ export async function seedDatabase() {
   await db.insert(wheelPrizes).values(defaultWheelPrizes);
   console.log("✓ Seeded wheel prizes");
 
+  // Seed default admin user
+  const existingAdmin = await db.select().from(adminUsers).limit(1);
+  if (existingAdmin.length === 0) {
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    await db.insert(adminUsers).values({
+      username: "admin",
+      email: "admin@ignyt.live",
+      password: hashedPassword,
+      role: "superadmin",
+    });
+    console.log("✓ Seeded default admin user (username: admin, password: admin123)");
+  }
+
   console.log("🎉 Database seeding complete!");
+}
+
+export async function seedAdminUser() {
+  try {
+    const existingAdmin = await db.select().from(adminUsers).limit(1);
+    if (existingAdmin.length === 0) {
+      const hashedPassword = await bcrypt.hash("admin123", 10);
+      await db.insert(adminUsers).values({
+        username: "admin",
+        email: "admin@ignyt.live",
+        password: hashedPassword,
+        role: "superadmin",
+      });
+      console.log("✓ Seeded default admin user (username: admin, password: admin123)");
+    } else {
+      const admin = existingAdmin[0];
+      if (!admin.password.startsWith("$2a$") && !admin.password.startsWith("$2b$")) {
+        const hashedPassword = await bcrypt.hash(admin.password, 10);
+        await db.update(adminUsers).set({ password: hashedPassword }).where(eq(adminUsers.id, admin.id));
+        console.log("✓ Migrated admin password to bcrypt hash");
+      }
+    }
+  } catch (error: any) {
+    if (error?.code === '42P01') {
+      console.log("Admin users table not yet created, skipping seed");
+    } else if (error?.message?.includes('duplicate')) {
+      console.log("✓ Default admin user already exists");
+    } else {
+      console.error("Failed to seed admin user:", error);
+    }
+  }
 }

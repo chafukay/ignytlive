@@ -26,6 +26,38 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover",
 });
 
+// Rate limiter for login endpoints (brute force protection)
+const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();
+const LOGIN_RATE_LIMIT = { maxAttempts: 5, windowMs: 15 * 60 * 1000, lockoutMs: 15 * 60 * 1000 };
+
+function checkLoginRateLimit(key: string): { allowed: boolean; retryAfterMs?: number } {
+  const now = Date.now();
+  const record = loginAttempts.get(key);
+  if (record) {
+    if (record.lockedUntil > now) {
+      return { allowed: false, retryAfterMs: record.lockedUntil - now };
+    }
+    if (now - record.firstAttempt > LOGIN_RATE_LIMIT.windowMs) {
+      loginAttempts.delete(key);
+    }
+  }
+  return { allowed: true };
+}
+
+function recordLoginFailure(key: string): void {
+  const now = Date.now();
+  const record = loginAttempts.get(key) || { count: 0, firstAttempt: now, lockedUntil: 0 };
+  record.count++;
+  if (record.count >= LOGIN_RATE_LIMIT.maxAttempts) {
+    record.lockedUntil = now + LOGIN_RATE_LIMIT.lockoutMs;
+  }
+  loginAttempts.set(key, record);
+}
+
+function clearLoginFailures(key: string): void {
+  loginAttempts.delete(key);
+}
+
 // Helper to check if user is a guest and block write actions
 const checkGuestRestriction = async (userId: string | undefined, res: any, storage: any): Promise<boolean> => {
   if (!userId) return false;
@@ -385,21 +417,28 @@ export async function registerRoutes(
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
-      // Try to find user by username first, then by email
+      const rateLimitKey = `user:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
+      const rateCheck = checkLoginRateLimit(rateLimitKey);
+      if (!rateCheck.allowed) {
+        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many login attempts. Please try again in ${retryMinutes} minute(s).` });
+      }
+
       let user = await storage.getUserByUsername(username);
       if (!user) {
         user = await storage.getUserByEmail(username);
       }
       
       if (!user) {
-        console.log(`[login] User not found for: "${username}"`);
+        recordLoginFailure(rateLimitKey);
         return res.status(401).json({ error: "Invalid credentials" });
       }
       if (user.password !== password) {
-        console.log(`[login] Password mismatch for user "${username}" - stored length: ${user.password?.length}, provided length: ${password?.length}`);
+        recordLoginFailure(rateLimitKey);
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
+      clearLoginFailures(rateLimitKey);
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       res.status(500).json({ error: "Login failed" });
@@ -3625,13 +3664,94 @@ export async function registerRoutes(
   });
 
   // ===== Admin API Routes =====
+  const bcrypt = await import("bcryptjs");
+  const jwt = await import("jsonwebtoken");
+  const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "admin-secret-key-change-in-production-" + Date.now();
+  const ADMIN_TOKEN_EXPIRY = "8h";
+
+  const invalidatedAdminTokens = new Set<string>();
+
+  const verifyAdminToken = (token: string): { adminId: string } | null => {
+    try {
+      if (invalidatedAdminTokens.has(token)) return null;
+      const decoded = jwt.default.verify(token, ADMIN_JWT_SECRET) as { adminId: string };
+      return decoded;
+    } catch {
+      return null;
+    }
+  };
+
   const requireAdmin = async (req: any, res: any): Promise<boolean> => {
-    const adminId = req.query.adminId as string || req.body?.adminId;
-    if (!adminId) { res.status(401).json({ error: "Admin authentication required" }); return false; }
-    const adminUser = await storage.getUser(adminId);
-    if (!adminUser || !adminUser.isAdmin) { res.status(403).json({ error: "Access denied" }); return false; }
+    const authHeader = req.headers.authorization as string;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Admin authentication required" });
+      return false;
+    }
+    const token = authHeader.substring(7);
+    const decoded = verifyAdminToken(token);
+    if (!decoded) {
+      res.status(401).json({ error: "Invalid or expired admin token" });
+      return false;
+    }
+    const adminUser = await storage.getAdminUser(decoded.adminId);
+    if (!adminUser) {
+      res.status(403).json({ error: "Access denied" });
+      return false;
+    }
     return true;
   };
+
+  app.post("/api/admin/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+      const rateLimitKey = `admin:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
+      const rateCheck = checkLoginRateLimit(rateLimitKey);
+      if (!rateCheck.allowed) {
+        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many login attempts. Please try again in ${retryMinutes} minute(s).` });
+      }
+      const admin = await storage.getAdminUserByUsername(username);
+      if (!admin) {
+        recordLoginFailure(rateLimitKey);
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      const passwordValid = await bcrypt.default.compare(password, admin.password);
+      if (!passwordValid) {
+        recordLoginFailure(rateLimitKey);
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      clearLoginFailures(rateLimitKey);
+      const token = jwt.default.sign({ adminId: admin.id }, ADMIN_JWT_SECRET, { expiresIn: ADMIN_TOKEN_EXPIRY });
+      const { password: _, ...safeAdmin } = admin;
+      res.json({ ...safeAdmin, token });
+    } catch (error) {
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.post("/api/admin/auth/logout", async (req, res) => {
+    const authHeader = req.headers.authorization as string;
+    if (authHeader?.startsWith("Bearer ")) {
+      invalidatedAdminTokens.add(authHeader.substring(7));
+    }
+    res.json({ success: true });
+  });
+
+  app.get("/api/admin/auth/me", async (req, res) => {
+    const authHeader = req.headers.authorization as string;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const decoded = verifyAdminToken(authHeader.substring(7));
+    if (!decoded) return res.status(401).json({ error: "Invalid or expired token" });
+    const admin = await storage.getAdminUser(decoded.adminId);
+    if (!admin) return res.status(401).json({ error: "Not authenticated" });
+    const { password: _, ...safeAdmin } = admin;
+    res.json(safeAdmin);
+  });
 
   app.get("/api/admin/stats", async (req, res) => {
     if (!await requireAdmin(req, res)) return;
