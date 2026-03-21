@@ -28,6 +28,20 @@ function toSafeUser(user: any) {
 function toSafeUsers(users: any[]) {
   return users.map(toSafeUser);
 }
+
+function stripPasswords(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(stripPasswords);
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const result: any = {};
+    for (const key of Object.keys(obj)) {
+      if (key === 'password') continue;
+      result[key] = stripPasswords(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import Stripe from "stripe";
@@ -527,7 +541,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Phone and code are required" });
       }
 
-      // Verify the code
+      const verifyKey = `verify:${phone}`;
+      const verifyCheck = checkLoginRateLimit(verifyKey);
+      if (!verifyCheck.allowed) {
+        return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
+      }
+      recordLoginFailure(verifyKey);
+
       const isValid = await storage.verifyPhoneCode(phone, code);
       
       if (!isValid) {
@@ -666,6 +686,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Phone and code are required" });
       }
 
+      const verifyKey = `verify:${phone}`;
+      const verifyCheck = checkLoginRateLimit(verifyKey);
+      if (!verifyCheck.allowed) {
+        return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
+      }
+      recordLoginFailure(verifyKey);
+
       const isValid = await storage.verifyPhoneCode(phone, code);
       if (!isValid) {
         return res.status(401).json({ error: "Invalid or expired code" });
@@ -768,7 +795,7 @@ export async function registerRoutes(
     const sort = (req.query.sort as string) || "popular";
     const cursor = (req.query.cursor as string) || undefined;
     const result = await storage.getLiveStreams(limit, sort, cursor);
-    res.json(result);
+    res.json(stripPasswords(result));
   });
 
   // Get nearby streams based on user location
@@ -973,7 +1000,7 @@ export async function registerRoutes(
   app.get("/api/streams/:id/comments", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 100;
     const comments = await storage.getStreamComments(req.params.id, limit);
-    res.json(comments);
+    res.json(stripPasswords(comments));
   });
   
   app.post("/api/streams/:id/comments", async (req, res) => {
@@ -1058,7 +1085,7 @@ export async function registerRoutes(
   app.get("/api/shorts/feed", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const shorts = await storage.getShortsFeed(limit);
-    res.json(shorts);
+    res.json(stripPasswords(shorts));
   });
 
   app.get("/api/shorts/:id", async (req, res) => {
@@ -1120,7 +1147,7 @@ export async function registerRoutes(
   app.get("/api/shorts/:id/comments", async (req, res) => {
     try {
       const comments = await storage.getShortComments(req.params.id);
-      res.json(comments);
+      res.json(stripPasswords(comments));
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to get comments" });
     }
@@ -1615,14 +1642,14 @@ export async function registerRoutes(
 
   app.get("/api/users/:id/chats", async (req, res) => {
     const chats = await storage.getRecentChats(req.params.id);
-    res.json(chats);
+    res.json(stripPasswords(chats));
   });
 
   // Leaderboard routes
   app.get("/api/leaderboard/:period", async (req, res) => {
     const period = req.params.period as 'daily' | 'weekly' | 'alltime';
     const topStreamers = await storage.getTopStreamers(period);
-    res.json(topStreamers);
+    res.json(stripPasswords(topStreamers));
   });
 
   // XP and Level routes
@@ -2033,7 +2060,7 @@ export async function registerRoutes(
   app.get("/api/groups/:id/members", async (req, res) => {
     try {
       const members = await storage.getGroupMembers(req.params.id);
-      res.json(members);
+      res.json(stripPasswords(members));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch group members" });
     }
@@ -2084,7 +2111,7 @@ export async function registerRoutes(
   app.get("/api/groups/:id/messages", async (req, res) => {
     try {
       const messages = await storage.getGroupMessages(req.params.id);
-      res.json(messages);
+      res.json(stripPasswords(messages));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch messages" });
     }
@@ -3204,7 +3231,7 @@ export async function registerRoutes(
   app.get("/api/families/:id/members", async (req, res) => {
     try {
       const members = await storage.getFamilyMembers(req.params.id);
-      res.json(members);
+      res.json(stripPasswords(members));
     } catch (error) {
       res.status(500).json({ error: "Failed to get family members" });
     }
@@ -3355,7 +3382,7 @@ export async function registerRoutes(
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const messages = await storage.getFamilyMessages(req.params.id, limit);
-      res.json(messages);
+      res.json(stripPasswords(messages));
     } catch (error) {
       res.status(500).json({ error: "Failed to get messages" });
     }
