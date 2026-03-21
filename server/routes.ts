@@ -505,7 +505,7 @@ export async function registerRoutes(
       }
 
       // Generate 6-digit code
-      const { generateVerificationCode, sendVerificationCode, isSmsConfigured } = await import("./sms");
+      const { generateVerificationCode, sendVerificationCode } = await import("./sms");
       const code = generateVerificationCode();
       
       const result = await sendVerificationCode(phone, code);
