@@ -350,7 +350,7 @@ export interface IStorage {
   // Scheduled Event operations
   createScheduledEvent(event: InsertScheduledEvent): Promise<ScheduledEvent>;
   getScheduledEvent(id: string): Promise<(ScheduledEvent & { host: User }) | undefined>;
-  getUpcomingEvents(limit?: number, category?: string): Promise<(ScheduledEvent & { host: User })[]>;
+  getUpcomingEvents(limit?: number, category?: string, forUserId?: string): Promise<(ScheduledEvent & { host: User })[]>;
   getUserEvents(userId: string): Promise<ScheduledEvent[]>;
   updateScheduledEvent(id: string, updates: Partial<ScheduledEvent>): Promise<ScheduledEvent | undefined>;
   deleteScheduledEvent(id: string): Promise<boolean>;
@@ -2262,14 +2262,23 @@ export class DatabaseStorage implements IStorage {
     return { ...results[0].scheduled_events, host: results[0].users };
   }
 
-  async getUpcomingEvents(limit: number = 50, category?: string): Promise<(ScheduledEvent & { host: User })[]> {
+  async getUpcomingEvents(limit: number = 50, category?: string, forUserId?: string): Promise<(ScheduledEvent & { host: User })[]> {
     const now = new Date();
-    const conditions = [
+    const conditions: any[] = [
       sql`${scheduledEvents.scheduledAt} >= ${now}`,
       eq(scheduledEvents.status, "upcoming"),
     ];
     if (category && category !== "All") {
       conditions.push(eq(scheduledEvents.category, category));
+    }
+    if (forUserId) {
+      const followedUsers = await db.select({ followingId: follows.followingId })
+        .from(follows).where(eq(follows.followerId, forUserId));
+      const followedIds = followedUsers.map(f => f.followingId);
+      followedIds.push(forUserId);
+      if (followedIds.length > 0) {
+        conditions.push(sql`${scheduledEvents.hostId} IN (${sql.join(followedIds.map(id => sql`${id}`), sql`, `)})`);
+      }
     }
     const results = await db.select().from(scheduledEvents)
       .innerJoin(users, eq(scheduledEvents.hostId, users.id))

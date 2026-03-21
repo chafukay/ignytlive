@@ -3509,7 +3509,8 @@ export async function registerRoutes(
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const category = req.query.category as string | undefined;
-      const events = await storage.getUpcomingEvents(limit, category);
+      const userId = req.query.userId as string | undefined;
+      const events = await storage.getUpcomingEvents(limit, category, userId);
       res.json(events);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch events" });

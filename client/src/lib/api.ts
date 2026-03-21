@@ -1165,10 +1165,11 @@ export const api = {
     return res.json();
   },
 
-  async getUpcomingEvents(limit?: number, category?: string) {
+  async getUpcomingEvents(limit?: number, category?: string, userId?: string) {
     const params = new URLSearchParams();
     if (limit) params.set("limit", String(limit));
     if (category) params.set("category", category);
+    if (userId) params.set("userId", userId);
     const res = await fetch(`${API_BASE}/api/events?${params}`);
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<ScheduledEventWithHost[]>;

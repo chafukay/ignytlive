@@ -65,8 +65,8 @@ export default function Events() {
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["events", selectedCategory],
-    queryFn: () => api.getUpcomingEvents(100, selectedCategory === "All" ? undefined : selectedCategory),
+    queryKey: ["events", selectedCategory, user?.id],
+    queryFn: () => api.getUpcomingEvents(100, selectedCategory === "All" ? undefined : selectedCategory, user?.id),
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
   });
