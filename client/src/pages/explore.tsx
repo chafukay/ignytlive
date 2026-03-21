@@ -231,20 +231,6 @@ export default function Explore() {
 
         <SearchOverlay open={showSearch} onClose={() => setShowSearch(false)} />
 
-        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-4 mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-3xl">💎</div>
-            <div>
-              <p className="text-white font-bold">GET 100% BONUS</p>
-              <p className="text-white/80 text-sm">WITH CRYPTO!</p>
-            </div>
-          </div>
-          <Link href="/coins">
-            <button className="bg-white text-black font-bold px-4 py-2 rounded-full text-sm hover:scale-105 transition-transform" data-testid="button-grab-bonus">
-              Grab Now
-            </button>
-          </Link>
-        </div>
 
         <div className="flex gap-6 mb-5 border-b border-border pb-3">
           {[
