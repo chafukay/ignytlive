@@ -180,6 +180,15 @@ Core data models include:
 - **Intervals**: Home page 15s (streams), 30s (following), 60s (suggestions); Live room 10s; Chat 5-15s
 - **GPU**: Removed `backdrop-blur` from frequently rendered elements (chat messages, buttons) on live page
 
+### Admin Panel
+- **Access**: `/admin` route, restricted to users with `isAdmin: true` in database
+- **Dashboard**: Stats cards (total users, new today/this week, live streams, VIP users, verified, total coins/diamonds), top streamers, top gifters, most followed leaderboards
+- **User Management**: Searchable table of all users with inline editing (VIP tier, coins, diamonds, level, verified status, admin access)
+- **Reports**: View all user reports with reason, description, reporter info
+- **API Routes**: `GET /api/admin/stats`, `GET /api/admin/users`, `GET /api/admin/reports`, `POST /api/admin/update-user` — all require `adminId` query/body param verified against `isAdmin` flag
+- **Design**: Desktop-first layout with sidebar navigation, completely separate from mobile app UI
+- **Initial Admin**: `sankalpchari` account set as admin
+
 ### Event Scheduling System
 - **DB Tables**: `scheduled_events` (id, hostId, title, description, category, coverImage, scheduledAt, durationMinutes, rsvpCount, status), `event_rsvps` (id, eventId, userId, createdAt)
 - **Categories**: Music, Gaming, Cooking, Fitness, Art, Dance, Travel, Fashion, Beauty, Entertainment, Education, Wellness, General

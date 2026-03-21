@@ -3624,5 +3624,103 @@ export async function registerRoutes(
     }
   });
 
+  // ===== Admin API Routes =====
+  const requireAdmin = async (req: any, res: any): Promise<boolean> => {
+    const adminId = req.query.adminId as string || req.body?.adminId;
+    if (!adminId) { res.status(401).json({ error: "Admin authentication required" }); return false; }
+    const adminUser = await storage.getUser(adminId);
+    if (!adminUser || !adminUser.isAdmin) { res.status(403).json({ error: "Access denied" }); return false; }
+    return true;
+  };
+
+  app.get("/api/admin/stats", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const allUsers = await storage.getAllUsers();
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 7);
+
+      const totalUsers = allUsers.length;
+      const newUsersToday = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= todayStart).length;
+      const newUsersWeek = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= weekStart).length;
+      const vipUsers = allUsers.filter(u => u.vipTier && u.vipTier > 0).length;
+      const verifiedUsers = allUsers.filter(u => u.isVerified).length;
+      const totalCoins = allUsers.reduce((sum, u) => sum + (u.coins || 0), 0);
+      const totalDiamonds = allUsers.reduce((sum, u) => sum + (u.diamonds || 0), 0);
+
+      const streamsRes = await storage.getLiveStreams();
+      const activeStreams = streamsRes?.streams?.length || 0;
+
+      const topUsers = [...allUsers]
+        .sort((a, b) => (b.totalGiftsReceived || 0) - (a.totalGiftsReceived || 0))
+        .slice(0, 10)
+        .map(({ password, ...u }) => u);
+
+      const topGifters = [...allUsers]
+        .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
+        .slice(0, 10)
+        .map(({ password, ...u }) => u);
+
+      const mostFollowed = [...allUsers]
+        .sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
+        .slice(0, 10)
+        .map(({ password, ...u }) => u);
+
+      res.json({
+        totalUsers, newUsersToday, newUsersWeek, vipUsers, verifiedUsers,
+        totalCoins, totalDiamonds, activeStreams,
+        topStreamers: topUsers, topGifters, mostFollowed,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get("/api/admin/users", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const allUsers = await storage.getAllUsers();
+      const safeUsers = allUsers.map(({ password, ...user }) => user);
+      res.json(safeUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/admin/reports", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const { db } = await import("./db");
+      const { userReports, users } = await import("@shared/schema");
+      const { desc, eq } = await import("drizzle-orm");
+      const reports = await db.select().from(userReports)
+        .innerJoin(users, eq(userReports.reportedUserId, users.id))
+        .orderBy(desc(userReports.createdAt))
+        .limit(100);
+      const formatted = reports.map(r => ({
+        ...r.user_reports,
+        reportedUser: { id: r.users.id, username: r.users.username, avatar: r.users.avatar, email: r.users.email },
+      }));
+      res.json(formatted);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  app.post("/api/admin/update-user", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const { userId, updates } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId required" });
+      const updated = await storage.updateUser(userId, updates);
+      if (!updated) return res.status(404).json({ error: "User not found" });
+      const { password, ...safeUser } = updated;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
   return httpServer;
 }
