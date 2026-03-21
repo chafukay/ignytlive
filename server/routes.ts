@@ -511,8 +511,7 @@ export async function registerRoutes(
       // Store in database
       await storage.createPhoneVerificationCode(phone, code);
       
-      // Send via SMS
-      const sent = await sendVerificationCode(phone, code);
+      const result = await sendVerificationCode(phone, code);
       
       const existing = smsAttempts.get(phone);
       if (existing) {
@@ -521,9 +520,13 @@ export async function registerRoutes(
         smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
       }
       
+      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
+        return res.status(400).json({ error: result.error, code: result.errorCode });
+      }
+      
       res.json({ 
         success: true, 
-        message: sent ? "Verification code sent" : "Code generated (SMS not configured)",
+        message: result.sent ? "Verification code sent" : "Code generated (SMS not configured)",
         smsConfigured: isSmsConfigured()
       });
     } catch (error) {
@@ -656,7 +659,7 @@ export async function registerRoutes(
       const { generateVerificationCode, sendVerificationCode, isSmsConfigured } = await import("./sms");
       const code = generateVerificationCode();
       await storage.createPhoneVerificationCode(phone, code);
-      const sent = await sendVerificationCode(phone, code);
+      const result = await sendVerificationCode(phone, code);
 
       const existingSms = smsAttempts.get(phone);
       if (existingSms) {
@@ -665,9 +668,13 @@ export async function registerRoutes(
         smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
       }
 
+      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
+        return res.status(400).json({ error: result.error, code: result.errorCode });
+      }
+
       res.json({
         success: true,
-        message: sent ? "Verification code sent" : "Code generated (SMS not configured)",
+        message: result.sent ? "Verification code sent" : "Code generated (SMS not configured)",
         smsConfigured: isSmsConfigured()
       });
     } catch (error) {
