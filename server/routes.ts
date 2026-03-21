@@ -21,6 +21,7 @@ import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import Stripe from "stripe";
+import bcrypt from "bcryptjs";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover",
@@ -343,6 +344,13 @@ export async function registerRoutes(
   // User routes
   app.post("/api/auth/register", async (req, res) => {
     try {
+      const registerKey = `register:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
+      const rateCheck = checkLoginRateLimit(registerKey);
+      if (!rateCheck.allowed) {
+        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many registration attempts. Please try again in ${retryMinutes} minute(s).` });
+      }
+
       const body = { ...req.body };
       if (body.birthdate && typeof body.birthdate === 'string') {
         body.birthdate = new Date(body.birthdate);
@@ -361,9 +369,12 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Username already exists" });
       }
       
-      const user = await storage.createUser(userData);
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      const user = await storage.createUser({ ...userData, password: hashedPassword });
+      recordLoginFailure(registerKey);
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
+      recordLoginFailure(registerKey);
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
     }
   });
@@ -372,10 +383,11 @@ export async function registerRoutes(
   app.post("/api/auth/guest", async (req, res) => {
     try {
       const guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const guestPassword = await bcrypt.hash(crypto.randomUUID(), 10);
       const guestUser = await storage.createUser({
         username: guestId,
         email: `${guestId}@guest.ignytlive.com`,
-        password: crypto.randomUUID(),
+        password: guestPassword,
         isGuest: true,
       });
       res.json({ user: { ...guestUser, password: undefined } });
@@ -433,7 +445,8 @@ export async function registerRoutes(
         recordLoginFailure(rateLimitKey);
         return res.status(401).json({ error: "Invalid credentials" });
       }
-      if (user.password !== password) {
+      const passwordValid = await bcrypt.compare(password, user.password);
+      if (!passwordValid) {
         recordLoginFailure(rateLimitKey);
         return res.status(401).json({ error: "Invalid credentials" });
       }
@@ -445,6 +458,10 @@ export async function registerRoutes(
     }
   });
 
+  // SMS rate limiter: max 3 codes per phone per hour
+  const smsAttempts = new Map<string, { count: number; firstAttempt: number }>();
+  const SMS_RATE_LIMIT = { maxCodes: 3, windowMs: 60 * 60 * 1000 };
+
   // Phone authentication - send verification code
   app.post("/api/auth/phone/send-code", async (req, res) => {
     try {
@@ -452,6 +469,16 @@ export async function registerRoutes(
       
       if (!phone || typeof phone !== "string") {
         return res.status(400).json({ error: "Phone number is required" });
+      }
+
+      const now = Date.now();
+      const smsRecord = smsAttempts.get(phone);
+      if (smsRecord) {
+        if (now - smsRecord.firstAttempt > SMS_RATE_LIMIT.windowMs) {
+          smsAttempts.delete(phone);
+        } else if (smsRecord.count >= SMS_RATE_LIMIT.maxCodes) {
+          return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
+        }
       }
 
       // Generate 6-digit code
@@ -463,6 +490,13 @@ export async function registerRoutes(
       
       // Send via SMS
       const sent = await sendVerificationCode(phone, code);
+      
+      const existing = smsAttempts.get(phone);
+      if (existing) {
+        existing.count++;
+      } else {
+        smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
+      }
       
       res.json({ 
         success: true, 
@@ -501,12 +535,12 @@ export async function registerRoutes(
           return res.status(400).json({ error: ageCheck.error || "Age verification required" });
         }
         
-        // Create new user with phone number
         const username = `user_${phone.slice(-4)}_${Date.now().toString(36)}`;
+        const hashedPwd = await bcrypt.hash(Math.random().toString(36).slice(2), 10);
         user = await storage.createUser({
           username,
           email: `${username}@phone.ignyt.live`,
-          password: Math.random().toString(36).slice(2),
+          password: hashedPwd,
           phone,
           phoneVerified: true,
           birthdate: birthdate ? new Date(birthdate) : undefined,
@@ -552,9 +586,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "This email is already in use by another account" });
       }
 
+      const hashedPwd = await bcrypt.hash(password, 10);
       const updated = await storage.updateUser(userId, { 
         email, 
-        password,
+        password: hashedPwd,
       });
 
       res.json({ user: { ...updated, password: undefined } });
@@ -573,6 +608,16 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Phone number is required" });
       }
 
+      const now = Date.now();
+      const smsRecord = smsAttempts.get(phone);
+      if (smsRecord) {
+        if (now - smsRecord.firstAttempt > SMS_RATE_LIMIT.windowMs) {
+          smsAttempts.delete(phone);
+        } else if (smsRecord.count >= SMS_RATE_LIMIT.maxCodes) {
+          return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
+        }
+      }
+
       // Check if phone is already linked to another user
       const existingUser = await storage.getUserByPhone(phone);
       if (existingUser && existingUser.id !== req.params.userId) {
@@ -583,6 +628,13 @@ export async function registerRoutes(
       const code = generateVerificationCode();
       await storage.createPhoneVerificationCode(phone, code);
       const sent = await sendVerificationCode(phone, code);
+
+      const existingSms = smsAttempts.get(phone);
+      if (existingSms) {
+        existingSms.count++;
+      } else {
+        smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
+      }
 
       res.json({
         success: true,
@@ -1205,12 +1257,12 @@ export async function registerRoutes(
 
   app.get("/api/users/:id/followers", async (req, res) => {
     const followers = await storage.getFollowers(req.params.id);
-    res.json(followers);
+    res.json(followers.map(u => ({ ...u, password: undefined })));
   });
 
   app.get("/api/users/:id/following", async (req, res) => {
     const following = await storage.getFollowing(req.params.id);
-    res.json(following);
+    res.json(following.map(u => ({ ...u, password: undefined })));
   });
 
   app.get("/api/users/:id/suggested", async (req, res) => {
@@ -3664,7 +3716,6 @@ export async function registerRoutes(
   });
 
   // ===== Admin API Routes =====
-  const bcrypt = await import("bcryptjs");
   const jwt = await import("jsonwebtoken");
   const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "admin-secret-key-change-in-production-" + Date.now();
   const ADMIN_TOKEN_EXPIRY = "8h";
@@ -3718,7 +3769,7 @@ export async function registerRoutes(
         recordLoginFailure(rateLimitKey);
         return res.status(401).json({ error: "Invalid credentials" });
       }
-      const passwordValid = await bcrypt.default.compare(password, admin.password);
+      const passwordValid = await bcrypt.compare(password, admin.password);
       if (!passwordValid) {
         recordLoginFailure(rateLimitKey);
         return res.status(401).json({ error: "Invalid credentials" });

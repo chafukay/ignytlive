@@ -243,6 +243,25 @@ export async function seedDatabase() {
   console.log("🎉 Database seeding complete!");
 }
 
+export async function migrateUserPasswords() {
+  try {
+    const allUsers = await db.select().from(users);
+    let migratedCount = 0;
+    for (const user of allUsers) {
+      if (!user.password.startsWith("$2a$") && !user.password.startsWith("$2b$")) {
+        const hashedPassword = await bcrypt.hash(user.password, 10);
+        await db.update(users).set({ password: hashedPassword }).where(eq(users.id, user.id));
+        migratedCount++;
+      }
+    }
+    if (migratedCount > 0) {
+      console.log(`✓ Migrated ${migratedCount} user password(s) to bcrypt hash`);
+    }
+  } catch (error: any) {
+    console.error("Failed to migrate user passwords:", error);
+  }
+}
+
 export async function seedAdminUser() {
   try {
     const existingAdmin = await db.select().from(adminUsers).limit(1);

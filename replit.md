@@ -33,7 +33,8 @@ Preferred communication style: Simple, everyday language.
 - **Models**: Users, Streams, Shorts, Follows, Gifts, Gift Transactions, Messages, Stream Comments, User Blocks, User Reports, User Muted Calls, Notifications, Scheduled Events, Event RSVPs.
 
 ### Authentication
-- **Methods**: Email/username + password, phone with SMS, Replit Auth (social logins), Guest browsing.
+- **Methods**: Email/username + password (bcrypt hashed), phone with SMS, Replit Auth (social logins), Guest browsing.
+- **Password Security**: All user passwords hashed with bcrypt (cost factor 10). Migration runs on startup to hash any remaining plain text passwords.
 - **Features**: Age gating (18+), guest mode with restricted access, client-side auth state in localStorage.
 
 ### Core Features
@@ -87,5 +88,8 @@ Preferred communication style: Simple, everyday language.
 ### Security
 - **Global API Rate Limiting**: All `/api` endpoints are limited to 100 requests per minute per IP. Returns 429 with `Retry-After` header when exceeded. Stale entries cleaned every 5 minutes.
 - **Brute Force Protection**: Both login endpoints (`/api/auth/login` and `/api/admin/auth/login`) have additional stricter rate limiting - 5 attempts per 15-minute window per IP, with 15-minute lockout after exceeding.
+- **Registration Rate Limiting**: Registration endpoint uses same brute force limiter (5 per 15 min per IP).
+- **SMS Rate Limiting**: Phone verification limited to 3 codes per phone number per hour.
+- **Password Hashing**: All user passwords hashed with bcrypt (cost factor 10). Startup migration auto-hashes any remaining plain text passwords.
 - **Admin Auth**: JWT Bearer tokens with 8-hour expiry, bcrypt-hashed passwords, server-side token invalidation on logout.
 - **Admin Panel**: Fully isolated from main app - separate `admin_users` table, own `AdminAuthProvider` context, independent localStorage key (`adminToken`), no main app providers (no DailyLoginModal, IncomingCallBanner, etc.). Default admin: username `admin`, password `admin123`.
