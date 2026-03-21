@@ -8,7 +8,7 @@ export default function CommunityGuidelines() {
     <div className="min-h-screen bg-background">
       <div className="max-w-3xl mx-auto p-4 pb-20">
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => setLocation("/")} className="text-foreground" data-testid="button-back">
+          <button onClick={() => window.history.length > 1 ? window.history.back() : setLocation("/")} className="text-foreground" data-testid="button-back">
             <ChevronRight className="w-6 h-6 rotate-180" />
           </button>
           <h1 className="text-xl font-bold text-foreground">Community Guidelines</h1>
