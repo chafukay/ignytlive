@@ -49,11 +49,11 @@ export async function sendVerificationCode(phone: string, code: string): Promise
   const twilioClient = getClient();
   
   if (!twilioClient || !fromNumber) {
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[SMS] Dev mode - code for ${phone.slice(-4)}: ${code}`);
-    } else {
-      console.warn(`[SMS] Not configured - cannot send to ${phone.slice(-4)}`);
+    if (process.env.NODE_ENV === "production") {
+      console.error(`[SMS] CRITICAL: Twilio not configured in production - cannot send to ***${phone.slice(-4)}`);
+      return { sent: false, error: "SMS service temporarily unavailable. Please try again later.", errorCode: "NOT_CONFIGURED", httpStatus: 503 };
     }
+    console.log(`[SMS] Dev mode - code for ***${phone.slice(-4)}: ${code}`);
     return { sent: false, error: "SMS service not configured", errorCode: "NOT_CONFIGURED", httpStatus: 503 };
   }
 

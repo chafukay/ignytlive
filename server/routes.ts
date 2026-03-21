@@ -510,7 +510,13 @@ export async function registerRoutes(
       
       const result = await sendVerificationCode(phone, code);
       
-      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
+      if (!result.sent) {
+        if (result.errorCode === "NOT_CONFIGURED" && process.env.NODE_ENV !== "production") {
+          await storage.createPhoneVerificationCode(phone, code);
+          const existing = smsAttempts.get(phone);
+          if (existing) { existing.count++; } else { smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() }); }
+          return res.json({ success: true, message: "Code generated (SMS not configured)", smsConfigured: false });
+        }
         return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
 
@@ -523,11 +529,7 @@ export async function registerRoutes(
         smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
       }
       
-      res.json({ 
-        success: true, 
-        message: result.sent ? "Verification code sent" : "Code generated (SMS not configured)",
-        smsConfigured: isSmsConfigured()
-      });
+      res.json({ success: true, message: "Verification code sent", smsConfigured: true });
     } catch (error) {
       console.error("Phone code error:", error);
       res.status(500).json({ error: "Failed to send verification code" });
@@ -655,11 +657,17 @@ export async function registerRoutes(
         return res.status(400).json({ error: "This phone number is already linked to another account" });
       }
 
-      const { generateVerificationCode, sendVerificationCode, isSmsConfigured } = await import("./sms");
+      const { generateVerificationCode, sendVerificationCode } = await import("./sms");
       const code = generateVerificationCode();
       const result = await sendVerificationCode(phone, code);
 
-      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
+      if (!result.sent) {
+        if (result.errorCode === "NOT_CONFIGURED" && process.env.NODE_ENV !== "production") {
+          await storage.createPhoneVerificationCode(phone, code);
+          const existingSms = smsAttempts.get(phone);
+          if (existingSms) { existingSms.count++; } else { smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() }); }
+          return res.json({ success: true, message: "Code generated (SMS not configured)", smsConfigured: false });
+        }
         return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
 
@@ -672,11 +680,7 @@ export async function registerRoutes(
         smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
       }
 
-      res.json({
-        success: true,
-        message: result.sent ? "Verification code sent" : "Code generated (SMS not configured)",
-        smsConfigured: isSmsConfigured()
-      });
+      res.json({ success: true, message: "Verification code sent", smsConfigured: true });
     } catch (error) {
       console.error("Link phone send code error:", error);
       res.status(500).json({ error: "Failed to send verification code" });
