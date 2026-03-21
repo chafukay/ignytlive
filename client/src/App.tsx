@@ -44,6 +44,9 @@ import LinkAccount from "@/pages/link-account";
 import Referrals from "@/pages/referrals";
 import ProfileVisitors from "@/pages/profile-visitors";
 import Events from "@/pages/events";
+import Terms from "@/pages/terms";
+import PrivacyPolicy from "@/pages/privacy-policy";
+import CommunityGuidelines from "@/pages/community-guidelines";
 import IncomingCallBanner from "@/components/incoming-call-banner";
 import { useEffect } from "react";
 import { initPushNotifications } from "@/lib/push-notifications";
@@ -73,6 +76,9 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
+      <Route path="/community-guidelines" component={CommunityGuidelines} />
       <Route path="/">{user ? <Home /> : <Redirect to="/login" />}</Route>
       <Route path="/notifications">{() => <ProtectedRoute component={Notifications} />}</Route>
       <Route path="/following">{() => <ProtectedRoute component={Following} />}</Route>

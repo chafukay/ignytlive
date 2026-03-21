@@ -144,7 +144,10 @@ export default function Register() {
           transition={{ delay: 0.2 }}
           className="mt-6 text-white/30 text-xs text-center max-w-xs"
         >
-          By creating an account, you agree to our Terms of Service and Privacy Policy
+          By creating an account, you confirm you are 18+ and agree to our{" "}
+          <span onClick={() => setLocation("/terms")} className="text-primary/70 hover:text-primary cursor-pointer underline" data-testid="link-terms">Terms of Service</span>
+          {" "}and{" "}
+          <span onClick={() => setLocation("/privacy-policy")} className="text-primary/70 hover:text-primary cursor-pointer underline" data-testid="link-privacy">Privacy Policy</span>
         </motion.p>
       </div>
     </div>
