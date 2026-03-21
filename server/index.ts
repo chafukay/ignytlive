@@ -25,6 +25,29 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+// Global middleware to strip password fields from all API JSON responses
+function stripPasswordsDeep(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(stripPasswordsDeep);
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const result: any = {};
+    for (const key of Object.keys(obj)) {
+      if (key === 'password') continue;
+      result[key] = stripPasswordsDeep(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
+
+app.use("/api", (req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = function(body: any) {
+    return originalJson(stripPasswordsDeep(body));
+  };
+  next();
+});
+
 // Global API rate limiter: 100 requests per minute per IP
 const apiRateLimiter = new Map<string, { count: number; resetAt: number }>();
 const API_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };

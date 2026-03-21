@@ -3463,7 +3463,7 @@ export async function registerRoutes(
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const visitors = await storage.getProfileVisitors(req.params.userId, limit);
-      res.json(visitors);
+      res.json(stripPasswords(visitors));
     } catch (error) {
       res.status(500).json({ error: "Failed to get visitors" });
     }
@@ -3637,7 +3637,7 @@ export async function registerRoutes(
       const category = req.query.category as string | undefined;
       const userId = req.query.userId as string | undefined;
       const events = await storage.getUpcomingEvents(limit, category, userId);
-      res.json(events);
+      res.json(stripPasswords(events));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch events" });
     }
@@ -3647,7 +3647,7 @@ export async function registerRoutes(
     try {
       const event = await storage.getScheduledEvent(req.params.id);
       if (!event) return res.status(404).json({ error: "Event not found" });
-      res.json(event);
+      res.json(stripPasswords(event));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch event" });
     }
@@ -3735,7 +3735,7 @@ export async function registerRoutes(
   app.get("/api/events/:id/rsvps", async (req, res) => {
     try {
       const rsvps = await storage.getEventRsvps(req.params.id);
-      res.json(rsvps);
+      res.json(stripPasswords(rsvps));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch RSVPs" });
     }
@@ -3744,7 +3744,7 @@ export async function registerRoutes(
   app.get("/api/users/:userId/rsvps", async (req, res) => {
     try {
       const rsvps = await storage.getUserRsvps(req.params.userId);
-      res.json(rsvps);
+      res.json(stripPasswords(rsvps));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch user RSVPs" });
     }
