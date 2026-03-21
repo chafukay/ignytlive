@@ -521,7 +521,7 @@ export async function registerRoutes(
       }
       
       if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
-        return res.status(400).json({ error: result.error, code: result.errorCode });
+        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
       
       res.json({ 
@@ -669,7 +669,7 @@ export async function registerRoutes(
       }
 
       if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
-        return res.status(400).json({ error: result.error, code: result.errorCode });
+        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
 
       res.json({
