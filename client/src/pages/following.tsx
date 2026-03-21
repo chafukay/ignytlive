@@ -47,19 +47,6 @@ export default function Following() {
           </div>
         </div>
 
-        {/* Promo Banner */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-4 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-3xl">💎</div>
-            <div>
-              <p className="text-white font-bold">GET 100% BONUS</p>
-              <p className="text-white/80 text-sm">WITH CRYPTO!</p>
-            </div>
-          </div>
-          <button className="bg-white text-black font-bold px-4 py-2 rounded-full text-sm hover:scale-105 transition-transform">
-            Grab Now
-          </button>
-        </div>
 
         {/* Stream Grid */}
         {isLoading ? (
