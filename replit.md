@@ -180,5 +180,10 @@ Core data models include:
 - **Intervals**: Home page 15s (streams), 30s (following), 60s (suggestions); Live room 10s; Chat 5-15s
 - **GPU**: Removed `backdrop-blur` from frequently rendered elements (chat messages, buttons) on live page
 
-## Feature Roadmap (Pending)
-- **Event Scheduling System**: Calendar-based feature for Explore page allowing creators to schedule upcoming streams and platform events. Users can browse, RSVP, and get reminders for scheduled streams/events.
+### Event Scheduling System
+- **DB Tables**: `scheduled_events` (id, hostId, title, description, category, coverImage, scheduledAt, durationMinutes, rsvpCount, status), `event_rsvps` (id, eventId, userId, createdAt)
+- **Categories**: Music, Gaming, Cooking, Fitness, Art, Dance, Travel, Fashion, Beauty, Entertainment, Education, Wellness, General
+- **API Routes**: `GET /api/events` (list upcoming, optional category filter), `POST /api/events` (create), `GET /api/events/:id` (detail), `PATCH /api/events/:id` (update, owner only), `DELETE /api/events/:id` (delete, owner only), `POST /api/events/:id/rsvp` (RSVP), `DELETE /api/events/:id/rsvp` (un-RSVP), `GET /api/events/:id/rsvp/check`, `GET /api/events/:id/rsvps`, `GET /api/users/:userId/rsvps`
+- **Frontend**: `/events` page with calendar view (month grid with event dots), list view toggle, category filters, create event modal (title, description, category, date, time, duration), RSVP/un-RSVP buttons
+- **Explore Integration**: "Events" tab link in Explore page tab bar navigates to /events
+- **Authorization**: Update/delete restricted to event host only; guest users blocked from creating events/RSVPing

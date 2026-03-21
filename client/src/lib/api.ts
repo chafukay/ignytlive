@@ -1,4 +1,4 @@
-import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest, Group, GroupMember, GroupMessage, MediaUnlock, Notification } from "@shared/schema";
+import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest, Group, GroupMember, GroupMessage, MediaUnlock, Notification, ScheduledEvent } from "@shared/schema";
 
 const API_BASE = "";
 
@@ -1164,6 +1164,91 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
+
+  async getUpcomingEvents(limit?: number, category?: string) {
+    const params = new URLSearchParams();
+    if (limit) params.set("limit", String(limit));
+    if (category) params.set("category", category);
+    const res = await fetch(`${API_BASE}/api/events?${params}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<ScheduledEventWithHost[]>;
+  },
+
+  async getEvent(id: string) {
+    const res = await fetch(`${API_BASE}/api/events/${id}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<ScheduledEventWithHost>;
+  },
+
+  async createEvent(data: { hostId: string; title: string; description?: string; category?: string; coverImage?: string; scheduledAt: string; durationMinutes?: number }) {
+    const res = await fetch(`${API_BASE}/api/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async updateEvent(id: string, data: Record<string, any>) {
+    const res = await fetch(`${API_BASE}/api/events/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async deleteEvent(id: string) {
+    const res = await fetch(`${API_BASE}/api/events/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async rsvpEvent(eventId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async unrsvpEvent(eventId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async checkRsvp(eventId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp/check?userId=${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ hasRsvped: boolean }>;
+  },
+
+  async getEventRsvps(eventId: string) {
+    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvps`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getUserRsvps(userId: string) {
+    const res = await fetch(`${API_BASE}/api/users/${userId}/rsvps`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getUserEvents(userId: string) {
+    const res = await fetch(`${API_BASE}/api/events/user/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 };
 
 export interface TopGifter {
@@ -1201,4 +1286,8 @@ export interface DailyLoginResult {
   newTotalXP?: number;
   newCoinBalance?: number;
   rewards?: DailyReward[];
+}
+
+export interface ScheduledEventWithHost extends ScheduledEvent {
+  host: User;
 }

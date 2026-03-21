@@ -28,6 +28,8 @@ import {
   roomBans,
   roomMutes,
   phoneVerificationCodes,
+  scheduledEvents,
+  eventRsvps,
   storeItems,
   userItems,
   families,
@@ -116,6 +118,10 @@ import {
   type InsertNotification,
   type PushSubscription as PushSub,
   type InsertPushSubscription,
+  type ScheduledEvent,
+  type InsertScheduledEvent,
+  type EventRsvp,
+  type InsertEventRsvp,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -340,6 +346,19 @@ export interface IStorage {
   savePushSubscription(userId: string, endpoint: string, p256dh: string, auth: string): Promise<PushSub>;
   removePushSubscription(endpoint: string): Promise<void>;
   getUserPushSubscriptions(userId: string): Promise<PushSub[]>;
+
+  // Scheduled Event operations
+  createScheduledEvent(event: InsertScheduledEvent): Promise<ScheduledEvent>;
+  getScheduledEvent(id: string): Promise<(ScheduledEvent & { host: User }) | undefined>;
+  getUpcomingEvents(limit?: number, category?: string): Promise<(ScheduledEvent & { host: User })[]>;
+  getUserEvents(userId: string): Promise<ScheduledEvent[]>;
+  updateScheduledEvent(id: string, updates: Partial<ScheduledEvent>): Promise<ScheduledEvent | undefined>;
+  deleteScheduledEvent(id: string): Promise<boolean>;
+  rsvpEvent(eventId: string, userId: string): Promise<EventRsvp>;
+  unrsvpEvent(eventId: string, userId: string): Promise<boolean>;
+  hasRsvped(eventId: string, userId: string): Promise<boolean>;
+  getEventRsvps(eventId: string): Promise<(EventRsvp & { user: User })[]>;
+  getUserRsvps(userId: string): Promise<(EventRsvp & { event: ScheduledEvent & { host: User } })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2228,6 +2247,97 @@ export class DatabaseStorage implements IStorage {
 
   async getUserPushSubscriptions(userId: string): Promise<PushSub[]> {
     return await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+  }
+
+  async createScheduledEvent(event: InsertScheduledEvent): Promise<ScheduledEvent> {
+    const [created] = await db.insert(scheduledEvents).values(event).returning();
+    return created;
+  }
+
+  async getScheduledEvent(id: string): Promise<(ScheduledEvent & { host: User }) | undefined> {
+    const results = await db.select().from(scheduledEvents)
+      .innerJoin(users, eq(scheduledEvents.hostId, users.id))
+      .where(eq(scheduledEvents.id, id));
+    if (results.length === 0) return undefined;
+    return { ...results[0].scheduled_events, host: results[0].users };
+  }
+
+  async getUpcomingEvents(limit: number = 50, category?: string): Promise<(ScheduledEvent & { host: User })[]> {
+    const now = new Date();
+    const conditions = [
+      sql`${scheduledEvents.scheduledAt} >= ${now}`,
+      eq(scheduledEvents.status, "upcoming"),
+    ];
+    if (category && category !== "All") {
+      conditions.push(eq(scheduledEvents.category, category));
+    }
+    const results = await db.select().from(scheduledEvents)
+      .innerJoin(users, eq(scheduledEvents.hostId, users.id))
+      .where(and(...conditions))
+      .orderBy(scheduledEvents.scheduledAt)
+      .limit(limit);
+    return results.map(r => ({ ...r.scheduled_events, host: r.users }));
+  }
+
+  async getUserEvents(userId: string): Promise<ScheduledEvent[]> {
+    return await db.select().from(scheduledEvents)
+      .where(eq(scheduledEvents.hostId, userId))
+      .orderBy(desc(scheduledEvents.scheduledAt));
+  }
+
+  async updateScheduledEvent(id: string, updates: Partial<ScheduledEvent>): Promise<ScheduledEvent | undefined> {
+    const [updated] = await db.update(scheduledEvents).set(updates)
+      .where(eq(scheduledEvents.id, id)).returning();
+    return updated;
+  }
+
+  async deleteScheduledEvent(id: string): Promise<boolean> {
+    const result = await db.delete(scheduledEvents).where(eq(scheduledEvents.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async rsvpEvent(eventId: string, userId: string): Promise<EventRsvp> {
+    const existing = await db.select().from(eventRsvps)
+      .where(and(eq(eventRsvps.eventId, eventId), eq(eventRsvps.userId, userId)));
+    if (existing.length > 0) return existing[0];
+    const [rsvp] = await db.insert(eventRsvps).values({ eventId, userId }).returning();
+    await db.update(scheduledEvents).set({ rsvpCount: sql`${scheduledEvents.rsvpCount} + 1` })
+      .where(eq(scheduledEvents.id, eventId));
+    return rsvp;
+  }
+
+  async unrsvpEvent(eventId: string, userId: string): Promise<boolean> {
+    const result = await db.delete(eventRsvps)
+      .where(and(eq(eventRsvps.eventId, eventId), eq(eventRsvps.userId, userId)));
+    if ((result.rowCount ?? 0) > 0) {
+      await db.update(scheduledEvents).set({ rsvpCount: sql`GREATEST(${scheduledEvents.rsvpCount} - 1, 0)` })
+        .where(eq(scheduledEvents.id, eventId));
+      return true;
+    }
+    return false;
+  }
+
+  async hasRsvped(eventId: string, userId: string): Promise<boolean> {
+    const results = await db.select().from(eventRsvps)
+      .where(and(eq(eventRsvps.eventId, eventId), eq(eventRsvps.userId, userId)));
+    return results.length > 0;
+  }
+
+  async getEventRsvps(eventId: string): Promise<(EventRsvp & { user: User })[]> {
+    const results = await db.select().from(eventRsvps)
+      .innerJoin(users, eq(eventRsvps.userId, users.id))
+      .where(eq(eventRsvps.eventId, eventId))
+      .orderBy(desc(eventRsvps.createdAt));
+    return results.map(r => ({ ...r.event_rsvps, user: r.users }));
+  }
+
+  async getUserRsvps(userId: string): Promise<(EventRsvp & { event: ScheduledEvent & { host: User } })[]> {
+    const results = await db.select().from(eventRsvps)
+      .innerJoin(scheduledEvents, eq(eventRsvps.eventId, scheduledEvents.id))
+      .innerJoin(users, eq(scheduledEvents.hostId, users.id))
+      .where(eq(eventRsvps.userId, userId))
+      .orderBy(scheduledEvents.scheduledAt);
+    return results.map(r => ({ ...r.event_rsvps, event: { ...r.scheduled_events, host: r.users } }));
   }
 }
 

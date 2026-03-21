@@ -1130,5 +1130,60 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 
+// Scheduled Events table
+export const scheduledEvents = pgTable("scheduled_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hostId: varchar("host_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("General"),
+  coverImage: text("cover_image"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  rsvpCount: integer("rsvp_count").notNull().default(0),
+  status: text("status").notNull().default("upcoming"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  hostIdIdx: index("events_host_id_idx").on(table.hostId),
+  scheduledAtIdx: index("events_scheduled_at_idx").on(table.scheduledAt),
+  statusIdx: index("events_status_idx").on(table.status),
+}));
+
+export const scheduledEventsRelations = relations(scheduledEvents, ({ one }) => ({
+  host: one(users, { fields: [scheduledEvents.hostId], references: [users.id] }),
+}));
+
+export const insertScheduledEventSchema = createInsertSchema(scheduledEvents).omit({
+  id: true,
+  rsvpCount: true,
+  createdAt: true,
+});
+export type InsertScheduledEvent = z.infer<typeof insertScheduledEventSchema>;
+export type ScheduledEvent = typeof scheduledEvents.$inferSelect;
+
+// Event RSVPs table
+export const eventRsvps = pgTable("event_rsvps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => scheduledEvents.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  eventIdIdx: index("rsvps_event_id_idx").on(table.eventId),
+  userIdIdx: index("rsvps_user_id_idx").on(table.userId),
+  uniqueRsvp: index("rsvps_unique_idx").on(table.eventId, table.userId),
+}));
+
+export const eventRsvpsRelations = relations(eventRsvps, ({ one }) => ({
+  event: one(scheduledEvents, { fields: [eventRsvps.eventId], references: [scheduledEvents.id] }),
+  user: one(users, { fields: [eventRsvps.userId], references: [users.id] }),
+}));
+
+export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
+export type EventRsvp = typeof eventRsvps.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";

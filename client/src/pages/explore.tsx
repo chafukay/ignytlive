@@ -1,11 +1,11 @@
 import Layout from "@/components/layout";
 import SearchOverlay from "@/components/search-overlay";
-import { Search, Flame, MapPin, Loader2, Eye } from "lucide-react";
+import { Search, Flame, MapPin, Loader2, Eye, Calendar } from "lucide-react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import type { Stream, User } from "@shared/schema";
 
 const DUMMY_STREAMS: any[] = [
@@ -349,6 +349,14 @@ export default function Explore() {
               )}
             </button>
           ))}
+          <Link href="/events">
+            <button
+              className="flex items-center gap-1.5 pb-2 font-medium transition-colors relative text-muted-foreground hover:text-foreground/80"
+              data-testid="button-tab-events"
+            >
+              📅 Events
+            </button>
+          </Link>
         </div>
 
         {activeTab === 'nearby' && locationError && (

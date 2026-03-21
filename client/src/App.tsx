@@ -43,6 +43,7 @@ import Achievements from "@/pages/achievements";
 import LinkAccount from "@/pages/link-account";
 import Referrals from "@/pages/referrals";
 import ProfileVisitors from "@/pages/profile-visitors";
+import Events from "@/pages/events";
 import IncomingCallBanner from "@/components/incoming-call-banner";
 import { useEffect } from "react";
 import { initPushNotifications } from "@/lib/push-notifications";
@@ -106,6 +107,7 @@ function Router() {
       <Route path="/link-account">{() => <ProtectedRoute component={LinkAccount} />}</Route>
       <Route path="/referrals">{() => <ProtectedRoute component={Referrals} />}</Route>
       <Route path="/profile-visitors">{() => <ProtectedRoute component={ProfileVisitors} />}</Route>
+      <Route path="/events">{() => <ProtectedRoute component={Events} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

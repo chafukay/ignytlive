@@ -3484,5 +3484,144 @@ export async function registerRoutes(
     }
   });
 
+  // ============ Scheduled Events Routes ============
+  
+  app.post("/api/events", async (req, res) => {
+    try {
+      const { hostId, title, description, category, coverImage, scheduledAt, durationMinutes, status } = req.body;
+      if (!hostId || !title || !scheduledAt) {
+        return res.status(400).json({ error: "hostId, title, and scheduledAt are required" });
+      }
+      if (await checkGuestRestriction(hostId, res, storage)) return;
+      const event = await storage.createScheduledEvent({
+        hostId, title, description, category, coverImage,
+        scheduledAt: new Date(scheduledAt),
+        durationMinutes: durationMinutes || 60,
+        status: status || "upcoming",
+      });
+      res.json(event);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create event" });
+    }
+  });
+
+  app.get("/api/events", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const category = req.query.category as string | undefined;
+      const events = await storage.getUpcomingEvents(limit, category);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch events" });
+    }
+  });
+
+  app.get("/api/events/:id", async (req, res) => {
+    try {
+      const event = await storage.getScheduledEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      res.json(event);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch event" });
+    }
+  });
+
+  app.get("/api/events/user/:userId", async (req, res) => {
+    try {
+      const events = await storage.getUserEvents(req.params.userId);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user events" });
+    }
+  });
+
+  app.patch("/api/events/:id", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId is required" });
+      const event = await storage.getScheduledEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      if (event.hostId !== userId) return res.status(403).json({ error: "Only the host can edit this event" });
+      const updates: any = {};
+      if (req.body.title !== undefined) updates.title = req.body.title;
+      if (req.body.description !== undefined) updates.description = req.body.description;
+      if (req.body.category !== undefined) updates.category = req.body.category;
+      if (req.body.coverImage !== undefined) updates.coverImage = req.body.coverImage;
+      if (req.body.scheduledAt !== undefined) updates.scheduledAt = new Date(req.body.scheduledAt);
+      if (req.body.durationMinutes !== undefined) updates.durationMinutes = req.body.durationMinutes;
+      if (req.body.status !== undefined) updates.status = req.body.status;
+      const updated = await storage.updateScheduledEvent(req.params.id, updates);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update event" });
+    }
+  });
+
+  app.delete("/api/events/:id", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId is required" });
+      const event = await storage.getScheduledEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      if (event.hostId !== userId) return res.status(403).json({ error: "Only the host can delete this event" });
+      const deleted = await storage.deleteScheduledEvent(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete event" });
+    }
+  });
+
+  app.post("/api/events/:id/rsvp", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId is required" });
+      if (await checkGuestRestriction(userId, res, storage)) return;
+      const rsvp = await storage.rsvpEvent(req.params.id, userId);
+      res.json(rsvp);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to RSVP" });
+    }
+  });
+
+  app.delete("/api/events/:id/rsvp", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId is required" });
+      const removed = await storage.unrsvpEvent(req.params.id, userId);
+      res.json({ success: removed });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to remove RSVP" });
+    }
+  });
+
+  app.get("/api/events/:id/rsvp/check", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) return res.status(400).json({ error: "userId query param required" });
+      const hasRsvped = await storage.hasRsvped(req.params.id, userId);
+      res.json({ hasRsvped });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check RSVP status" });
+    }
+  });
+
+  app.get("/api/events/:id/rsvps", async (req, res) => {
+    try {
+      const rsvps = await storage.getEventRsvps(req.params.id);
+      res.json(rsvps);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch RSVPs" });
+    }
+  });
+
+  app.get("/api/users/:userId/rsvps", async (req, res) => {
+    try {
+      const rsvps = await storage.getUserRsvps(req.params.userId);
+      res.json(rsvps);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user RSVPs" });
+    }
+  });
+
   return httpServer;
 }
