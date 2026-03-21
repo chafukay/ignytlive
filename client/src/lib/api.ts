@@ -4,11 +4,11 @@ const API_BASE = "";
 
 export const api = {
   // Auth
-  async register(username: string, email: string, password: string) {
+  async register(username: string, email: string, password: string, birthdate?: string) {
     const res = await fetch(`${API_BASE}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, birthdate }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ user: User }>;

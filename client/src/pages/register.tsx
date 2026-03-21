@@ -65,7 +65,7 @@ export default function Register() {
 
     setIsLoading(true);
     try {
-      const { user: newUser } = await api.register(username, email, password);
+      const { user: newUser } = await api.register(username, email, password, birthdate);
       login(newUser);
       toast({ title: `Welcome to Ignyt Live, ${newUser.username}!` });
       setLocation("/");
