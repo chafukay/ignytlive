@@ -18,6 +18,16 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+
+function toSafeUser(user: any) {
+  if (!user) return user;
+  const { password, ...safe } = user;
+  return safe;
+}
+
+function toSafeUsers(users: any[]) {
+  return users.map(toSafeUser);
+}
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import Stripe from "stripe";
@@ -372,7 +382,7 @@ export async function registerRoutes(
       
       const hashedPassword = await bcrypt.hash(userData.password, 10);
       const user = await storage.createUser({ ...userData, password: hashedPassword });
-      res.json({ user: { ...user, password: undefined } });
+      res.json({ user: toSafeUser(user) });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
     }
@@ -389,7 +399,7 @@ export async function registerRoutes(
         password: guestPassword,
         isGuest: true,
       });
-      res.json({ user: { ...guestUser, password: undefined } });
+      res.json({ user: toSafeUser(guestUser) });
     } catch (error) {
       console.error("Guest login error:", error);
       res.status(500).json({ error: "Failed to create guest session" });
@@ -418,7 +428,7 @@ export async function registerRoutes(
       }
 
       const updatedUser = await storage.updateUser(userId, { birthdate: new Date(birthdate) });
-      res.json({ user: { ...updatedUser, password: undefined } });
+      res.json({ user: toSafeUser(updatedUser) });
     } catch (error) {
       console.error("Age verification error:", error);
       res.status(500).json({ error: "Failed to verify age" });
@@ -451,7 +461,7 @@ export async function registerRoutes(
       }
       
       clearLoginFailures(rateLimitKey);
-      res.json({ user: { ...user, password: undefined } });
+      res.json({ user: toSafeUser(user) });
     } catch (error) {
       res.status(500).json({ error: "Login failed" });
     }
@@ -546,7 +556,7 @@ export async function registerRoutes(
         });
       }
 
-      res.json({ user: { ...user, password: undefined } });
+      res.json({ user: toSafeUser(user) });
     } catch (error) {
       console.error("Phone verify error:", error);
       res.status(500).json({ error: "Verification failed" });
@@ -591,7 +601,7 @@ export async function registerRoutes(
         password: hashedPwd,
       });
 
-      res.json({ user: { ...updated, password: undefined } });
+      res.json({ user: toSafeUser(updated) });
     } catch (error) {
       console.error("Link email error:", error);
       res.status(500).json({ error: "Failed to link email" });
@@ -672,7 +682,7 @@ export async function registerRoutes(
         phoneVerified: true,
       });
 
-      res.json({ user: { ...updated, password: undefined } });
+      res.json({ user: toSafeUser(updated) });
     } catch (error) {
       console.error("Link phone verify error:", error);
       res.status(500).json({ error: "Failed to verify phone" });
@@ -698,7 +708,7 @@ export async function registerRoutes(
         phoneVerified: false,
       });
 
-      res.json({ user: { ...updated, password: undefined } });
+      res.json({ user: toSafeUser(updated) });
     } catch (error) {
       res.status(500).json({ error: "Failed to unlink phone" });
     }
@@ -711,7 +721,7 @@ export async function registerRoutes(
         return res.json([]);
       }
       const results = await storage.searchUsers(query.trim());
-      res.json(results.map(u => ({ ...u, password: undefined })));
+      res.json(toSafeUsers(results));
     } catch (error) {
       res.status(500).json({ error: "Search failed" });
     }
@@ -722,7 +732,7 @@ export async function registerRoutes(
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    res.json({ ...user, password: undefined });
+    res.json(toSafeUser(user));
   });
 
   // Get all streamers sorted by live status (live users first)
@@ -736,9 +746,8 @@ export async function registerRoutes(
       
       // Update isLive based on actual active streams
       const usersWithLiveStatus = users.map(u => ({
-        ...u,
-        password: undefined,
-        isLive: liveUserIds.has(u.id), // Compute from actual streams
+        ...toSafeUser(u),
+        isLive: liveUserIds.has(u.id),
       }));
       
       // Sort by isLive (live users first), then by followersCount
@@ -798,7 +807,7 @@ export async function registerRoutes(
         country,
       });
 
-      res.json({ ...user, password: undefined });
+      res.json(toSafeUser(user));
     } catch (error) {
       console.error("Update location error:", error);
       res.status(500).json({ error: "Failed to update location" });
@@ -829,7 +838,7 @@ export async function registerRoutes(
       if (language !== undefined) updates.language = language;
 
       const user = await storage.updateUser(userId, updates);
-      res.json({ ...user, password: undefined });
+      res.json(toSafeUser(user));
     } catch (error) {
       console.error("Update profile error:", error);
       res.status(500).json({ error: "Failed to update profile" });
@@ -1256,12 +1265,12 @@ export async function registerRoutes(
 
   app.get("/api/users/:id/followers", async (req, res) => {
     const followers = await storage.getFollowers(req.params.id);
-    res.json(followers.map(u => ({ ...u, password: undefined })));
+    res.json(toSafeUsers(followers));
   });
 
   app.get("/api/users/:id/following", async (req, res) => {
     const following = await storage.getFollowing(req.params.id);
-    res.json(following.map(u => ({ ...u, password: undefined })));
+    res.json(toSafeUsers(following));
   });
 
   app.get("/api/users/:id/suggested", async (req, res) => {
@@ -1287,7 +1296,7 @@ export async function registerRoutes(
             }
           } else {
             suggestedMap.set(candidate.id, {
-              user: { ...candidate, password: undefined },
+              user: toSafeUser(candidate),
               mutualCount: 1,
               mutualNames: [followedUser.username],
             });
@@ -1660,7 +1669,7 @@ export async function registerRoutes(
         coins: user.coins - cost,
       });
       
-      res.json(updatedUser);
+      res.json(toSafeUser(updatedUser));
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to upgrade VIP" });
     }
@@ -1796,7 +1805,7 @@ export async function registerRoutes(
     try {
       const { enabled } = req.body;
       const user = await storage.updateUser(req.params.id, { dndEnabled: enabled });
-      res.json(user);
+      res.json(toSafeUser(user));
     } catch (error) {
       res.status(400).json({ error: "Failed to update DND status" });
     }
@@ -2441,7 +2450,7 @@ export async function registerRoutes(
       if (privateCallSessionPrice !== undefined) updates.privateCallSessionPrice = privateCallSessionPrice;
       
       const user = await storage.updateUser(req.params.id, updates);
-      res.json(user);
+      res.json(toSafeUser(user));
     } catch (error) {
       res.status(400).json({ error: "Failed to update settings" });
     }
@@ -2903,7 +2912,7 @@ export async function registerRoutes(
       const existingPurchase = await storage.findPurchaseByStripeSessionId(session.id);
       if (existingPurchase) {
         const user = await storage.getUser(userId);
-        return res.json({ alreadyCredited: true, user });
+        return res.json({ alreadyCredited: true, user: toSafeUser(user) });
       }
 
       const result = await storage.purchaseCoins(
