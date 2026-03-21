@@ -508,20 +508,19 @@ export async function registerRoutes(
       const { generateVerificationCode, sendVerificationCode, isSmsConfigured } = await import("./sms");
       const code = generateVerificationCode();
       
-      // Store in database
-      await storage.createPhoneVerificationCode(phone, code);
-      
       const result = await sendVerificationCode(phone, code);
+      
+      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
+        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
+      }
+
+      await storage.createPhoneVerificationCode(phone, code);
       
       const existing = smsAttempts.get(phone);
       if (existing) {
         existing.count++;
       } else {
         smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
-      }
-      
-      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
-        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
       
       res.json({ 
@@ -658,18 +657,19 @@ export async function registerRoutes(
 
       const { generateVerificationCode, sendVerificationCode, isSmsConfigured } = await import("./sms");
       const code = generateVerificationCode();
-      await storage.createPhoneVerificationCode(phone, code);
       const result = await sendVerificationCode(phone, code);
+
+      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
+        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
+      }
+
+      await storage.createPhoneVerificationCode(phone, code);
 
       const existingSms = smsAttempts.get(phone);
       if (existingSms) {
         existingSms.count++;
       } else {
         smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
-      }
-
-      if (!result.sent && result.errorCode !== "NOT_CONFIGURED") {
-        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
 
       res.json({
