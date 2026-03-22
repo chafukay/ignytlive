@@ -247,18 +247,18 @@ export default function Profile() {
             )}
             <BadgesDisplay userId={user.id} size="md" />
           </div>
-          <div className="flex items-center flex-wrap justify-center gap-2 text-sm text-muted-foreground mb-2">
+          <div className="flex items-center flex-wrap justify-center gap-2 text-sm text-white/90 mb-2 bg-black/60 rounded-lg px-3 py-1.5">
             {user.gender && (
               <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full text-xs" data-testid="text-gender">
                 {user.gender === 'male' ? '♂️ Male' : user.gender === 'female' ? '♀️ Female' : user.gender === 'non-binary' ? '⚧️ Non-binary' : '🏳️ Other'}
               </span>
             )}
             {user.birthdate && (
-              <span className="text-muted-foreground text-xs" data-testid="text-age">
+              <span className="text-white/80 text-xs" data-testid="text-age">
                 {Math.floor((Date.now() - new Date(user.birthdate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))} years old
               </span>
             )}
-            <span>🌍 {user.city || user.country || 'Unknown'}</span>
+            <span className="text-white/80">🌍 {user.city || user.country || 'Unknown'}</span>
             {(() => {
               const wealthLevel = getWealthLevel(user.totalSpent || 0);
               return (
@@ -267,7 +267,7 @@ export default function Profile() {
                 </span>
               );
             })()}
-            <span className="bg-muted/50 text-muted-foreground px-2 py-0.5 rounded-full text-xs flex items-center gap-1" data-testid="text-profile-views">
+            <span className="bg-white/10 text-white/80 px-2 py-0.5 rounded-full text-xs flex items-center gap-1" data-testid="text-profile-views">
               <Eye className="w-3 h-3" /> {formatNumber(user.profileViews || 0)} views
             </span>
           </div>
