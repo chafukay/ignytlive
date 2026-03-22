@@ -421,18 +421,22 @@ export async function registerRoutes(
     try {
       const { username: requestedUsername, birthdate, disclaimerAccepted } = req.body || {};
 
-      if (!birthdate) {
+      if (!birthdate || typeof birthdate !== "string") {
         return res.status(400).json({ error: "Date of birth is required" });
       }
-      if (!disclaimerAccepted) {
+      if (disclaimerAccepted !== true) {
         return res.status(400).json({ error: "You must accept the content disclaimer to continue" });
+      }
+
+      const dob = new Date(birthdate);
+      if (isNaN(dob.getTime())) {
+        return res.status(400).json({ error: "Invalid date of birth" });
       }
 
       const ageCheck = verifyAge(birthdate);
       if (!ageCheck.valid) {
         return res.status(403).json({ error: ageCheck.error });
       }
-      const dob = new Date(birthdate);
 
       let finalUsername: string;
       if (requestedUsername && requestedUsername.trim()) {
