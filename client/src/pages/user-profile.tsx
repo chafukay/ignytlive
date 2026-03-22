@@ -161,7 +161,11 @@ export default function UserProfile() {
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black pb-20">
         <div className="relative">
-          <div className="h-36 bg-gradient-to-br from-pink-500/30 via-purple-600/30 to-blue-500/20" />
+          <div
+            className="h-36 bg-gradient-to-br from-pink-500/30 via-purple-600/30 to-blue-500/20"
+            style={profileUser.profileBanner ? { backgroundImage: `url(${profileUser.profileBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+            data-testid="user-profile-banner"
+          />
           <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
             <button
               onClick={() => window.history.length > 1 ? window.history.back() : setLocation('/')}

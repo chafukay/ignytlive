@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { api, UserItemWithItem } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import BadgesDisplay from "@/components/badges-display";
 import UserAvatar from "@/components/user-avatar";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { getWealthLevel } from "@shared/wealth-utils";
 
 export default function Profile() {
@@ -16,6 +16,34 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [dndEnabled, setDndEnabled] = useState(user?.dndEnabled || false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  const bannerMutation = useMutation({
+    mutationFn: async (imageDataUrl: string) => {
+      return api.updateUser(user!.id, { profileBanner: imageDataUrl } as any);
+    },
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      toast({ title: "Profile banner updated!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update banner", variant: "destructive" });
+    },
+  });
+
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Image must be under 2MB", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      bannerMutation.mutate(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Check if user is currently live streaming
   const { data: liveStreamsData } = useQuery({
@@ -86,14 +114,45 @@ export default function Profile() {
   return (
     <GuestGate>
     <Layout>
-      <div className="p-4 pb-24 max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-xl font-bold text-foreground">Profile</h1>
+      <div className="pb-24 max-w-2xl mx-auto">
+        <div className="relative mb-4">
+          <div
+            className="w-full h-32 md:h-40 rounded-b-2xl overflow-hidden bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500"
+            style={user.profileBanner ? { backgroundImage: `url(${user.profileBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+            data-testid="profile-banner"
+          />
+          {(user.vipTier || 0) > 0 && (
+            <>
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleBannerChange}
+                data-testid="input-banner-upload"
+              />
+              <button
+                onClick={() => bannerInputRef.current?.click()}
+                disabled={bannerMutation.isPending}
+                className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white rounded-full p-2 hover:bg-black/80 transition-colors"
+                title="Change banner (VIP feature)"
+                data-testid="button-change-banner"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </>
+          )}
+          <div className="absolute top-3 left-3">
+            <h1 className="text-lg font-bold text-white drop-shadow-lg">Profile</h1>
+          </div>
           <Link href="/settings">
-            <Settings className="w-6 h-6 text-foreground cursor-pointer" />
+            <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm rounded-full p-1.5 cursor-pointer hover:bg-black/60 transition-colors">
+              <Settings className="w-5 h-5 text-white" />
+            </div>
           </Link>
         </div>
 
+        <div className="px-4">
         <div className="flex justify-center gap-2 text-muted-foreground text-sm mb-4">
           <span>ID: {user.id.slice(0, 8)}</span>
           <button 
@@ -365,6 +424,7 @@ export default function Profile() {
           </Link>
         )}
 
+        </div>
         {/* Menu Items - SuperLive Style */}
         <div className="space-y-1">
           {[

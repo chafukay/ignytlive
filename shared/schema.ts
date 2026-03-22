@@ -51,6 +51,7 @@ export const users = pgTable("users", {
   profileViews: integer("profile_views").notNull().default(0),
   referralCode: text("referral_code").unique(),
   referredBy: varchar("referred_by"),
+  profileBanner: text("profile_banner"),
   isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
