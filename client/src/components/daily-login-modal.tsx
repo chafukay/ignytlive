@@ -33,8 +33,8 @@ export default function DailyLoginModal() {
 
     api.claimDailyLogin(user.id).then((res) => {
       sessionStorage.setItem(sessionKey, "1");
-      setResult(res);
       if (res.eligible) {
+        setResult(res);
         setClaimed(true);
         setShow(true);
         refreshUser();
@@ -173,18 +173,6 @@ export default function DailyLoginModal() {
               </motion.div>
             )}
 
-            {!result.eligible && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="mx-4 mb-4 p-3 rounded-xl bg-white/10 backdrop-blur-sm"
-              >
-                <p className="text-center text-green-300 font-semibold mb-1">Already Claimed Today</p>
-                <p className="text-center text-purple-200 text-xs">Come back tomorrow for Day {currentDay < 7 ? currentDay + 1 : 1} rewards!</p>
-              </motion.div>
-            )}
-
             <div className="px-4 pb-4">
               <button
                 onClick={() => {
@@ -197,7 +185,7 @@ export default function DailyLoginModal() {
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold text-sm hover:from-yellow-500 hover:to-orange-600 transition-all shadow-lg"
                 data-testid="button-collect-daily"
               >
-                {claimed ? "Awesome!" : "Close"}
+                Awesome!
               </button>
             </div>
           </motion.div>
