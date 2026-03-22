@@ -225,7 +225,7 @@ export default function Profile() {
               {user.level}
             </span>
           </div>
-          <div className="flex items-center gap-2 mb-1 bg-black/40 rounded-full px-3 py-1">
+          <div className="flex items-center gap-2 mb-1 bg-black/70 rounded-full px-3 py-1">
             <h2 className="text-xl font-bold text-white" data-testid="text-username">
               {user.username}
             </h2>
@@ -272,7 +272,7 @@ export default function Profile() {
             </span>
           </div>
           {user.bio && (
-            <p className="text-white/90 text-sm text-center max-w-xs mb-4 px-4 py-1 bg-black/30 rounded-lg" data-testid="text-bio">
+            <p className="text-white/90 text-sm text-center max-w-xs mb-4 px-4 py-1 bg-black/70 rounded-lg" data-testid="text-bio">
               {user.bio}
             </p>
           )}
@@ -283,7 +283,7 @@ export default function Profile() {
               </p>
             </Link>
           )}
-          <div className="flex justify-center gap-6 text-center bg-black/40 rounded-xl px-4 py-3">
+          <div className="flex justify-center gap-6 text-center bg-black/70 rounded-xl px-4 py-3">
             <div>
               <div className="font-bold text-white" data-testid="text-followers">
                 {formatNumber(user.followersCount)}
