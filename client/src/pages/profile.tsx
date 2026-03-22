@@ -429,7 +429,6 @@ export default function Profile() {
           </Link>
         )}
 
-        </div>
         {/* Menu Items - SuperLive Style */}
         <div className="space-y-1">
           {[
