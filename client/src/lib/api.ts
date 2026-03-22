@@ -44,12 +44,16 @@ export const api = {
     return res.json() as Promise<{ user: User }>;
   },
 
-  async guestLogin() {
+  async guestLogin(data: { username?: string; birthdate: string; disclaimerAccepted: boolean }) {
     const res = await fetch(`${API_BASE}/api/auth/guest`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Failed to create guest session" }));
+      throw new Error(err.error || "Failed to create guest session");
+    }
     return res.json() as Promise<{ user: User }>;
   },
 

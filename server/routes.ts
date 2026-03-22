@@ -416,16 +416,52 @@ export async function registerRoutes(
     }
   });
 
-  // Guest login - creates a temporary read-only account
+  // Guest login - creates a temporary read-only account with age verification
   app.post("/api/auth/guest", async (req, res) => {
     try {
-      const guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const { username: requestedUsername, birthdate, disclaimerAccepted } = req.body || {};
+
+      if (!birthdate) {
+        return res.status(400).json({ error: "Date of birth is required" });
+      }
+      if (!disclaimerAccepted) {
+        return res.status(400).json({ error: "You must accept the content disclaimer to continue" });
+      }
+
+      const dob = new Date(birthdate);
+      if (isNaN(dob.getTime())) {
+        return res.status(400).json({ error: "Invalid date of birth" });
+      }
+      const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      if (age < 18) {
+        return res.status(403).json({ error: "You must be at least 18 years old to use this platform" });
+      }
+
+      let finalUsername: string;
+      if (requestedUsername && requestedUsername.trim()) {
+        const trimmed = requestedUsername.trim();
+        if (trimmed.length < 3 || trimmed.length > 20) {
+          return res.status(400).json({ error: "Username must be 3-20 characters" });
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+          return res.status(400).json({ error: "Username can only contain letters, numbers, and underscores" });
+        }
+        const existing = await storage.getUserByUsername(trimmed);
+        if (existing) {
+          return res.status(400).json({ error: "Username already taken" });
+        }
+        finalUsername = trimmed;
+      } else {
+        finalUsername = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      }
+
       const guestPassword = await bcrypt.hash(crypto.randomUUID(), 10);
       const guestUser = await storage.createUser({
-        username: guestId,
-        email: `${guestId}@guest.ignytlive.com`,
+        username: finalUsername,
+        email: `${finalUsername}@guest.ignytlive.com`,
         password: guestPassword,
         isGuest: true,
+        birthdate: dob,
       });
       res.json({ user: toSafeUser(guestUser) });
     } catch (error) {
@@ -876,13 +912,30 @@ export async function registerRoutes(
       const userId = req.params.id;
       const { username, bio, gender, birthdate, avatar, privacySettings, notificationSettings, language } = req.body;
       
-      // Check if user exists
       const existingUser = await storage.getUser(userId);
       if (!existingUser) {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Build updates object with only allowed fields
+      if (existingUser.isGuest) {
+        if (username !== undefined) {
+          const trimmed = username.trim();
+          if (trimmed.length < 3 || trimmed.length > 20) {
+            return res.status(400).json({ error: "Username must be 3-20 characters" });
+          }
+          if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+            return res.status(400).json({ error: "Username can only contain letters, numbers, and underscores" });
+          }
+          const existing = await storage.getUserByUsername(trimmed);
+          if (existing && existing.id !== userId) {
+            return res.status(400).json({ error: "Username already taken" });
+          }
+          const updated = await storage.updateUser(userId, { username: trimmed });
+          return res.json(toSafeUser(updated));
+        }
+        return res.status(403).json({ error: "Guest users can only update their username" });
+      }
+
       const updates: any = {};
       if (username !== undefined) updates.username = username;
       if (bio !== undefined) updates.bio = bio;

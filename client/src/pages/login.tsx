@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Flame, Phone, ArrowLeft, User } from "lucide-react";
+import { Eye, EyeOff, Flame, Phone, ArrowLeft, User, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -10,13 +10,16 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
-  const [mode, setMode] = useState<"main" | "username" | "phone" | "verify">("main");
+  const [mode, setMode] = useState<"main" | "username" | "phone" | "verify" | "guest">("main");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [guestUsername, setGuestUsername] = useState("");
+  const [guestBirthdate, setGuestBirthdate] = useState("");
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   const handleUsernameLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,15 +77,28 @@ export default function Login() {
     }
   };
 
-  const handleGuestLogin = async () => {
+  const handleGuestLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestBirthdate) {
+      toast({ title: "Please enter your date of birth", variant: "destructive" });
+      return;
+    }
+    if (!disclaimerAccepted) {
+      toast({ title: "Please accept the content disclaimer", variant: "destructive" });
+      return;
+    }
     setIsLoading(true);
     try {
-      const { user: guestUser } = await api.guestLogin();
+      const { user: guestUser } = await api.guestLogin({
+        username: guestUsername.trim() || undefined,
+        birthdate: guestBirthdate,
+        disclaimerAccepted,
+      });
       login(guestUser);
-      toast({ title: "Welcome! You're browsing as a guest", description: "Some features are limited" });
+      toast({ title: `Welcome${guestUser.username.startsWith('guest_') ? '' : `, ${guestUser.username}`}! You're browsing as a guest`, description: "Some features are limited" });
       setLocation("/");
-    } catch (error) {
-      toast({ title: "Failed to start guest session", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: error.message || "Failed to start guest session", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -169,6 +185,82 @@ export default function Login() {
               data-testid="button-send-code"
             >
               {isLoading ? "Sending..." : "Send Code"}
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (mode === "guest") {
+    const maxDate = new Date();
+    maxDate.setFullYear(maxDate.getFullYear() - 18);
+    const maxDateStr = maxDate.toISOString().split("T")[0];
+
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#1a0a2e] via-[#16082a] to-[#0d0015] flex flex-col items-center justify-center p-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
+          <button onClick={() => setMode("main")} className="flex items-center gap-2 text-white/50 hover:text-white mb-6" data-testid="button-back-guest">
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
+          </button>
+          <h2 className="text-xl font-bold text-white mb-1">Browse as Guest</h2>
+          <p className="text-white/40 text-sm mb-6">View-only access — some features are limited</p>
+          <form onSubmit={handleGuestLogin} className="space-y-4">
+            <div>
+              <label className="text-white/60 text-xs mb-1 block">Display Name (optional)</label>
+              <input
+                type="text"
+                value={guestUsername}
+                onChange={(e) => setGuestUsername(e.target.value)}
+                placeholder="Pick a username"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50"
+                maxLength={20}
+                data-testid="input-guest-username"
+              />
+              <p className="text-white/30 text-xs mt-1">3-20 characters, letters, numbers, underscores</p>
+            </div>
+            <div>
+              <label className="text-white/60 text-xs mb-1 block">Date of Birth <span className="text-red-400">*</span></label>
+              <input
+                type="date"
+                value={guestBirthdate}
+                onChange={(e) => setGuestBirthdate(e.target.value)}
+                max={maxDateStr}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary/50 [color-scheme:dark]"
+                required
+                data-testid="input-guest-birthdate"
+              />
+              <p className="text-white/30 text-xs mt-1">You must be at least 18 years old</p>
+            </div>
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-white/90 text-sm font-medium mb-2">Content Disclaimer</p>
+                  <p className="text-white/60 text-xs leading-relaxed mb-3">
+                    This platform contains live streaming content that may include adult-oriented material. By continuing, you confirm you are at least 18 years old and understand you may encounter such content.
+                  </p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={disclaimerAccepted}
+                      onChange={(e) => setDisclaimerAccepted(e.target.checked)}
+                      className="w-4 h-4 rounded accent-primary"
+                      data-testid="input-guest-disclaimer"
+                    />
+                    <span className="text-white/80 text-xs">I am 18+ and accept this disclaimer</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={isLoading || !guestBirthdate || !disclaimerAccepted}
+              className="w-full bg-gradient-to-r from-primary to-pink-500 text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+              data-testid="button-guest-submit"
+            >
+              {isLoading ? "Starting..." : "Continue as Guest"}
             </button>
           </form>
         </motion.div>
@@ -263,12 +355,11 @@ export default function Login() {
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mt-8 space-y-4 text-center">
         <button
-          onClick={handleGuestLogin}
-          disabled={isLoading}
+          onClick={() => setMode("guest")}
           className="text-white/50 hover:text-white text-sm transition-colors"
           data-testid="button-login-guest"
         >
-          {isLoading ? "Starting..." : "Browse as Guest"}
+          Browse as Guest
         </button>
 
         <div className="flex items-center gap-2 justify-center">
