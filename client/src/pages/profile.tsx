@@ -114,17 +114,10 @@ export default function Profile() {
   return (
     <GuestGate>
     <Layout>
-      <div className="pb-24 max-w-2xl mx-auto">
-        <div className="relative">
-          <div
-            className="w-full h-40 md:h-48 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500"
-            style={user.profileBanner ? { backgroundImage: `url(${user.profileBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-            data-testid="profile-banner"
-          />
-          <div className="absolute top-3 left-4">
-            <h1 className="text-lg font-bold text-white drop-shadow-lg">Profile</h1>
-          </div>
-          <div className="absolute top-3 right-4 flex items-center gap-2">
+      <div className="pb-24 max-w-2xl mx-auto p-4">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-xl font-bold text-foreground">Profile</h1>
+          <div className="flex items-center gap-2">
             {(user.vipTier || 0) > 0 && (
               <>
                 <input
@@ -138,24 +131,21 @@ export default function Profile() {
                 <button
                   onClick={() => bannerInputRef.current?.click()}
                   disabled={bannerMutation.isPending}
-                  className="bg-black/40 backdrop-blur-sm text-white rounded-full p-1.5 hover:bg-black/60 transition-colors"
-                  title="Change banner (VIP feature)"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Change profile background (VIP feature)"
                   data-testid="button-change-banner"
                 >
-                  <Camera className="w-4 h-4" />
+                  <ImageIcon className="w-5 h-5" />
                 </button>
               </>
             )}
             <Link href="/settings">
-              <div className="bg-black/40 backdrop-blur-sm rounded-full p-1.5 cursor-pointer hover:bg-black/60 transition-colors">
-                <Settings className="w-5 h-5 text-white" />
-              </div>
+              <Settings className="w-6 h-6 text-foreground cursor-pointer" />
             </Link>
           </div>
         </div>
 
-        <div className="px-4 -mt-14">
-        <div className="flex justify-center gap-2 text-muted-foreground text-sm mb-2">
+        <div className="flex justify-center gap-2 text-muted-foreground text-sm mb-4">
           <span>ID: {user.id.slice(0, 8)}</span>
           <button 
             onClick={() => setLocation("/profile-visitors")} 
@@ -194,7 +184,18 @@ export default function Profile() {
           </button>
         </div>
 
-        <div className="flex flex-col items-center mb-6">
+        <div
+          className="relative rounded-2xl overflow-hidden mb-6 p-6"
+          style={user.profileBanner
+            ? { backgroundImage: `url(${user.profileBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : undefined
+          }
+          data-testid="profile-banner"
+        >
+          {user.profileBanner && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          )}
+          <div className="relative z-10 flex flex-col items-center">
           <div className="relative mb-3">
             <div className="relative">
               {equippedFrame && (
@@ -308,6 +309,8 @@ export default function Profile() {
               <div className="text-xs text-muted-foreground">Sent</div>
             </div>
           </div>
+          </div>
+        </div>
         </div>
 
         {(!user.phone || !user.phoneVerified || !user.email || user.email.includes('@phone.ignyt.live')) && (
