@@ -243,6 +243,21 @@ export async function seedDatabase() {
   console.log("🎉 Database seeding complete!");
 }
 
+export async function migrateRenamedUsers() {
+  try {
+    const oldUser = await db.select().from(users).where(eq(users.username, "sankalpchari")).limit(1);
+    if (oldUser.length > 0) {
+      const hashedPassword = await bcrypt.hash("sanketch", 10);
+      await db.update(users)
+        .set({ username: "sanketch", password: hashedPassword })
+        .where(eq(users.username, "sankalpchari"));
+      console.log("✓ Migrated user sankalpchari → sanketch");
+    }
+  } catch (error: any) {
+    console.error("Failed to migrate renamed users:", error);
+  }
+}
+
 export async function migrateUserPasswords() {
   try {
     const allUsers = await db.select().from(users);
