@@ -892,6 +892,7 @@ export async function registerRoutes(
       if (privacySettings !== undefined) updates.privacySettings = privacySettings;
       if (notificationSettings !== undefined) updates.notificationSettings = notificationSettings;
       if (language !== undefined) updates.language = language;
+      if (req.body.profileBanner !== undefined) updates.profileBanner = req.body.profileBanner;
 
       const user = await storage.updateUser(userId, updates);
       res.json(toSafeUser(user));
