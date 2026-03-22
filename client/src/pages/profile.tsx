@@ -193,7 +193,7 @@ export default function Profile() {
           data-testid="profile-banner"
         >
           {user.profileBanner && (
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-black/30" />
           )}
           <div className="relative z-10 flex flex-col items-center">
           <div className="relative mb-3">
@@ -225,8 +225,8 @@ export default function Profile() {
               {user.level}
             </span>
           </div>
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-xl font-bold text-foreground" data-testid="text-username">
+          <div className="flex items-center gap-2 mb-1 bg-black/40 rounded-full px-3 py-1">
+            <h2 className="text-xl font-bold text-white" data-testid="text-username">
               {user.username}
             </h2>
             {user.isVerified && (
@@ -272,7 +272,7 @@ export default function Profile() {
             </span>
           </div>
           {user.bio && (
-            <p className="text-muted-foreground text-sm text-center max-w-xs mb-4 px-4" data-testid="text-bio">
+            <p className="text-white/90 text-sm text-center max-w-xs mb-4 px-4 py-1 bg-black/30 rounded-lg" data-testid="text-bio">
               {user.bio}
             </p>
           )}
@@ -283,30 +283,30 @@ export default function Profile() {
               </p>
             </Link>
           )}
-          <div className="flex justify-center gap-8 text-center">
+          <div className="flex justify-center gap-6 text-center bg-black/40 rounded-xl px-4 py-3">
             <div>
-              <div className="font-bold text-foreground" data-testid="text-followers">
+              <div className="font-bold text-white" data-testid="text-followers">
                 {formatNumber(user.followersCount)}
               </div>
-              <div className="text-xs text-muted-foreground">Followers</div>
+              <div className="text-xs text-white/70">Followers</div>
             </div>
             <div>
-              <div className="font-bold text-foreground" data-testid="text-following">
+              <div className="font-bold text-white" data-testid="text-following">
                 {formatNumber(user.followingCount)}
               </div>
-              <div className="text-xs text-muted-foreground">Following</div>
+              <div className="text-xs text-white/70">Following</div>
             </div>
             <div>
-              <div className="font-bold text-foreground flex items-center gap-1" data-testid="text-received">
+              <div className="font-bold text-white flex items-center gap-1" data-testid="text-received">
                 <span className="text-yellow-400">💎</span>{formatNumber(user.diamonds)}
               </div>
-              <div className="text-xs text-muted-foreground">Received</div>
+              <div className="text-xs text-white/70">Received</div>
             </div>
             <div>
-              <div className="font-bold text-foreground flex items-center gap-1" data-testid="text-sent">
+              <div className="font-bold text-white flex items-center gap-1" data-testid="text-sent">
                 <span className="text-yellow-400">🪙</span>{formatNumber(user.coins)}
               </div>
-              <div className="text-xs text-muted-foreground">Sent</div>
+              <div className="text-xs text-white/70">Sent</div>
             </div>
           </div>
           </div>
