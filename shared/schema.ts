@@ -40,6 +40,7 @@ export const users = pgTable("users", {
   gender: text("gender"), // male, female, other, prefer_not_to_say
   birthdate: timestamp("birthdate"),
   isGuest: boolean("is_guest").notNull().default(false),
+  disclaimerAccepted: boolean("disclaimer_accepted").notNull().default(false),
   socialProvider: text("social_provider"), // google, apple, github, email, phone
   socialProviderId: text("social_provider_id"), // Provider's unique user ID
   privacySettings: text("privacy_settings"), // JSON string for privacy settings

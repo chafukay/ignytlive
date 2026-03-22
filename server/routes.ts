@@ -428,14 +428,11 @@ export async function registerRoutes(
         return res.status(400).json({ error: "You must accept the content disclaimer to continue" });
       }
 
+      const ageCheck = verifyAge(birthdate);
+      if (!ageCheck.valid) {
+        return res.status(403).json({ error: ageCheck.error });
+      }
       const dob = new Date(birthdate);
-      if (isNaN(dob.getTime())) {
-        return res.status(400).json({ error: "Invalid date of birth" });
-      }
-      const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-      if (age < 18) {
-        return res.status(403).json({ error: "You must be at least 18 years old to use this platform" });
-      }
 
       let finalUsername: string;
       if (requestedUsername && requestedUsername.trim()) {
@@ -462,6 +459,7 @@ export async function registerRoutes(
         password: guestPassword,
         isGuest: true,
         birthdate: dob,
+        disclaimerAccepted: true,
       });
       res.json({ user: toSafeUser(guestUser) });
     } catch (error) {

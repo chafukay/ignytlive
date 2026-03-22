@@ -97,8 +97,9 @@ export default function Login() {
       login(guestUser);
       toast({ title: `Welcome${guestUser.username.startsWith('guest_') ? '' : `, ${guestUser.username}`}! You're browsing as a guest`, description: "Some features are limited" });
       setLocation("/");
-    } catch (error: any) {
-      toast({ title: error.message || "Failed to start guest session", variant: "destructive" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to start guest session";
+      toast({ title: message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }

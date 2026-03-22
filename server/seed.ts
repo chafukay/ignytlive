@@ -311,16 +311,9 @@ export async function seedAdminUser() {
 export async function cleanupGuestUsers() {
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const oldGuests = await db.select({ id: users.id }).from(users)
+    const result = await db.delete(users)
       .where(and(eq(users.isGuest, true), lt(users.createdAt, sevenDaysAgo)));
-    let cleaned = 0;
-    for (const guest of oldGuests) {
-      try {
-        await db.delete(users).where(eq(users.id, guest.id));
-        cleaned++;
-      } catch {
-      }
-    }
+    const cleaned = result.rowCount ?? 0;
     if (cleaned > 0) {
       console.log(`🧹 Cleaned up ${cleaned} guest accounts older than 7 days`);
     }

@@ -46,8 +46,9 @@ export function GuestGate({ children, allowProfile }: { children: React.ReactNod
                       setUser(updated);
                       toast({ title: "Username updated!" });
                       setEditingName(false);
-                    } catch (error: any) {
-                      toast({ title: error.message || "Failed to update username", variant: "destructive" });
+                    } catch (err) {
+                      const message = err instanceof Error ? err.message : "Failed to update username";
+                      toast({ title: message, variant: "destructive" });
                     } finally {
                       setSaving(false);
                     }
