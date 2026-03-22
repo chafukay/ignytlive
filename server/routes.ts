@@ -435,11 +435,11 @@ export async function registerRoutes(
 
       const ageCheck = verifyAge(birthdate);
       if (!ageCheck.valid) {
-        return res.status(403).json({ error: ageCheck.error });
+        return res.status(400).json({ error: ageCheck.error });
       }
 
       let finalUsername: string;
-      if (requestedUsername && requestedUsername.trim()) {
+      if (requestedUsername && typeof requestedUsername === "string" && requestedUsername.trim()) {
         const trimmed = requestedUsername.trim();
         if (trimmed.length < 3 || trimmed.length > 20) {
           return res.status(400).json({ error: "Username must be 3-20 characters" });
@@ -920,7 +920,7 @@ export async function registerRoutes(
       }
 
       if (existingUser.isGuest) {
-        if (username !== undefined) {
+        if (username !== undefined && typeof username === "string") {
           const trimmed = username.trim();
           if (trimmed.length < 3 || trimmed.length > 20) {
             return res.status(400).json({ error: "Username must be 3-20 characters" });
