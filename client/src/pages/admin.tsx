@@ -160,8 +160,8 @@ export default function AdminDashboard() {
                   <StatCard icon={Flame} label="Live Streams" value={stats.activeStreams} color="red" />
                   <StatCard icon={Crown} label="VIP Users" value={stats.vipUsers} color="yellow" />
                   <StatCard icon={UserCheck} label="Verified" value={stats.verifiedUsers} color="purple" />
-                  <StatCard icon={Coins} label="Total Coins" value={stats.totalCoins.toLocaleString()} color="amber" />
-                  <StatCard icon={Diamond} label="Total Diamonds" value={stats.totalDiamonds.toLocaleString()} color="pink" />
+                  <StatCard icon={Coins} label="Total Coins" value={stats.totalCoins} color="amber" />
+                  <StatCard icon={Diamond} label="Total Diamonds" value={stats.totalDiamonds} color="pink" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -358,6 +358,16 @@ export default function AdminDashboard() {
   );
 }
 
+function formatCompact(n: number | string): string {
+  const num = typeof n === 'string' ? parseFloat(n.replace(/,/g, '')) : n;
+  if (isNaN(num)) return String(n);
+  if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (num >= 10_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(num);
+}
+
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number | string; color: string }) {
   const colorMap: Record<string, string> = {
     blue: 'from-blue-500/10 to-blue-600/10 border-blue-500/20 text-blue-400',
@@ -373,8 +383,8 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   return (
     <div className={`bg-gradient-to-br ${cls} rounded-xl p-4 border`} data-testid={`stat-${label.toLowerCase().replace(/\s/g, '-')}`}>
       <Icon className="w-6 h-6 mb-2" />
-      <p className="text-2xl font-bold text-white">{value}</p>
-      <p className="text-zinc-400 text-sm">{label}</p>
+      <p className="text-2xl font-bold text-white truncate" title={String(value)}>{formatCompact(value)}</p>
+      <p className="text-zinc-400 text-sm truncate">{label}</p>
     </div>
   );
 }
@@ -390,7 +400,7 @@ function LeaderboardCard({ title, subtitle, users, valueKey, valueLabel }: { tit
             <span className={`w-6 text-center text-sm font-bold ${i < 3 ? 'text-orange-400' : 'text-zinc-600'}`}>{i + 1}</span>
             <img src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`} alt="" className="w-7 h-7 rounded-full" />
             <span className="text-white text-sm flex-1 truncate">{u.username}</span>
-            <span className="text-zinc-400 text-xs">{(u[valueKey] || 0).toLocaleString()} {valueLabel}</span>
+            <span className="text-zinc-400 text-xs whitespace-nowrap">{formatCompact(u[valueKey] || 0)} {valueLabel}</span>
           </div>
         ))}
         {users.length === 0 && <p className="text-zinc-600 text-sm text-center py-4">No data</p>}
