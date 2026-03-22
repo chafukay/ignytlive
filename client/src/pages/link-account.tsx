@@ -6,6 +6,15 @@ import { useLocation } from "wouter";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+function validatePassword(pw: string): string | null {
+  if (pw.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(pw)) return "Must include at least one uppercase letter";
+  if (!/[a-z]/.test(pw)) return "Must include at least one lowercase letter";
+  if (!/[0-9]/.test(pw)) return "Must include at least one number";
+  if (!/[^A-Za-z0-9]/.test(pw)) return "Must include at least one special character";
+  return null;
+}
+
 export default function LinkAccount() {
   const { user, setUser } = useAuth();
   const [, setLocation] = useLocation();
@@ -33,8 +42,9 @@ export default function LinkAccount() {
       toast({ title: "Passwords do not match", variant: "destructive" });
       return;
     }
-    if (password.length < 6) {
-      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+    const pwError = validatePassword(password);
+    if (pwError) {
+      toast({ title: pwError, variant: "destructive" });
       return;
     }
 

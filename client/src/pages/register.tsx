@@ -6,6 +6,15 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
+function validatePassword(pw: string): string | null {
+  if (pw.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(pw)) return "Must include at least one uppercase letter";
+  if (!/[a-z]/.test(pw)) return "Must include at least one lowercase letter";
+  if (!/[0-9]/.test(pw)) return "Must include at least one number";
+  if (!/[^A-Za-z0-9]/.test(pw)) return "Must include at least one special character";
+  return null;
+}
+
 export default function Register() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
@@ -58,8 +67,9 @@ export default function Register() {
       return;
     }
 
-    if (password.length < 6) {
-      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+    const pwError = validatePassword(password);
+    if (pwError) {
+      toast({ title: pwError, variant: "destructive" });
       return;
     }
 
@@ -165,6 +175,21 @@ export default function Register() {
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
+          {password.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-1" data-testid="password-requirements">
+              {[
+                { test: password.length >= 8, label: "8+ chars" },
+                { test: /[A-Z]/.test(password), label: "A-Z" },
+                { test: /[a-z]/.test(password), label: "a-z" },
+                { test: /[0-9]/.test(password), label: "0-9" },
+                { test: /[^A-Za-z0-9]/.test(password), label: "!@#$" },
+              ].map(({ test, label }) => (
+                <span key={label} className={`text-xs px-2 py-0.5 rounded-full ${test ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"}`}>
+                  {test ? "✓" : "○"} {label}
+                </span>
+              ))}
+            </div>
+          )}
           <div>
             <input
               type={showPassword ? "text" : "password"}

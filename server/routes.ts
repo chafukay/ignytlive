@@ -117,6 +117,15 @@ const checkUserRestrictions = async (userId: string | undefined, res: any, stora
   return false;
 };
 
+function validatePasswordStrength(password: string): string | null {
+  if (password.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(password)) return "Password must include at least one uppercase letter";
+  if (!/[a-z]/.test(password)) return "Password must include at least one lowercase letter";
+  if (!/[0-9]/.test(password)) return "Password must include at least one number";
+  if (!/[^A-Za-z0-9]/.test(password)) return "Password must include at least one special character";
+  return null;
+}
+
 // Age verification helper
 const verifyAge = (birthdate: string | Date | null | undefined): { valid: boolean; age?: number; error?: string } => {
   if (!birthdate) {
@@ -382,6 +391,11 @@ export async function registerRoutes(
         body.birthdate = new Date(body.birthdate);
       }
       const userData = insertUserSchema.parse(body);
+
+      const pwError = validatePasswordStrength(userData.password);
+      if (pwError) {
+        return res.status(400).json({ error: pwError });
+      }
       
       const ageCheck = verifyAge(userData.birthdate);
       if (!ageCheck.valid) {
@@ -604,8 +618,12 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Please enter a valid email address" });
       }
 
-      if (typeof password !== 'string' || password.length < 6) {
-        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      if (typeof password !== 'string') {
+        return res.status(400).json({ error: "Password is required" });
+      }
+      const linkPwError = validatePasswordStrength(password);
+      if (linkPwError) {
+        return res.status(400).json({ error: linkPwError });
       }
 
       const user = await storage.getUser(userId);
