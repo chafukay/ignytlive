@@ -115,45 +115,47 @@ export default function Profile() {
     <GuestGate>
     <Layout>
       <div className="pb-24 max-w-2xl mx-auto">
-        <div className="relative mb-4">
+        <div className="relative">
           <div
-            className="w-full h-32 md:h-40 rounded-b-2xl overflow-hidden bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500"
+            className="w-full h-40 md:h-48 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500"
             style={user.profileBanner ? { backgroundImage: `url(${user.profileBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
             data-testid="profile-banner"
           />
-          {(user.vipTier || 0) > 0 && (
-            <>
-              <input
-                ref={bannerInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleBannerChange}
-                data-testid="input-banner-upload"
-              />
-              <button
-                onClick={() => bannerInputRef.current?.click()}
-                disabled={bannerMutation.isPending}
-                className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white rounded-full p-2 hover:bg-black/80 transition-colors"
-                title="Change banner (VIP feature)"
-                data-testid="button-change-banner"
-              >
-                <Camera className="w-4 h-4" />
-              </button>
-            </>
-          )}
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-4">
             <h1 className="text-lg font-bold text-white drop-shadow-lg">Profile</h1>
           </div>
-          <Link href="/settings">
-            <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm rounded-full p-1.5 cursor-pointer hover:bg-black/60 transition-colors">
-              <Settings className="w-5 h-5 text-white" />
-            </div>
-          </Link>
+          <div className="absolute top-3 right-4 flex items-center gap-2">
+            {(user.vipTier || 0) > 0 && (
+              <>
+                <input
+                  ref={bannerInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleBannerChange}
+                  data-testid="input-banner-upload"
+                />
+                <button
+                  onClick={() => bannerInputRef.current?.click()}
+                  disabled={bannerMutation.isPending}
+                  className="bg-black/40 backdrop-blur-sm text-white rounded-full p-1.5 hover:bg-black/60 transition-colors"
+                  title="Change banner (VIP feature)"
+                  data-testid="button-change-banner"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            <Link href="/settings">
+              <div className="bg-black/40 backdrop-blur-sm rounded-full p-1.5 cursor-pointer hover:bg-black/60 transition-colors">
+                <Settings className="w-5 h-5 text-white" />
+              </div>
+            </Link>
+          </div>
         </div>
 
-        <div className="px-4">
-        <div className="flex justify-center gap-2 text-muted-foreground text-sm mb-4">
+        <div className="px-4 -mt-14">
+        <div className="flex justify-center gap-2 text-muted-foreground text-sm mb-2">
           <span>ID: {user.id.slice(0, 8)}</span>
           <button 
             onClick={() => setLocation("/profile-visitors")} 
