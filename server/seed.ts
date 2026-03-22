@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { users, gifts, badges, wheelPrizes, adminUsers } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export async function seedDatabase() {
@@ -305,5 +305,19 @@ export async function seedAdminUser() {
     } else {
       console.error("Failed to seed admin user:", error);
     }
+  }
+}
+
+export async function cleanupGuestUsers() {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const deleted = await db.delete(users)
+      .where(and(eq(users.isGuest, true), lt(users.createdAt, sevenDaysAgo)))
+      .returning({ id: users.id });
+    if (deleted.length > 0) {
+      console.log(`🧹 Cleaned up ${deleted.length} guest accounts older than 7 days`);
+    }
+  } catch (error) {
+    console.error("Failed to clean up guest users:", error);
   }
 }

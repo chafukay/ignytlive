@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 // Seeding disabled - import { seedDatabase } from "./seed";
-import { seedAdminUser, migrateUserPasswords, migrateRenamedUsers } from "./seed";
+import { seedAdminUser, migrateUserPasswords, migrateRenamedUsers, cleanupGuestUsers } from "./seed";
 
 const app = express();
 const httpServer = createServer(app);
@@ -123,6 +123,8 @@ app.use((req, res, next) => {
   await seedAdminUser();
   await migrateUserPasswords();
   await migrateRenamedUsers();
+  await cleanupGuestUsers();
+  setInterval(() => cleanupGuestUsers(), 24 * 60 * 60 * 1000);
   
   await registerRoutes(httpServer, app);
 
