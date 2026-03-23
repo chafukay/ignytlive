@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 ### Authentication
 - **Methods**: Email/username + password (bcrypt hashed), phone with SMS, Replit Auth (social logins), Guest browsing.
 - **Password Security**: All user passwords hashed with bcrypt (cost factor 10). Migration runs on startup to hash any remaining plain text passwords.
-- **Email Verification**: 6-digit code sent on registration, stored in DB with 24h expiry. Endpoints: `POST /api/auth/send-email-verification`, `POST /api/auth/verify-email`. Verification banner on profile for unverified users. Admin panel shows verification status per user.
+- **Email Verification**: 6-digit code generated with `crypto.randomInt()` on registration, stored in DB with 24h expiry. Email sent via nodemailer when SMTP configured (env vars: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`). Endpoints: `POST /api/auth/send-email-verification`, `POST /api/auth/verify-email`. Both endpoints have dual rate limiting (IP + userId, 5 per 15min with lockout). Profile shows persistent email verification status badge (green verified / amber unverified) plus dismissible banner. Admin panel shows verification status per user. All API responses sanitized via `toSafeUser()` and `stripPasswords()` to strip `password`, `emailVerificationToken`, `emailVerificationExpiry`.
 - **Features**: Age gating (18+), guest mode with restricted access, client-side auth state in localStorage.
 
 ### Core Features

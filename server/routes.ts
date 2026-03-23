@@ -30,13 +30,15 @@ function toSafeUsers(users: any[]) {
   return users.map(toSafeUser);
 }
 
+const SENSITIVE_FIELDS = new Set(['password', 'emailVerificationToken', 'emailVerificationExpiry']);
+
 function stripPasswords(obj: any): any {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return obj.map(stripPasswords);
   if (typeof obj === 'object' && !(obj instanceof Date)) {
     const result: any = {};
     for (const key of Object.keys(obj)) {
-      if (key === 'password') continue;
+      if (SENSITIVE_FIELDS.has(key)) continue;
       result[key] = stripPasswords(obj[key]);
     }
     return result;
@@ -45,6 +47,7 @@ function stripPasswords(obj: any): any {
 }
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
+import { sendVerificationEmail, isEmailServiceConfigured } from "./email-service";
 import Stripe from "stripe";
 import bcrypt from "bcryptjs";
 
@@ -420,7 +423,11 @@ export async function registerRoutes(
         emailVerificationExpiry: verificationExpiry,
       });
 
-      res.json({ user: toSafeUser(user) });
+      if (userData.email) {
+        await sendVerificationEmail(userData.email, verificationCode, userData.username);
+      }
+
+      res.json({ user: toSafeUser(user), emailServiceConfigured: isEmailServiceConfigured() });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
     }
@@ -456,10 +463,12 @@ export async function registerRoutes(
         emailVerificationToken: verificationCode,
         emailVerificationExpiry: verificationExpiry,
       });
-      
 
-      
-      res.json({ message: "Verification code sent to your email" });
+      if (user.email) {
+        await sendVerificationEmail(user.email, verificationCode, user.username);
+      }
+
+      res.json({ message: "Verification code sent to your email", emailServiceConfigured: isEmailServiceConfigured() });
     } catch (error) {
       res.status(500).json({ error: "Failed to send verification code" });
     }
@@ -1900,8 +1909,7 @@ export async function registerRoutes(
     }
     
     const allUsers = await storage.getAllUsers();
-    // Strip passwords from response
-    const safeUsers = allUsers.map(({ password, ...user }) => user);
+    const safeUsers = allUsers.map(toSafeUser);
     res.json(safeUsers);
   });
 
@@ -1935,9 +1943,7 @@ export async function registerRoutes(
       return res.status(404).json({ error: "User not found" });
     }
     
-    // Strip password from response
-    const { password, ...safeUser } = updatedUser;
-    res.json(safeUser);
+    res.json(toSafeUser(updatedUser));
   });
 
   // Badge routes
@@ -4029,17 +4035,17 @@ export async function registerRoutes(
       const topUsers = [...allUsers]
         .sort((a, b) => (b.totalGiftsReceived || 0) - (a.totalGiftsReceived || 0))
         .slice(0, 10)
-        .map(({ password, ...u }) => u);
+        .map(toSafeUser);
 
       const topGifters = [...allUsers]
         .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
         .slice(0, 10)
-        .map(({ password, ...u }) => u);
+        .map(toSafeUser);
 
       const mostFollowed = [...allUsers]
         .sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
         .slice(0, 10)
-        .map(({ password, ...u }) => u);
+        .map(toSafeUser);
 
       res.json({
         totalUsers, newUsersToday, newUsersWeek, vipUsers, verifiedUsers,
@@ -4055,7 +4061,7 @@ export async function registerRoutes(
     if (!await requireAdmin(req, res)) return;
     try {
       const allUsers = await storage.getAllUsers();
-      const safeUsers = allUsers.map(({ password, ...user }) => user);
+      const safeUsers = allUsers.map(toSafeUser);
       res.json(safeUsers);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch users" });
@@ -4089,8 +4095,7 @@ export async function registerRoutes(
       if (!userId) return res.status(400).json({ error: "userId required" });
       const updated = await storage.updateUser(userId, updates);
       if (!updated) return res.status(404).json({ error: "User not found" });
-      const { password, ...safeUser } = updated;
-      res.json(safeUser);
+      res.json(toSafeUser(updated));
     } catch (error) {
       res.status(500).json({ error: "Failed to update user" });
     }
