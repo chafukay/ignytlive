@@ -55,7 +55,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover",
 });
 
-const VERIFY_TOKEN_SECRET = crypto.randomBytes(32).toString("hex");
+const VERIFY_TOKEN_SECRET = process.env.EMAIL_VERIFY_SECRET || crypto.randomBytes(32).toString("hex");
 const VERIFY_TOKEN_EXPIRY = 24 * 60 * 60 * 1000;
 
 function createVerifyToken(userId: string): string {
