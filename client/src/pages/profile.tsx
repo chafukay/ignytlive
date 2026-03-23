@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -473,13 +473,19 @@ export default function Profile() {
           ))}
 
           <div 
-            onClick={() => dndMutation.mutate(!dndEnabled)}
+            onClick={() => !dndMutation.isPending && dndMutation.mutate(!dndEnabled)}
             className={`flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-border ${
+              dndMutation.isPending ? "opacity-50 pointer-events-none" : ""
+            } ${
               dndEnabled ? "bg-purple-500/10" : "hover:bg-muted/50"
             }`}
             data-testid="menu-dnd"
           >
-            <Moon className={`w-5 h-5 ${dndEnabled ? 'text-purple-400' : 'text-muted-foreground'}`} />
+            {dndMutation.isPending ? (
+              <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+            ) : (
+              <Moon className={`w-5 h-5 ${dndEnabled ? 'text-purple-400' : 'text-muted-foreground'}`} />
+            )}
             <span className="flex-1 text-foreground font-medium">Do Not Disturb</span>
             <div className={`w-12 h-6 rounded-full p-1 transition-colors ${
               dndEnabled ? "bg-purple-500" : "bg-muted"

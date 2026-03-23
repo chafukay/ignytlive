@@ -40,6 +40,7 @@ export default function LiveRoom() {
     { id: 'welcome', user: 'IgnytLIVE', text: 'Welcome to the stream! 🎉', color: 'text-pink-400' }
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [isSendingChat, setIsSendingChat] = useState(false);
   const [likes, setLikes] = useState(0);
   const [showGiftMenu, setShowGiftMenu] = useState(false);
   const [showSpinWheel, setShowSpinWheel] = useState(false);
@@ -578,13 +579,13 @@ export default function LiveRoom() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isGuest) { requireAccount(); return; }
-    if (!inputValue.trim() || !user || !streamId) return;
+    if (!inputValue.trim() || !user || !streamId || isSendingChat) return;
     
     const messageText = inputValue;
     setInputValue("");
+    setIsSendingChat(true);
     
     try {
-      // Send via API (includes moderation checks: slow mode, mute, ban)
       await api.postStreamComment(streamId, {
         userId: user.id,
         text: messageText,
@@ -599,13 +600,16 @@ export default function LiveRoom() {
       };
       
       setComments(prev => [...prev, newComment]);
-    } catch (error: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Please try again";
       toast({ 
         title: "Couldn't send message", 
-        description: error.message || "Please try again",
+        description: message,
         variant: "destructive" 
       });
-      setInputValue(messageText); // Restore message if failed
+      setInputValue(messageText);
+    } finally {
+      setIsSendingChat(false);
     }
   };
 
@@ -1545,8 +1549,9 @@ export default function LiveRoom() {
                       data-testid="input-chat"
                     />
                     <button 
-                      type="submit" 
-                      className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors"
+                      type="submit"
+                      disabled={isSendingChat}
+                      className="absolute right-1 top-1 p-1.5 rounded-full bg-white/10 hover:bg-primary transition-colors disabled:opacity-50"
                       data-testid="button-send"
                     >
                       <Send className="w-4 h-4 text-white" />

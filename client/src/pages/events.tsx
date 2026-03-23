@@ -9,7 +9,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, Clock, Users, Plus, ChevronLeft, ChevronRight,
-  MapPin, X, Check, Trash2, Edit3, ArrowLeft
+  MapPin, X, Check, Trash2, Edit3, ArrowLeft, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -349,7 +349,7 @@ export default function Events() {
                               }`}
                               data-testid={`button-rsvp-${event.id}`}
                             >
-                              {isRsvped ? "Going ✓" : "RSVP"}
+                              {(rsvpMutation.isPending || unrsvpMutation.isPending) ? <Loader2 className="w-3 h-3 animate-spin" /> : isRsvped ? "Going ✓" : "RSVP"}
                             </button>
                           ) : (
                             <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-amber-500/20 text-amber-500">

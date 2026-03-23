@@ -6,7 +6,7 @@ import Layout from "@/components/layout";
 import UserAvatar from "@/components/user-avatar";
 import BadgesDisplay from "@/components/badges-display";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Sparkles, MapPin, Crown, Share2, Eye, Gift } from "lucide-react";
+import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Sparkles, MapPin, Crown, Share2, Eye, Gift, Loader2 } from "lucide-react";
 import GiftPanel from "@/components/gift-panel";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -296,14 +296,15 @@ export default function UserProfile() {
               <div className="flex gap-3 mt-5 w-full max-w-sm">
                 <button
                   onClick={handleFollow}
-                  className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${
+                  disabled={followMutation.isPending || unfollowMutation.isPending}
+                  className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 ${
                     isFollowing 
                       ? "bg-white/10 text-pink-400 border border-pink-500/30" 
                       : "bg-pink-500 text-white hover:bg-pink-600"
                   }`}
                   data-testid="btn-follow"
                 >
-                  {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                  {(followMutation.isPending || unfollowMutation.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
                   {isFollowing ? "Following" : "Follow"}
                 </button>
                 

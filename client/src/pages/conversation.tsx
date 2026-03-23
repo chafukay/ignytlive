@@ -1,7 +1,7 @@
 import { GuestGate } from "@/components/guest-gate";
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Send, MoreVertical, Gift, Phone, Video, Plus, Smile, User as UserIcon, PhoneOff, AlertCircle, Trash2, Lock } from "lucide-react";
+import { ArrowLeft, Send, MoreVertical, Gift, Phone, Video, Plus, Smile, User as UserIcon, PhoneOff, AlertCircle, Trash2, Lock, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -18,6 +18,7 @@ export default function Conversation() {
   const [message, setMessage] = useState("");
   const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [isRequestingCall, setIsRequestingCall] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -183,11 +184,14 @@ export default function Conversation() {
       toast({ title: "You have muted calls from this user", variant: "destructive" });
       return;
     }
-    if (otherUserId) {
+    if (otherUserId && !isRequestingCall) {
+      setIsRequestingCall(true);
       api.requestPrivateCall(user!.id, otherUserId).then((call: any) => {
         toast({ title: "Call requested", description: "Waiting for response..." });
       }).catch(() => {
         toast({ title: "Failed to start call", variant: "destructive" });
+      }).finally(() => {
+        setIsRequestingCall(false);
       });
     }
   };
@@ -268,10 +272,11 @@ export default function Conversation() {
           </button>
           <button 
             onClick={handleVideoCall}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            disabled={isRequestingCall}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
             data-testid="button-video-call"
           >
-            <Video className="w-5 h-5 text-white" />
+            {isRequestingCall ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Video className="w-5 h-5 text-white" />}
           </button>
           <button 
             onClick={() => setShowOptionsMenu(!showOptionsMenu)}

@@ -5,7 +5,7 @@ import { GuestGate } from "@/components/guest-gate";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Coins, Gift } from "lucide-react";
+import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Coins, Gift, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import GiftPanel from "@/components/gift-panel";
 import { startRingtone, stopRingtone } from "@/lib/ringtone";
@@ -26,6 +26,8 @@ export default function PrivateCallPage() {
   const [callDuration, setCallDuration] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [showGiftPanel, setShowGiftPanel] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
   
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
@@ -253,16 +255,24 @@ export default function PrivateCallPage() {
             variant="destructive"
             size="lg"
             className="rounded-full w-16 h-16"
-            onClick={() => api.declinePrivateCall(callId!, user!.id).then(() => setLocation('/'))}
+            disabled={isDeclining || isAccepting}
+            onClick={() => {
+              setIsDeclining(true);
+              api.declinePrivateCall(callId!, user!.id).then(() => setLocation('/')).catch(() => setIsDeclining(false));
+            }}
           >
-            <PhoneOff className="w-6 h-6" />
+            {isDeclining ? <Loader2 className="w-6 h-6 animate-spin" /> : <PhoneOff className="w-6 h-6" />}
           </Button>
           <Button
             size="lg"
             className="rounded-full w-16 h-16 bg-green-500 hover:bg-green-600"
-            onClick={() => api.acceptPrivateCall(callId!, user!.id).then(() => refetchCall())}
+            disabled={isAccepting || isDeclining}
+            onClick={() => {
+              setIsAccepting(true);
+              api.acceptPrivateCall(callId!, user!.id).then(() => refetchCall()).catch(() => setIsAccepting(false));
+            }}
           >
-            <Phone className="w-6 h-6" />
+            {isAccepting ? <Loader2 className="w-6 h-6 animate-spin" /> : <Phone className="w-6 h-6" />}
           </Button>
         </div>
       </div>

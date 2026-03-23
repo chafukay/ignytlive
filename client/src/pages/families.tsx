@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Users, ChevronLeft, Plus, Search, Crown, Shield, User, Trophy, LogOut, Settings } from "lucide-react";
+import { Users, ChevronLeft, Plus, Search, Crown, Shield, User, Trophy, LogOut, Settings, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
@@ -268,7 +268,7 @@ export default function Families() {
                     className="ml-2"
                     data-testid={`button-join-family-${family.id}`}
                   >
-                    {!family.isPublic ? "Private" : (user.level || 1) < family.minLevel ? `Lv ${family.minLevel}+` : "Join"}
+                    {joinFamilyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : !family.isPublic ? "Private" : (user.level || 1) < family.minLevel ? `Lv ${family.minLevel}+` : "Join"}
                   </Button>
                 )}
               </div>
