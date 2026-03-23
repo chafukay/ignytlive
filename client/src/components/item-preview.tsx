@@ -17,6 +17,12 @@ export const frameRingColors: Record<string, { gradient: string; shadow: string 
   "Rose Frame": { gradient: "from-pink-400 via-rose-500 to-red-400", shadow: "shadow-[0_0_15px_rgba(244,114,182,0.5)]" },
   "Royal Frame": { gradient: "from-purple-400 via-violet-500 to-indigo-400", shadow: "shadow-[0_0_18px_rgba(192,132,252,0.5)]" },
   "Flame Frame": { gradient: "from-orange-500 via-red-500 to-yellow-500", shadow: "shadow-[0_0_18px_rgba(249,115,22,0.5)]" },
+  "Lava Frame": { gradient: "from-red-600 via-orange-500 to-yellow-400", shadow: "shadow-[0_0_20px_rgba(220,38,38,0.6)]" },
+  "Aurora Frame": { gradient: "from-green-300 via-cyan-400 to-purple-500", shadow: "shadow-[0_0_20px_rgba(34,211,238,0.5)]" },
+  "Toxic Frame": { gradient: "from-lime-400 via-green-500 to-emerald-400", shadow: "shadow-[0_0_20px_rgba(132,204,22,0.6)]" },
+  "Sunset Frame": { gradient: "from-orange-400 via-rose-500 to-violet-500", shadow: "shadow-[0_0_18px_rgba(244,63,94,0.5)]" },
+  "Electric Frame": { gradient: "from-blue-400 via-sky-300 to-cyan-400", shadow: "shadow-[0_0_20px_rgba(56,189,248,0.6)]" },
+  "Candy Frame": { gradient: "from-pink-300 via-purple-300 to-cyan-300", shadow: "shadow-[0_0_18px_rgba(249,168,212,0.5)]" },
 };
 
 export const defaultFrameRing = { gradient: "from-blue-400 via-indigo-400 to-blue-500", shadow: "shadow-[0_0_12px_rgba(96,165,250,0.4)]" };
@@ -63,6 +69,42 @@ const frameStyles: Record<string, { border: string; shadow: string; bg: string; 
     shadow: "shadow-[0_0_20px_rgba(249,115,22,0.5),inset_0_0_12px_rgba(249,115,22,0.2)]",
     bg: "bg-gradient-to-br from-orange-500/20 via-red-500/15 to-yellow-500/20",
     inner: "ring-2 ring-orange-400/50",
+  },
+  "Lava Frame": {
+    border: "border-[3px] border-red-500",
+    shadow: "shadow-[0_0_22px_rgba(220,38,38,0.6),inset_0_0_14px_rgba(249,115,22,0.3)]",
+    bg: "bg-gradient-to-br from-red-600/25 via-orange-500/20 to-yellow-400/15",
+    inner: "ring-2 ring-red-400/60",
+  },
+  "Aurora Frame": {
+    border: "border-[3px] border-cyan-400",
+    shadow: "shadow-[0_0_22px_rgba(34,211,238,0.5),inset_0_0_14px_rgba(168,85,247,0.2)]",
+    bg: "bg-gradient-to-br from-green-300/20 via-cyan-400/15 to-purple-500/20",
+    inner: "ring-2 ring-cyan-300/60",
+  },
+  "Toxic Frame": {
+    border: "border-[3px] border-lime-400",
+    shadow: "shadow-[0_0_22px_rgba(132,204,22,0.6),inset_0_0_14px_rgba(34,197,94,0.3)]",
+    bg: "bg-gradient-to-br from-lime-400/25 via-green-500/15 to-emerald-400/20",
+    inner: "ring-2 ring-lime-300/60",
+  },
+  "Sunset Frame": {
+    border: "border-[3px] border-rose-400",
+    shadow: "shadow-[0_0_20px_rgba(244,63,94,0.5),inset_0_0_12px_rgba(139,92,246,0.2)]",
+    bg: "bg-gradient-to-br from-orange-400/20 via-rose-500/15 to-violet-500/20",
+    inner: "ring-2 ring-rose-300/50",
+  },
+  "Electric Frame": {
+    border: "border-[3px] border-sky-400",
+    shadow: "shadow-[0_0_24px_rgba(56,189,248,0.6),inset_0_0_14px_rgba(96,165,250,0.3)]",
+    bg: "bg-gradient-to-br from-blue-400/20 via-sky-300/20 to-cyan-400/15",
+    inner: "ring-2 ring-sky-300/60",
+  },
+  "Candy Frame": {
+    border: "border-[3px] border-pink-300",
+    shadow: "shadow-[0_0_18px_rgba(249,168,212,0.5),inset_0_0_12px_rgba(192,132,252,0.2)]",
+    bg: "bg-gradient-to-br from-pink-300/20 via-purple-300/15 to-cyan-300/20",
+    inner: "ring-2 ring-pink-200/50",
   },
 };
 
