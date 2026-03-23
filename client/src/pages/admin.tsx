@@ -314,6 +314,7 @@ export default function AdminDashboard() {
                       <th className="px-4 py-3 text-zinc-400 font-medium">Coins</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Diamonds</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Followers</th>
+                      <th className="px-4 py-3 text-zinc-400 font-medium">Email</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Joined</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Actions</th>
                     </tr>
@@ -344,6 +345,13 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 text-amber-400">{(u.coins || 0).toLocaleString()}</td>
                         <td className="px-4 py-3 text-pink-400">{(u.diamonds || 0).toLocaleString()}</td>
                         <td className="px-4 py-3 text-zinc-300">{(u.followersCount || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          {u.emailVerified ? (
+                            <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-xs">Verified</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs">Unverified</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-zinc-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
                         <td className="px-4 py-3">
                           <button

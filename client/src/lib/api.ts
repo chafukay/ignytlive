@@ -44,6 +44,32 @@ export const api = {
     return res.json() as Promise<{ user: User }>;
   },
 
+  async sendEmailVerification(userId: string) {
+    const res = await fetch(`${API_BASE}/api/auth/send-email-verification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Failed to send verification code");
+    }
+    return res.json() as Promise<{ message: string }>;
+  },
+
+  async verifyEmail(userId: string, code: string) {
+    const res = await fetch(`${API_BASE}/api/auth/verify-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, code }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Verification failed");
+    }
+    return res.json() as Promise<{ user: User; message: string }>;
+  },
+
   async guestLogin(data: { username?: string; birthdate: string; disclaimerAccepted: boolean }) {
     const res = await fetch(`${API_BASE}/api/auth/guest`, {
       method: "POST",

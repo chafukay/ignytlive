@@ -7,6 +7,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, UserItemWithItem } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import BadgesDisplay from "@/components/badges-display";
+import EmailVerificationBanner from "@/components/email-verification-banner";
 import UserAvatar from "@/components/user-avatar";
 import { frameRingColors, defaultFrameRing, badgeColors } from "@/components/item-preview";
 import { useState, useRef } from "react";
@@ -337,6 +338,8 @@ export default function Profile() {
             </button>
           </div>
         )}
+
+        <EmailVerificationBanner />
 
         {/* Wallet Card */}
         <div className="bg-gradient-to-r from-gray-800 to-gray-900 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 mb-6 border border-border relative overflow-hidden">

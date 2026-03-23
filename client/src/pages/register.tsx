@@ -78,7 +78,7 @@ export default function Register() {
       const { user: newUser } = await api.register(username, email, password, birthdate);
       login(newUser);
       toast({ title: `Welcome to Ignyt Live, ${newUser.username}!` });
-      setLocation("/");
+      setLocation("/verify-email");
     } catch (error: any) {
       toast({ title: "Registration failed", description: error.message || "Please try again", variant: "destructive" });
     } finally {

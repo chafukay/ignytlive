@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -21,7 +22,7 @@ import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 
 function toSafeUser(user: any) {
   if (!user) return user;
-  const { password, ...safe } = user;
+  const { password, emailVerificationToken, emailVerificationExpiry, ...safe } = user;
   return safe;
 }
 
@@ -409,10 +410,91 @@ export async function registerRoutes(
       }
       
       const hashedPassword = await bcrypt.hash(userData.password, 10);
-      const user = await storage.createUser({ ...userData, password: hashedPassword });
+      const verificationCode = crypto.randomInt(100000, 999999).toString();
+      const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const user = await storage.createUser({ 
+        ...userData, 
+        password: hashedPassword,
+        emailVerified: false,
+        emailVerificationToken: verificationCode,
+        emailVerificationExpiry: verificationExpiry,
+      });
+      console.log(`[EMAIL VERIFICATION] Code for ${userData.email}: ${verificationCode}`);
       res.json({ user: toSafeUser(user) });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
+    }
+  });
+
+  app.post("/api/auth/send-email-verification", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "User ID required" });
+      
+      const sendKey = `email-send:${userId}`;
+      const rateCheck = checkLoginRateLimit(sendKey);
+      if (!rateCheck.allowed) {
+        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many requests. Try again in ${retryMinutes} minute(s).` });
+      }
+      recordLoginFailure(sendKey);
+      
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (user.emailVerified) return res.status(400).json({ error: "Email already verified" });
+      if (user.isGuest) return res.status(400).json({ error: "Guest accounts cannot verify email" });
+      
+      const verificationCode = crypto.randomInt(100000, 999999).toString();
+      const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      
+      await storage.updateUser(userId, {
+        emailVerificationToken: verificationCode,
+        emailVerificationExpiry: verificationExpiry,
+      });
+      
+      console.log(`[EMAIL VERIFICATION] Code for ${user.email}: ${verificationCode}`);
+      
+      res.json({ message: "Verification code sent to your email" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send verification code" });
+    }
+  });
+
+  app.post("/api/auth/verify-email", async (req, res) => {
+    try {
+      const { userId, code } = req.body;
+      if (!userId || !code) return res.status(400).json({ error: "User ID and verification code required" });
+      
+      const verifyKey = `email-verify:${userId}`;
+      const rateCheck = checkLoginRateLimit(verifyKey);
+      if (!rateCheck.allowed) {
+        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many verification attempts. Try again in ${retryMinutes} minute(s).` });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (user.emailVerified) return res.status(400).json({ error: "Email already verified" });
+      
+      if (!user.emailVerificationToken || user.emailVerificationToken !== code) {
+        recordLoginFailure(verifyKey);
+        return res.status(400).json({ error: "Invalid verification code" });
+      }
+      
+      if (user.emailVerificationExpiry && new Date() > new Date(user.emailVerificationExpiry)) {
+        return res.status(400).json({ error: "Verification code has expired. Please request a new one." });
+      }
+      
+      clearLoginFailures(verifyKey);
+      const updated = await storage.updateUser(userId, {
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationExpiry: null,
+      });
+      
+      res.json({ user: toSafeUser(updated), message: "Email verified successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to verify email" });
     }
   });
 
