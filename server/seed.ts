@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, gifts, badges, wheelPrizes, adminUsers } from "@shared/schema";
+import { users, gifts, badges, wheelPrizes, adminUsers, coinPackages } from "@shared/schema";
 import { eq, and, lt, notInArray, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -304,6 +304,37 @@ export async function seedAdminUser() {
       console.log("✓ Default admin user already exists");
     } else {
       console.error("Failed to seed admin user:", error);
+    }
+  }
+}
+
+export async function seedCoinPackages() {
+  try {
+    const existing = await db.select().from(coinPackages).limit(1);
+    if (existing.length > 0) {
+      console.log("✓ Coin packages already seeded");
+      return;
+    }
+
+    const defaultPackages = [
+      { coins: 380, priceUsd: 199, originalPriceUsd: 379, label: "Popular", sortOrder: 1 },
+      { coins: 975, priceUsd: 499, originalPriceUsd: 974, label: "Hot", sortOrder: 2 },
+      { coins: 2000, priceUsd: 999, originalPriceUsd: 1999, label: "Best Value", sortOrder: 3 },
+      { coins: 3875, priceUsd: 2499, originalPriceUsd: 3899, sortOrder: 4 },
+      { coins: 5100, priceUsd: 2999, originalPriceUsd: 5099, label: "Popular", sortOrder: 5 },
+      { coins: 8750, priceUsd: 4999, originalPriceUsd: 8749, label: "Popular", sortOrder: 6 },
+      { coins: 14400, priceUsd: 7999, originalPriceUsd: 14499, sortOrder: 7 },
+      { coins: 18500, priceUsd: 9999, originalPriceUsd: 18499, label: "Hot", sortOrder: 8 },
+      { coins: 57000, priceUsd: 29999, originalPriceUsd: 56999, sortOrder: 9 },
+    ];
+
+    await db.insert(coinPackages).values(defaultPackages);
+    console.log("✓ Seeded default coin packages");
+  } catch (error: any) {
+    if (error?.code === '42P01') {
+      console.log("Coin packages table not yet created, skipping seed");
+    } else {
+      console.error("Failed to seed coin packages:", error);
     }
   }
 }

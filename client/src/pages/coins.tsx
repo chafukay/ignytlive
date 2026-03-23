@@ -7,32 +7,48 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-const coinPackages = [
-  { coins: 3875, price: 24.99, originalPrice: 38.99, image: "\u{1F4B0}" },
-  { coins: 5100, price: 29.99, originalPrice: 50.99, image: "\u{1F3C6}", tag: "Popular" },
-  { coins: 8750, price: 49.99, originalPrice: 87.49, image: "\u{1F4E6}", tag: "Popular" },
-  { coins: 14400, price: 79.99, originalPrice: 144.99, image: "\u{1F9F1}" },
-  { coins: 18500, price: 99.99, originalPrice: 184.99, image: "\u{1F9F1}\u{1F9F1}", tag: "Hot" },
-  { coins: 57000, price: 299.99, originalPrice: 569.99, image: "\u{1F4E6}\u{1F4E6}" },
-];
 
-const bestOffers = [
-  { coins: 380, price: 1.99, originalPrice: 3.79, image: "\u{1F4B0}", tag: "Popular" },
-  { coins: 975, price: 4.99, originalPrice: 9.74, image: "\u{1F4B0}\u{1F4B0}", tag: "Hot" },
-  { coins: 2000, price: 9.99, originalPrice: 19.99, image: "\u{1F4B0}\u{1F4B0}\u{1F4B0}", tag: "Best Value" },
-];
+interface CoinPackageAPI {
+  id: number;
+  coins: number;
+  priceUsd: number;
+  originalPriceUsd: number | null;
+  discountPercent: number;
+  effectivePriceCents: number;
+  label: string | null;
+  sortOrder: number;
+}
 
-type CoinPackage = { coins: number; price: number; originalPrice: number; image: string; tag?: string };
+const EMOJI_MAP: Record<number, string> = {};
+function getPackageEmoji(coins: number): string {
+  if (coins >= 50000) return "\u{1F4E6}\u{1F4E6}";
+  if (coins >= 15000) return "\u{1F9F1}\u{1F9F1}";
+  if (coins >= 10000) return "\u{1F9F1}";
+  if (coins >= 5000) return "\u{1F4E6}";
+  if (coins >= 3000) return "\u{1F3C6}";
+  if (coins >= 1000) return "\u{1F4B0}\u{1F4B0}\u{1F4B0}";
+  if (coins >= 500) return "\u{1F4B0}\u{1F4B0}";
+  return "\u{1F4B0}";
+}
 
 export default function Coins() {
   const { user, login } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<CoinPackageAPI | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastPurchase, setLastPurchase] = useState<{ totalCoins: number; bonusCoins: number } | null>(null);
   const [verifyingSession, setVerifyingSession] = useState(false);
+
+  const { data: packages = [], isLoading: packagesLoading } = useQuery<CoinPackageAPI[]>({
+    queryKey: ['coin-packages'],
+    queryFn: async () => {
+      const res = await fetch('/api/coin-packages');
+      if (!res.ok) throw new Error("Failed to fetch packages");
+      return res.json();
+    },
+  });
 
   const { data: firstPurchaseData } = useQuery({
     queryKey: ['firstPurchase', user?.id],
@@ -101,14 +117,13 @@ export default function Coins() {
   }, [user?.id]);
 
   const checkoutMutation = useMutation({
-    mutationFn: async (pkg: CoinPackage) => {
+    mutationFn: async (pkg: CoinPackageAPI) => {
       const res = await fetch('/api/coins/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user!.id,
-          packageCoins: pkg.coins,
-          priceUsd: pkg.price,
+          packageId: pkg.id,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -127,7 +142,7 @@ export default function Coins() {
     },
   });
 
-  const handleBuy = (pkg: CoinPackage) => {
+  const handleBuy = (pkg: CoinPackageAPI) => {
     setSelectedPackage(pkg);
   };
 
@@ -138,32 +153,52 @@ export default function Coins() {
   };
 
   const bonusCoins = selectedPackage ? Math.floor(selectedPackage.coins * 0.5) : 0;
+  const effectivePrice = selectedPackage ? (selectedPackage.effectivePriceCents / 100).toFixed(2) : "0";
 
-  const renderPackageCard = (pkg: CoinPackage, tagColor: string = "bg-pink-500") => (
-    <div
-      onClick={() => handleBuy(pkg)}
-      className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl p-4 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer active:scale-95"
-      data-testid={`package-${pkg.coins}`}
-    >
-      {pkg.tag && (
-        <span className={`absolute -top-2 right-2 ${tagColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-full`}>
-          {pkg.tag}
-        </span>
-      )}
-      {isFirstPurchase && (
-        <span className="absolute -top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-          +50%
-        </span>
-      )}
-      <div className="flex items-center justify-center gap-1 mb-2">
-        <span className="text-yellow-500">{"\u{1F4B0}"}</span>
-        <span className="font-bold text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
+  const bestOffers = packages.slice(0, 3);
+  const mainPackages = packages.slice(3, 6);
+  const morePackages = packages.slice(6);
+
+  const renderPackageCard = (pkg: CoinPackageAPI, tagColor: string = "bg-pink-500") => {
+    const price = (pkg.effectivePriceCents / 100).toFixed(2);
+    const origPrice = pkg.originalPriceUsd ? (pkg.originalPriceUsd / 100).toFixed(2) : null;
+    const basePrice = pkg.discountPercent > 0 ? (pkg.priceUsd / 100).toFixed(2) : null;
+    const showStrikethrough = origPrice || basePrice;
+    const strikethroughPrice = origPrice || basePrice;
+
+    return (
+      <div
+        onClick={() => handleBuy(pkg)}
+        className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl p-4 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer active:scale-95"
+        data-testid={`package-${pkg.coins}`}
+      >
+        {pkg.label && (
+          <span className={`absolute -top-2 right-2 ${tagColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-full`}>
+            {pkg.label}
+          </span>
+        )}
+        {pkg.discountPercent > 0 && (
+          <span className="absolute -top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+            {pkg.discountPercent}% OFF
+          </span>
+        )}
+        {isFirstPurchase && pkg.discountPercent === 0 && (
+          <span className="absolute -top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+            +50%
+          </span>
+        )}
+        <div className="flex items-center justify-center gap-1 mb-2">
+          <span className="text-yellow-500">{"\u{1F4B0}"}</span>
+          <span className="font-bold text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
+        </div>
+        <div className="text-4xl mb-2">{getPackageEmoji(pkg.coins)}</div>
+        <div className="font-bold text-gray-900 dark:text-white">${price}</div>
+        {showStrikethrough && (
+          <div className="text-sm text-gray-400 line-through">${strikethroughPrice}</div>
+        )}
       </div>
-      <div className="text-4xl mb-2">{pkg.image}</div>
-      <div className="font-bold text-gray-900 dark:text-white">${pkg.price}</div>
-      <div className="text-sm text-gray-400 line-through">${pkg.originalPrice}</div>
-    </div>
-  );
+    );
+  };
 
   return (
     <GuestGate>
@@ -190,6 +225,12 @@ export default function Coins() {
           </div>
         )}
 
+        {packagesLoading ? (
+          <div className="p-6 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400 font-medium">Loading packages...</p>
+          </div>
+        ) : (
         <div className="p-4 space-y-8">
           {isFirstPurchase && (
             <section>
@@ -204,31 +245,37 @@ export default function Coins() {
             </section>
           )}
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offers</h2>
-            <div className="grid grid-cols-3 gap-3">
-              {coinPackages.slice(0, 3).map((pkg, i) => (
-                <div key={i}>{renderPackageCard(pkg)}</div>
-              ))}
-            </div>
-          </section>
+          {bestOffers.length > 0 && (
+            <section>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offers</h2>
+              <div className="grid grid-cols-3 gap-3">
+                {bestOffers.map((pkg) => (
+                  <div key={pkg.id}>{renderPackageCard(pkg)}</div>
+                ))}
+              </div>
+            </section>
+          )}
 
-          <section>
-            <div className="grid grid-cols-3 gap-3">
-              {coinPackages.slice(3).map((pkg, i) => (
-                <div key={i}>{renderPackageCard(pkg, "bg-orange-500")}</div>
-              ))}
-            </div>
-          </section>
+          {mainPackages.length > 0 && (
+            <section>
+              <div className="grid grid-cols-3 gap-3">
+                {mainPackages.map((pkg) => (
+                  <div key={pkg.id}>{renderPackageCard(pkg, "bg-orange-500")}</div>
+                ))}
+              </div>
+            </section>
+          )}
 
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offer For You</h2>
-            <div className="grid grid-cols-3 gap-3">
-              {bestOffers.map((pkg, i) => (
-                <div key={i}>{renderPackageCard(pkg, pkg.tag === 'Popular' ? 'bg-pink-500' : pkg.tag === 'Hot' ? 'bg-orange-500' : 'bg-blue-500')}</div>
-              ))}
-            </div>
-          </section>
+          {morePackages.length > 0 && (
+            <section>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offer For You</h2>
+              <div className="grid grid-cols-3 gap-3">
+                {morePackages.map((pkg) => (
+                  <div key={pkg.id}>{renderPackageCard(pkg, pkg.label === 'Popular' ? 'bg-pink-500' : pkg.label === 'Hot' ? 'bg-orange-500' : 'bg-blue-500')}</div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {!isFirstPurchase && (
             <section>
@@ -248,6 +295,7 @@ export default function Coins() {
             </div>
           </section>
         </div>
+        )}
       </div>
 
       {selectedPackage && (
@@ -256,7 +304,7 @@ export default function Coins() {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-4">Confirm Purchase</h3>
 
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-4 text-center">
-              <div className="text-5xl mb-3">{selectedPackage.image}</div>
+              <div className="text-5xl mb-3">{getPackageEmoji(selectedPackage.coins)}</div>
               <div className="flex items-center justify-center gap-2 mb-1">
                 <span className="text-yellow-500 text-lg">{"\u{1F4B0}"}</span>
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">{selectedPackage.coins.toLocaleString()}</span>
@@ -274,7 +322,12 @@ export default function Coins() {
 
             <div className="flex items-center justify-between mb-4 px-2">
               <span className="text-gray-500 dark:text-gray-400">Price</span>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">${selectedPackage.price}</span>
+              <div className="flex items-center gap-2">
+                {selectedPackage.discountPercent > 0 && (
+                  <span className="text-sm text-gray-400 line-through">${(selectedPackage.priceUsd / 100).toFixed(2)}</span>
+                )}
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">${effectivePrice}</span>
+              </div>
             </div>
 
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
@@ -300,7 +353,7 @@ export default function Coins() {
                 {checkoutMutation.isPending ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <>Pay ${selectedPackage.price}</>
+                  <>Pay ${effectivePrice}</>
                 )}
               </button>
             </div>

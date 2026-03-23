@@ -2869,30 +2869,40 @@ export async function registerRoutes(
     }
   });
 
-  // Valid coin packages (server-side source of truth)
-  const VALID_COIN_PACKAGES = [
-    { coins: 380, price: 1.99 },
-    { coins: 975, price: 4.99 },
-    { coins: 2000, price: 9.99 },
-    { coins: 3875, price: 24.99 },
-    { coins: 5100, price: 29.99 },
-    { coins: 8750, price: 49.99 },
-    { coins: 14400, price: 79.99 },
-    { coins: 18500, price: 99.99 },
-    { coins: 57000, price: 299.99 },
-  ];
+  function computeEffectivePrice(priceUsd: number, discountPercent: number): number {
+    if (discountPercent <= 0) return priceUsd;
+    return Math.floor(priceUsd * (100 - discountPercent) / 100);
+  }
 
-  // Stripe Checkout - create a checkout session for coin purchase
+  app.get("/api/coin-packages", async (_req, res) => {
+    try {
+      const packages = await storage.getActiveCoinPackages();
+      const result = packages.map(pkg => ({
+        id: pkg.id,
+        coins: pkg.coins,
+        priceUsd: pkg.priceUsd,
+        originalPriceUsd: pkg.originalPriceUsd,
+        discountPercent: pkg.discountPercent,
+        effectivePriceCents: computeEffectivePrice(pkg.priceUsd, pkg.discountPercent),
+        label: pkg.label,
+        sortOrder: pkg.sortOrder,
+      }));
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch coin packages" });
+    }
+  });
+
   app.post("/api/coins/checkout", async (req, res) => {
     try {
-      const { userId, packageCoins, priceUsd } = req.body;
+      const { userId, packageId } = req.body;
 
-      if (!userId || !packageCoins || !priceUsd) {
-        return res.status(400).json({ error: "userId, packageCoins, and priceUsd are required" });
+      if (!userId || !packageId) {
+        return res.status(400).json({ error: "userId and packageId are required" });
       }
 
-      const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === packageCoins && p.price === priceUsd);
-      if (!validPkg) {
+      const pkg = await storage.getCoinPackageById(packageId);
+      if (!pkg || !pkg.isActive) {
         return res.status(400).json({ error: "Invalid coin package" });
       }
 
@@ -2901,9 +2911,16 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
 
+      const effectivePriceCents = computeEffectivePrice(pkg.priceUsd, pkg.discountPercent);
+      if (effectivePriceCents < 50) {
+        return res.status(400).json({ error: "Package price too low" });
+      }
+
+      const effectivePriceUsd = effectivePriceCents / 100;
+
       const hasPurchased = await storage.hasUserPurchasedCoins(userId);
-      const bonusCoins = !hasPurchased ? Math.floor(validPkg.coins * 0.5) : 0;
-      const totalCoins = validPkg.coins + bonusCoins;
+      const bonusCoins = !hasPurchased ? Math.floor(pkg.coins * 0.5) : 0;
+      const totalCoins = pkg.coins + bonusCoins;
 
       const origin = `${req.protocol}://${req.get("host")}`;
 
@@ -2914,12 +2931,12 @@ export async function registerRoutes(
             price_data: {
               currency: "usd",
               product_data: {
-                name: `${validPkg.coins.toLocaleString()} Coins`,
+                name: `${pkg.coins.toLocaleString()} Coins`,
                 description: bonusCoins > 0
-                  ? `${validPkg.coins.toLocaleString()} coins + ${bonusCoins.toLocaleString()} first-purchase bonus = ${totalCoins.toLocaleString()} total`
-                  : `${validPkg.coins.toLocaleString()} coins for your IgnytLIVE account`,
+                  ? `${pkg.coins.toLocaleString()} coins + ${bonusCoins.toLocaleString()} first-purchase bonus = ${totalCoins.toLocaleString()} total`
+                  : `${pkg.coins.toLocaleString()} coins for your IgnytLIVE account`,
               },
-              unit_amount: Math.round(validPkg.price * 100),
+              unit_amount: effectivePriceCents,
             },
             quantity: 1,
           },
@@ -2929,8 +2946,9 @@ export async function registerRoutes(
         cancel_url: `${origin}/coins`,
         metadata: {
           userId,
-          packageCoins: String(validPkg.coins),
-          priceUsd: String(validPkg.price),
+          packageId: String(pkg.id),
+          packageCoins: String(pkg.coins),
+          priceUsd: String(effectivePriceUsd),
         },
       });
 
@@ -2973,17 +2991,16 @@ export async function registerRoutes(
       if (session.payment_status === "paid" && session.metadata) {
         const { userId, packageCoins, priceUsd } = session.metadata;
 
-        const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === parseInt(packageCoins) && p.price === parseFloat(priceUsd));
-        if (!validPkg) {
-          console.error("Webhook: invalid coin package in session metadata", session.metadata);
-          return res.status(400).json({ error: "Invalid package in metadata" });
+        if (!userId || !packageCoins || !priceUsd) {
+          console.error("Webhook: missing metadata fields", session.metadata);
+          return res.status(400).json({ error: "Invalid metadata" });
         }
 
         try {
           const result = await storage.purchaseCoins(
             userId,
-            validPkg.coins,
-            validPkg.price,
+            parseInt(packageCoins),
+            parseFloat(priceUsd),
             session.id
           );
           console.log(`Webhook: Coins credited: ${result.purchase.totalCoins} coins to user ${userId} (session ${session.id})`);
@@ -3016,9 +3033,8 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Unauthorized" });
       }
 
-      const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === parseInt(packageCoins) && p.price === parseFloat(priceUsd));
-      if (!validPkg) {
-        return res.status(400).json({ error: "Invalid coin package" });
+      if (!packageCoins || !priceUsd) {
+        return res.status(400).json({ error: "Invalid session metadata" });
       }
 
       const existingPurchase = await storage.findPurchaseByStripeSessionId(session.id);
@@ -3029,8 +3045,8 @@ export async function registerRoutes(
 
       const result = await storage.purchaseCoins(
         userId,
-        validPkg.coins,
-        validPkg.price,
+        parseInt(packageCoins),
+        parseFloat(priceUsd),
         session.id
       );
 
@@ -3047,32 +3063,6 @@ export async function registerRoutes(
     }
   });
 
-  // Legacy direct purchase endpoint (kept for testing)
-  app.post("/api/coins/purchase", async (req, res) => {
-    try {
-      const { userId, packageCoins, priceUsd } = req.body;
-
-      if (!userId || !packageCoins || !priceUsd) {
-        return res.status(400).json({ error: "userId, packageCoins, and priceUsd are required" });
-      }
-
-      const validPkg = VALID_COIN_PACKAGES.find(p => p.coins === packageCoins && p.price === priceUsd);
-      if (!validPkg) {
-        return res.status(400).json({ error: "Invalid coin package" });
-      }
-
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const result = await storage.purchaseCoins(userId, validPkg.coins, validPkg.price);
-
-      res.json(result);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to process purchase" });
-    }
-  });
 
   // Coin Purchase - history
   app.get("/api/coins/purchases/:userId", async (req, res) => {
@@ -4010,6 +4000,85 @@ export async function registerRoutes(
       res.json(safeUser);
     } catch (error) {
       res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  app.get("/api/admin/coin-packages", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const packages = await storage.getAllCoinPackages();
+      const result = packages.map(pkg => ({
+        ...pkg,
+        effectivePriceCents: computeEffectivePrice(pkg.priceUsd, pkg.discountPercent),
+      }));
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch coin packages" });
+    }
+  });
+
+  app.post("/api/admin/coin-packages", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const { coins, priceUsd, originalPriceUsd, discountPercent, label, sortOrder, isActive } = req.body;
+      if (!coins || !priceUsd) return res.status(400).json({ error: "coins and priceUsd are required" });
+      if (typeof coins !== "number" || coins <= 0) return res.status(400).json({ error: "coins must be a positive number" });
+      if (typeof priceUsd !== "number" || priceUsd <= 0) return res.status(400).json({ error: "priceUsd must be a positive number (in cents)" });
+      if (discountPercent !== undefined && (discountPercent < 0 || discountPercent > 99)) return res.status(400).json({ error: "discountPercent must be 0-99" });
+
+      const pkg = await storage.createCoinPackage({
+        coins,
+        priceUsd,
+        originalPriceUsd: originalPriceUsd || null,
+        discountPercent: discountPercent || 0,
+        label: label || null,
+        sortOrder: sortOrder || 0,
+        isActive: isActive !== false,
+      });
+      res.json(pkg);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create coin package" });
+    }
+  });
+
+  app.put("/api/admin/coin-packages/:id", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid package ID" });
+      const { coins, priceUsd, originalPriceUsd, discountPercent, label, sortOrder, isActive } = req.body;
+      if (coins !== undefined && (typeof coins !== "number" || coins <= 0)) return res.status(400).json({ error: "coins must be a positive number" });
+      if (priceUsd !== undefined && (typeof priceUsd !== "number" || priceUsd <= 0)) return res.status(400).json({ error: "priceUsd must be a positive number (in cents)" });
+      if (discountPercent !== undefined && (typeof discountPercent !== "number" || discountPercent < 0 || discountPercent > 99)) return res.status(400).json({ error: "discountPercent must be 0-99" });
+      if (sortOrder !== undefined && (typeof sortOrder !== "number" || sortOrder < 0)) return res.status(400).json({ error: "sortOrder must be a non-negative number" });
+      if (label !== undefined && label !== null && typeof label === "string" && label.length > 50) return res.status(400).json({ error: "label must be 50 characters or less" });
+
+      const updates: any = {};
+      if (coins !== undefined) updates.coins = coins;
+      if (priceUsd !== undefined) updates.priceUsd = priceUsd;
+      if (originalPriceUsd !== undefined) updates.originalPriceUsd = originalPriceUsd;
+      if (discountPercent !== undefined) updates.discountPercent = discountPercent;
+      if (label !== undefined) updates.label = label;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+      if (isActive !== undefined) updates.isActive = isActive;
+
+      const pkg = await storage.updateCoinPackage(id, updates);
+      if (!pkg) return res.status(404).json({ error: "Package not found" });
+      res.json(pkg);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update coin package" });
+    }
+  });
+
+  app.delete("/api/admin/coin-packages/:id", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid package ID" });
+      await storage.deleteCoinPackage(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete coin package" });
     }
   });
 

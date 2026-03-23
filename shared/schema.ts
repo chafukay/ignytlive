@@ -1207,5 +1207,25 @@ export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
 export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
 export type EventRsvp = typeof eventRsvps.$inferSelect;
 
+// Coin Packages table - admin-configurable coin pricing
+export const coinPackages = pgTable("coin_packages", {
+  id: serial("id").primaryKey(),
+  coins: integer("coins").notNull(),
+  priceUsd: integer("price_usd").notNull(),
+  originalPriceUsd: integer("original_price_usd"),
+  discountPercent: integer("discount_percent").notNull().default(0),
+  label: text("label"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCoinPackageSchema = createInsertSchema(coinPackages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCoinPackage = z.infer<typeof insertCoinPackageSchema>;
+export type CoinPackage = typeof coinPackages.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";

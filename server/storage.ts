@@ -39,6 +39,7 @@ import {
   userAchievements,
   profileVisits,
   coinPurchases,
+  coinPackages,
   userBlocks,
   userReports,
   userMutedCalls,
@@ -114,6 +115,8 @@ import {
   type InsertProfileVisit,
   type CoinPurchase,
   type InsertCoinPurchase,
+  type CoinPackage as CoinPackageType,
+  type InsertCoinPackage as InsertCoinPackageType,
   type Notification,
   type InsertNotification,
   type PushSubscription as PushSub,
@@ -323,6 +326,14 @@ export interface IStorage {
   getCoinPurchaseHistory(userId: string, limit?: number): Promise<CoinPurchase[]>;
   findPurchaseByStripeSessionId(stripeSessionId: string): Promise<CoinPurchase | null>;
   purchaseCoins(userId: string, packageCoins: number, priceUsd: number, stripeSessionId?: string): Promise<{ purchase: CoinPurchase; user: User; bonusApplied: boolean; bonusCoins: number }>;
+
+  // Coin Package operations
+  getAllCoinPackages(): Promise<CoinPackageType[]>;
+  getActiveCoinPackages(): Promise<CoinPackageType[]>;
+  getCoinPackageById(id: number): Promise<CoinPackageType | null>;
+  createCoinPackage(data: InsertCoinPackageType): Promise<CoinPackageType>;
+  updateCoinPackage(id: number, data: Partial<InsertCoinPackageType>): Promise<CoinPackageType | null>;
+  deleteCoinPackage(id: number): Promise<void>;
 
   // User Block operations
   blockUser(blockerId: string, blockedId: string): Promise<void>;
@@ -2370,6 +2381,35 @@ export class DatabaseStorage implements IStorage {
   async createAdminUser(user: InsertAdminUser): Promise<AdminUser> {
     const [admin] = await db.insert(adminUsers).values(user).returning();
     return admin;
+  }
+
+  async getAllCoinPackages(): Promise<CoinPackageType[]> {
+    return await db.select().from(coinPackages).orderBy(coinPackages.sortOrder);
+  }
+
+  async getActiveCoinPackages(): Promise<CoinPackageType[]> {
+    return await db.select().from(coinPackages)
+      .where(eq(coinPackages.isActive, true))
+      .orderBy(coinPackages.sortOrder);
+  }
+
+  async getCoinPackageById(id: number): Promise<CoinPackageType | null> {
+    const [pkg] = await db.select().from(coinPackages).where(eq(coinPackages.id, id));
+    return pkg || null;
+  }
+
+  async createCoinPackage(data: InsertCoinPackageType): Promise<CoinPackageType> {
+    const [pkg] = await db.insert(coinPackages).values(data).returning();
+    return pkg;
+  }
+
+  async updateCoinPackage(id: number, data: Partial<InsertCoinPackageType>): Promise<CoinPackageType | null> {
+    const [pkg] = await db.update(coinPackages).set(data).where(eq(coinPackages.id, id)).returning();
+    return pkg || null;
+  }
+
+  async deleteCoinPackage(id: number): Promise<void> {
+    await db.update(coinPackages).set({ isActive: false }).where(eq(coinPackages.id, id));
   }
 }
 
