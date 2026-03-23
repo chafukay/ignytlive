@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2 } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, MailCheck, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -278,6 +278,21 @@ export default function Profile() {
             <span className="bg-white/10 text-white/80 px-2 py-0.5 rounded-full text-xs flex items-center gap-1" data-testid="text-profile-views">
               <Eye className="w-3 h-3" /> {formatNumber(user.profileViews || 0)} views
             </span>
+            {!user.isGuest && (
+              user.emailVerified ? (
+                <span className="bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full text-xs flex items-center gap-1" data-testid="status-email-verified">
+                  <MailCheck className="w-3 h-3" /> Email Verified
+                </span>
+              ) : (
+                <span 
+                  className="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full text-xs flex items-center gap-1 cursor-pointer hover:bg-amber-500/30"
+                  onClick={() => setLocation("/verify-email")}
+                  data-testid="status-email-unverified"
+                >
+                  <AlertCircle className="w-3 h-3" /> Email Not Verified
+                </span>
+              )
+            )}
           </div>
           {user.bio && (
             <p className="text-white/90 text-sm text-center max-w-xs mb-4 px-4 py-1 bg-black/70 rounded-lg" data-testid="text-bio">

@@ -419,7 +419,7 @@ export async function registerRoutes(
         emailVerificationToken: verificationCode,
         emailVerificationExpiry: verificationExpiry,
       });
-      console.log(`[EMAIL VERIFICATION] Code for ${userData.email}: ${verificationCode}`);
+
       res.json({ user: toSafeUser(user) });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
@@ -431,13 +431,18 @@ export async function registerRoutes(
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ error: "User ID required" });
       
-      const sendKey = `email-send:${userId}`;
-      const rateCheck = checkLoginRateLimit(sendKey);
-      if (!rateCheck.allowed) {
-        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+      const clientIp = req.ip || "unknown";
+      const sendKeyIp = `email-send-ip:${clientIp}`;
+      const sendKeyUser = `email-send:${userId}`;
+      const ipCheck = checkLoginRateLimit(sendKeyIp);
+      const userCheck = checkLoginRateLimit(sendKeyUser);
+      if (!ipCheck.allowed || !userCheck.allowed) {
+        const retryMs = Math.max(ipCheck.retryAfterMs || 0, userCheck.retryAfterMs || 0);
+        const retryMinutes = Math.ceil(retryMs / 60000);
         return res.status(429).json({ error: `Too many requests. Try again in ${retryMinutes} minute(s).` });
       }
-      recordLoginFailure(sendKey);
+      recordLoginFailure(sendKeyIp);
+      recordLoginFailure(sendKeyUser);
       
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -452,7 +457,7 @@ export async function registerRoutes(
         emailVerificationExpiry: verificationExpiry,
       });
       
-      console.log(`[EMAIL VERIFICATION] Code for ${user.email}: ${verificationCode}`);
+
       
       res.json({ message: "Verification code sent to your email" });
     } catch (error) {
@@ -465,10 +470,14 @@ export async function registerRoutes(
       const { userId, code } = req.body;
       if (!userId || !code) return res.status(400).json({ error: "User ID and verification code required" });
       
-      const verifyKey = `email-verify:${userId}`;
-      const rateCheck = checkLoginRateLimit(verifyKey);
-      if (!rateCheck.allowed) {
-        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+      const clientIp = req.ip || "unknown";
+      const verifyKeyIp = `email-verify-ip:${clientIp}`;
+      const verifyKeyUser = `email-verify:${userId}`;
+      const ipCheck = checkLoginRateLimit(verifyKeyIp);
+      const userCheck = checkLoginRateLimit(verifyKeyUser);
+      if (!ipCheck.allowed || !userCheck.allowed) {
+        const retryMs = Math.max(ipCheck.retryAfterMs || 0, userCheck.retryAfterMs || 0);
+        const retryMinutes = Math.ceil(retryMs / 60000);
         return res.status(429).json({ error: `Too many verification attempts. Try again in ${retryMinutes} minute(s).` });
       }
       
@@ -477,7 +486,8 @@ export async function registerRoutes(
       if (user.emailVerified) return res.status(400).json({ error: "Email already verified" });
       
       if (!user.emailVerificationToken || user.emailVerificationToken !== code) {
-        recordLoginFailure(verifyKey);
+        recordLoginFailure(verifyKeyIp);
+        recordLoginFailure(verifyKeyUser);
         return res.status(400).json({ error: "Invalid verification code" });
       }
       
@@ -485,7 +495,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Verification code has expired. Please request a new one." });
       }
       
-      clearLoginFailures(verifyKey);
+      clearLoginFailures(verifyKeyIp);
+      clearLoginFailures(verifyKeyUser);
       const updated = await storage.updateUser(userId, {
         emailVerified: true,
         emailVerificationToken: null,
