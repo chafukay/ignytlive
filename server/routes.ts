@@ -70,6 +70,7 @@ function validateVerifyToken(token: string): { userId: string } | null {
   const [payloadB64, sig] = parts;
   const payload = Buffer.from(payloadB64, "base64url").toString();
   const expectedSig = crypto.createHmac("sha256", VERIFY_TOKEN_SECRET).update(payload).digest("hex");
+  if (sig.length !== expectedSig.length) return null;
   if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return null;
   try {
     const data = JSON.parse(payload);
