@@ -55,6 +55,31 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover",
 });
 
+const VERIFY_TOKEN_SECRET = crypto.randomBytes(32).toString("hex");
+const VERIFY_TOKEN_EXPIRY = 24 * 60 * 60 * 1000;
+
+function createVerifyToken(userId: string): string {
+  const payload = JSON.stringify({ userId, exp: Date.now() + VERIFY_TOKEN_EXPIRY });
+  const hmac = crypto.createHmac("sha256", VERIFY_TOKEN_SECRET).update(payload).digest("hex");
+  return Buffer.from(payload).toString("base64url") + "." + hmac;
+}
+
+function validateVerifyToken(token: string): { userId: string } | null {
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [payloadB64, sig] = parts;
+  const payload = Buffer.from(payloadB64, "base64url").toString();
+  const expectedSig = crypto.createHmac("sha256", VERIFY_TOKEN_SECRET).update(payload).digest("hex");
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return null;
+  try {
+    const data = JSON.parse(payload);
+    if (data.exp < Date.now()) return null;
+    return { userId: data.userId };
+  } catch {
+    return null;
+  }
+}
+
 // Rate limiter for login endpoints (brute force protection)
 const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();
 const LOGIN_RATE_LIMIT = { maxAttempts: 5, windowMs: 15 * 60 * 1000, lockoutMs: 15 * 60 * 1000 };
@@ -427,7 +452,8 @@ export async function registerRoutes(
         await sendVerificationEmail(userData.email, verificationCode, userData.username);
       }
 
-      res.json({ user: toSafeUser(user), emailServiceConfigured: isEmailServiceConfigured() });
+      const verifyToken = createVerifyToken(user.id);
+      res.json({ user: toSafeUser(user), emailServiceConfigured: isEmailServiceConfigured(), verifyToken });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
     }
@@ -435,8 +461,13 @@ export async function registerRoutes(
 
   app.post("/api/auth/send-email-verification", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) return res.status(400).json({ error: "User ID required" });
+      const { userId, verifyToken } = req.body;
+      if (!userId || !verifyToken) return res.status(400).json({ error: "User ID and verification token required" });
+      
+      const tokenData = validateVerifyToken(verifyToken);
+      if (!tokenData || tokenData.userId !== userId) {
+        return res.status(403).json({ error: "Invalid or expired verification session" });
+      }
       
       const clientIp = req.ip || "unknown";
       const sendKeyIp = `email-send-ip:${clientIp}`;
@@ -476,8 +507,13 @@ export async function registerRoutes(
 
   app.post("/api/auth/verify-email", async (req, res) => {
     try {
-      const { userId, code } = req.body;
-      if (!userId || !code) return res.status(400).json({ error: "User ID and verification code required" });
+      const { userId, code, verifyToken } = req.body;
+      if (!userId || !code || !verifyToken) return res.status(400).json({ error: "User ID, code, and verification token required" });
+      
+      const tokenData = validateVerifyToken(verifyToken);
+      if (!tokenData || tokenData.userId !== userId) {
+        return res.status(403).json({ error: "Invalid or expired verification session" });
+      }
       
       const clientIp = req.ip || "unknown";
       const verifyKeyIp = `email-verify-ip:${clientIp}`;
@@ -629,7 +665,11 @@ export async function registerRoutes(
       }
       
       clearLoginFailures(rateLimitKey);
-      res.json({ user: toSafeUser(user) });
+      const response: any = { user: toSafeUser(user) };
+      if (!user.emailVerified && !user.isGuest) {
+        response.verifyToken = createVerifyToken(user.id);
+      }
+      res.json(response);
     } catch (error) {
       res.status(500).json({ error: "Login failed" });
     }

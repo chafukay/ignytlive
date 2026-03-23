@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import PullToRefresh from "./pull-to-refresh";
+import EmailVerificationBanner from "./email-verification-banner";
 
 function NavBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -73,6 +74,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 md:pb-0 md:pl-20 overflow-hidden">
       <main className="h-screen w-full overflow-y-auto no-scrollbar">
+        <EmailVerificationBanner />
         <PullToRefresh>{children}</PullToRefresh>
       </main>
 

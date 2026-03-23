@@ -31,15 +31,24 @@ export default function VerifyEmail() {
     }
   }, [cooldown]);
 
+  const getVerifyToken = () => localStorage.getItem("verifyToken") || "";
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !code.trim()) return;
 
+    const verifyToken = getVerifyToken();
+    if (!verifyToken) {
+      toast({ title: "Session expired", description: "Please log in again to verify your email", variant: "destructive" });
+      return;
+    }
+
     setIsVerifying(true);
     try {
-      const result = await api.verifyEmail(user.id, code.trim());
+      const result = await api.verifyEmail(user.id, code.trim(), verifyToken);
       setUser(result.user);
       setVerified(true);
+      localStorage.removeItem("verifyToken");
       toast({ title: "Email verified successfully!" });
     } catch (error: any) {
       toast({ title: "Verification failed", description: error.message, variant: "destructive" });
@@ -51,9 +60,15 @@ export default function VerifyEmail() {
   const handleResend = async () => {
     if (!user || cooldown > 0) return;
 
+    const verifyToken = getVerifyToken();
+    if (!verifyToken) {
+      toast({ title: "Session expired", description: "Please log in again to verify your email", variant: "destructive" });
+      return;
+    }
+
     setIsResending(true);
     try {
-      await api.sendEmailVerification(user.id);
+      await api.sendEmailVerification(user.id, verifyToken);
       toast({ title: "Verification code sent", description: "Check your email for the new code" });
       setCooldown(60);
     } catch (error: any) {

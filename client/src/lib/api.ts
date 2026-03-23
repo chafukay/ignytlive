@@ -11,7 +11,7 @@ export const api = {
       body: JSON.stringify({ username, email, password, birthdate }),
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<{ user: User }>;
+    return res.json() as Promise<{ user: User; verifyToken?: string }>;
   },
 
   async login(username: string, password: string) {
@@ -21,7 +21,7 @@ export const api = {
       body: JSON.stringify({ username, password }),
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<{ user: User }>;
+    return res.json() as Promise<{ user: User; verifyToken?: string }>;
   },
 
   async sendPhoneCode(phone: string) {
@@ -44,11 +44,11 @@ export const api = {
     return res.json() as Promise<{ user: User }>;
   },
 
-  async sendEmailVerification(userId: string) {
+  async sendEmailVerification(userId: string, verifyToken: string) {
     const res = await fetch(`${API_BASE}/api/auth/send-email-verification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId, verifyToken }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -57,11 +57,11 @@ export const api = {
     return res.json() as Promise<{ message: string }>;
   },
 
-  async verifyEmail(userId: string, code: string) {
+  async verifyEmail(userId: string, code: string, verifyToken: string) {
     const res = await fetch(`${API_BASE}/api/auth/verify-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, code }),
+      body: JSON.stringify({ userId, code, verifyToken }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

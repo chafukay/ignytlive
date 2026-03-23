@@ -29,9 +29,12 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      const { user: loggedInUser } = await api.login(username, password);
-      login(loggedInUser);
-      toast({ title: `Welcome back, ${loggedInUser.username}!` });
+      const result = await api.login(username, password);
+      login(result.user);
+      if (result.verifyToken) {
+        localStorage.setItem("verifyToken", result.verifyToken);
+      }
+      toast({ title: `Welcome back, ${result.user.username}!` });
       setLocation("/");
     } catch (error) {
       toast({ title: "Invalid credentials", description: "Please check your username and password", variant: "destructive" });
