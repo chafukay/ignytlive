@@ -316,14 +316,6 @@ export default function Profile() {
               <div className="text-xs text-white/70">Sent</div>
             </div>
           </div>
-
-          <button
-            onClick={() => setLocation("/edit-profile")}
-            className="mt-4 bg-white/10 hover:bg-white/20 text-white font-medium px-8 py-2 rounded-full text-sm border border-white/20 transition-colors"
-            data-testid="button-edit-profile"
-          >
-            Edit Profile
-          </button>
           </div>
         </div>
 
@@ -446,6 +438,7 @@ export default function Profile() {
         {/* Menu Items - SuperLive Style */}
         <div className="space-y-1">
           {[
+            { icon: User, label: "Edit Profile", color: "text-blue-400", href: "/edit-profile" },
             { icon: Clapperboard, label: "My Posts", color: "text-pink-400", href: "/my-posts" },
             { icon: Star, label: "Families", color: "text-yellow-400", href: "/families" },
             { icon: Wallet, label: "Purchase Coins", color: "text-yellow-500", href: "/coins" },
