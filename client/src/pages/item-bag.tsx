@@ -7,17 +7,9 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useState } from "react";
 import type { UserItem, StoreItem } from "@shared/schema";
+import ItemPreview from "@/components/item-preview";
 
 type UserItemWithItem = UserItem & { item: StoreItem };
-
-const itemTypeIcons: Record<string, string> = {
-  frame: "🖼️",
-  entrance: "🚀",
-  badge: "🏅",
-  chat_bubble: "💬",
-  effect: "✨",
-  vehicle: "🚗",
-};
 
 function formatExpiration(expiresAt: Date | null): string {
   if (!expiresAt) return "Permanent";
@@ -145,13 +137,7 @@ export default function ItemBag() {
                 }`}
                 data-testid={`item-${userItem.id}`}
               >
-                <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center text-3xl">
-                  {userItem.item.imageUrl ? (
-                    <img src={userItem.item.imageUrl} alt={userItem.item.name} className="w-10 h-10 object-contain" />
-                  ) : (
-                    itemTypeIcons[userItem.item.type] || "📦"
-                  )}
-                </div>
+                <ItemPreview item={userItem.item} size="small" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-white font-bold">{userItem.item.name}</h3>
