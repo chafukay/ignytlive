@@ -27,15 +27,190 @@ const itemTypeLabels: Record<string, string> = {
 };
 
 const itemTypeIcons: Record<string, string> = {
-  frame: "🖼️",
-  entrance: "🚀",
-  badge: "🏅",
-  chat_bubble: "💬",
-  effect: "✨",
-  vehicle: "🚗",
+  frame: "\u{1F5BC}\u{FE0F}",
+  entrance: "\u{1F680}",
+  badge: "\u{1F3C5}",
+  chat_bubble: "\u{1F4AC}",
+  effect: "\u{2728}",
+  vehicle: "\u{1F697}",
 };
 
 const itemTypes = ["frame", "entrance", "badge", "chat_bubble", "effect", "vehicle"];
+
+const frameStyles: Record<string, { border: string; shadow: string; bg: string; inner: string }> = {
+  "Golden Frame": {
+    border: "border-[3px] border-yellow-400",
+    shadow: "shadow-[0_0_15px_rgba(250,204,21,0.5),inset_0_0_10px_rgba(250,204,21,0.2)]",
+    bg: "bg-gradient-to-br from-yellow-400/20 via-yellow-600/10 to-amber-500/20",
+    inner: "ring-2 ring-yellow-300/50",
+  },
+  "Silver Frame": {
+    border: "border-[3px] border-gray-300",
+    shadow: "shadow-[0_0_15px_rgba(209,213,219,0.4),inset_0_0_10px_rgba(209,213,219,0.15)]",
+    bg: "bg-gradient-to-br from-gray-300/20 via-gray-400/10 to-gray-200/20",
+    inner: "ring-2 ring-gray-200/50",
+  },
+  "Diamond Frame": {
+    border: "border-[3px] border-cyan-300",
+    shadow: "shadow-[0_0_20px_rgba(103,232,249,0.5),inset_0_0_12px_rgba(103,232,249,0.2)]",
+    bg: "bg-gradient-to-br from-cyan-300/20 via-blue-400/15 to-purple-400/20",
+    inner: "ring-2 ring-cyan-200/60",
+  },
+  "Neon Frame": {
+    border: "border-[3px] border-green-400",
+    shadow: "shadow-[0_0_20px_rgba(74,222,128,0.6),inset_0_0_12px_rgba(74,222,128,0.2)]",
+    bg: "bg-gradient-to-br from-green-400/20 via-emerald-500/10 to-teal-400/20",
+    inner: "ring-2 ring-green-300/50",
+  },
+  "Rose Frame": {
+    border: "border-[3px] border-pink-400",
+    shadow: "shadow-[0_0_18px_rgba(244,114,182,0.5),inset_0_0_10px_rgba(244,114,182,0.2)]",
+    bg: "bg-gradient-to-br from-pink-400/20 via-rose-500/10 to-red-400/20",
+    inner: "ring-2 ring-pink-300/50",
+  },
+  "Royal Frame": {
+    border: "border-[3px] border-purple-400",
+    shadow: "shadow-[0_0_20px_rgba(192,132,252,0.5),inset_0_0_12px_rgba(192,132,252,0.2)]",
+    bg: "bg-gradient-to-br from-purple-400/20 via-violet-500/10 to-indigo-400/20",
+    inner: "ring-2 ring-purple-300/50",
+  },
+  "Flame Frame": {
+    border: "border-[3px] border-orange-500",
+    shadow: "shadow-[0_0_20px_rgba(249,115,22,0.5),inset_0_0_12px_rgba(249,115,22,0.2)]",
+    bg: "bg-gradient-to-br from-orange-500/20 via-red-500/15 to-yellow-500/20",
+    inner: "ring-2 ring-orange-400/50",
+  },
+};
+
+const defaultFrameStyle = {
+  border: "border-[3px] border-blue-400",
+  shadow: "shadow-[0_0_15px_rgba(96,165,250,0.4)]",
+  bg: "bg-gradient-to-br from-blue-400/20 via-indigo-400/10 to-blue-500/20",
+  inner: "ring-2 ring-blue-300/40",
+};
+
+const entranceColors: Record<string, string> = {
+  "Fire Entrance": "from-orange-500 via-red-500 to-yellow-500",
+  "Lightning Entrance": "from-yellow-300 via-amber-400 to-yellow-500",
+  "Sparkle Entrance": "from-purple-400 via-pink-400 to-blue-400",
+  "Ice Entrance": "from-cyan-300 via-blue-300 to-teal-200",
+  "Galaxy Entrance": "from-indigo-600 via-purple-600 to-pink-600",
+};
+
+const badgeColors: Record<string, { bg: string; text: string; icon: string }> = {
+  "VIP Badge": { bg: "from-yellow-500 to-amber-600", text: "text-white", icon: "\u{1F451}" },
+  "Heart Badge": { bg: "from-pink-500 to-red-500", text: "text-white", icon: "\u{2764}\u{FE0F}" },
+  "Star Badge": { bg: "from-blue-500 to-indigo-600", text: "text-white", icon: "\u{2B50}" },
+  "Diamond Badge": { bg: "from-cyan-400 to-blue-500", text: "text-white", icon: "\u{1F48E}" },
+  "Flame Badge": { bg: "from-orange-500 to-red-600", text: "text-white", icon: "\u{1F525}" },
+};
+
+function ItemPreview({ item, size = "normal" }: { item: StoreItem; size?: "normal" | "small" }) {
+  const dim = size === "small" ? "w-16 h-16" : "w-full aspect-square";
+
+  if (item.type === "frame") {
+    const style = frameStyles[item.name] || defaultFrameStyle;
+    return (
+      <div className={`${dim} rounded-xl ${style.bg} flex items-center justify-center p-3`}>
+        <div className={`w-full h-full rounded-full ${style.border} ${style.shadow} ${style.inner} flex items-center justify-center overflow-hidden`}>
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <span className="text-white/60 text-xs">{"\u{1F464}"}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.type === "entrance") {
+    const gradient = entranceColors[item.name] || "from-blue-500 via-purple-500 to-pink-500";
+    return (
+      <div className={`${dim} rounded-xl bg-white/5 flex items-center justify-center overflow-hidden relative`}>
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-20`} />
+        <div className="relative flex flex-col items-center gap-1">
+          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
+            <span className="text-lg">{item.emoji || "\u{1F680}"}</span>
+          </div>
+          <div className={`h-1 w-16 rounded-full bg-gradient-to-r ${gradient} opacity-60`} />
+          <div className="flex gap-1">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className={`w-1 h-1 rounded-full bg-gradient-to-r ${gradient} opacity-${60 - i * 10}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.type === "badge") {
+    const badge = badgeColors[item.name] || { bg: "from-gray-500 to-gray-600", text: "text-white", icon: "\u{1F3C5}" };
+    return (
+      <div className={`${dim} rounded-xl bg-white/5 flex items-center justify-center`}>
+        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${badge.bg} flex items-center justify-center shadow-lg transform rotate-3`}>
+          <span className="text-2xl">{badge.icon}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.type === "chat_bubble") {
+    const isRoyal = item.name.includes("Royal");
+    const bgColor = isRoyal ? "from-purple-500/30 to-indigo-500/30 border-purple-400/50" : "from-cyan-500/30 to-blue-500/30 border-cyan-400/50";
+    return (
+      <div className={`${dim} rounded-xl bg-white/5 flex items-center justify-center`}>
+        <div className={`relative bg-gradient-to-br ${bgColor} border rounded-2xl rounded-bl-sm px-3 py-2 max-w-[90%]`}>
+          <span className="text-white text-xs font-medium">Hello!</span>
+          <div className={`absolute -bottom-1 -left-0.5 w-3 h-3 bg-gradient-to-br ${bgColor} border-b border-l rounded-bl-lg ${isRoyal ? 'border-purple-400/50' : 'border-cyan-400/50'}`} />
+        </div>
+      </div>
+    );
+  }
+
+  if (item.type === "effect") {
+    const isGalaxy = item.name.includes("Galaxy");
+    return (
+      <div className={`${dim} rounded-xl bg-white/5 flex items-center justify-center overflow-hidden relative`}>
+        {isGalaxy ? (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/50 via-purple-900/50 to-black/50" />
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="absolute w-1 h-1 bg-white rounded-full animate-pulse" style={{
+                top: `${15 + Math.random() * 70}%`,
+                left: `${15 + Math.random() * 70}%`,
+                animationDelay: `${i * 0.3}s`,
+              }} />
+            ))}
+            <span className="text-3xl relative z-10">{"\u{1F30C}"}</span>
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 via-green-500/10 to-blue-500/10" />
+            <span className="text-3xl relative z-10">{"\u{1F308}"}</span>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (item.type === "vehicle") {
+    const isCar = item.name.includes("Car");
+    return (
+      <div className={`${dim} rounded-xl bg-white/5 flex items-center justify-center overflow-hidden relative`}>
+        <div className={`absolute inset-0 bg-gradient-to-t ${isCar ? 'from-red-500/10 to-transparent' : 'from-blue-500/10 to-transparent'}`} />
+        <span className="text-4xl relative z-10">{isCar ? "\u{1F3CE}\u{FE0F}" : "\u{1F680}"}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${dim} rounded-xl bg-white/10 flex items-center justify-center text-4xl`}>
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-contain" />
+      ) : (
+        item.emoji || itemTypeIcons[item.type] || "\u{1F4E6}"
+      )}
+    </div>
+  );
+}
 
 export default function Store() {
   const [, setLocation] = useLocation();
@@ -236,9 +411,7 @@ export default function Store() {
           {confirmItem && (
             <div className="py-4">
               <div className="flex items-center gap-4 bg-white/5 rounded-xl p-4">
-                <div className="w-16 h-16 rounded-xl bg-white/10 flex items-center justify-center text-3xl">
-                  {itemTypeIcons[confirmItem.type] || "📦"}
-                </div>
+                <ItemPreview item={confirmItem} size="small" />
                 <div className="flex-1">
                   <h3 className="text-white font-bold">{confirmItem.name}</h3>
                   <p className="text-white/50 text-sm">{confirmItem.description}</p>
@@ -328,12 +501,8 @@ function ItemCard({
         )}
       </div>
       
-      <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center text-4xl mb-3">
-        {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-contain" />
-        ) : (
-          itemTypeIcons[item.type] || "📦"
-        )}
+      <div className="mb-3">
+        <ItemPreview item={item} />
       </div>
       
       <h3 className="text-white font-bold text-sm truncate">{item.name}</h3>
