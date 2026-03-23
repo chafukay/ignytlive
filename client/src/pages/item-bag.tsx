@@ -69,9 +69,14 @@ export default function ItemBag() {
     }
   };
 
-  const validItems = items.filter(item => {
+  const activeItems = items.filter(item => {
     if (!item.expiresAt) return true;
     return new Date(item.expiresAt) > new Date();
+  });
+
+  const expiredItems = items.filter(item => {
+    if (!item.expiresAt) return false;
+    return new Date(item.expiresAt) <= new Date();
   });
 
   return (
@@ -89,7 +94,7 @@ export default function ItemBag() {
           <div className="flex items-center gap-3">
             <Package className="w-8 h-8 text-orange-400" />
             <div>
-              <p className="text-white font-bold" data-testid="item-count">{validItems.length} Items</p>
+              <p className="text-white font-bold" data-testid="item-count">{activeItems.length} Items{expiredItems.length > 0 ? ` · ${expiredItems.length} Expired` : ''}</p>
               <p className="text-white/50 text-sm">Frames, badges, effects & more</p>
             </div>
             <button 
@@ -112,7 +117,7 @@ export default function ItemBag() {
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-white/50" />
           </div>
-        ) : validItems.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-white/20 mx-auto mb-4" />
             <p className="text-white/50">No items yet</p>
@@ -127,7 +132,7 @@ export default function ItemBag() {
           </div>
         ) : (
           <div className="space-y-3">
-            {validItems.map((userItem) => (
+            {activeItems.map((userItem) => (
               <div 
                 key={userItem.id}
                 className={`flex items-center gap-4 rounded-2xl p-4 border ${
@@ -166,6 +171,44 @@ export default function ItemBag() {
                 </button>
               </div>
             ))}
+
+            {expiredItems.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 pt-4 pb-1">
+                  <div className="h-px flex-1 bg-white/10" />
+                  <span className="text-white/40 text-xs font-medium">Expired Items</span>
+                  <div className="h-px flex-1 bg-white/10" />
+                </div>
+                {expiredItems.map((userItem) => (
+                  <div 
+                    key={userItem.id}
+                    className="flex items-center gap-4 rounded-2xl p-4 border border-white/5 bg-white/[0.02] opacity-60"
+                    data-testid={`item-expired-${userItem.id}`}
+                  >
+                    <ItemPreview item={userItem.item} size="small" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-white/70 font-bold">{userItem.item.name}</h3>
+                        <span className="bg-orange-500/20 text-orange-400 text-xs px-2 py-0.5 rounded-full">
+                          Expired
+                        </span>
+                      </div>
+                      <p className="text-white/30 text-sm capitalize">{userItem.item.type.replace("_", " ")}</p>
+                      <p className="text-xs text-red-400">
+                        Expired {formatExpiration(userItem.expiresAt)} ago
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setLocation("/store")}
+                      className="text-sm font-bold px-4 py-2 rounded-xl bg-orange-500/20 text-orange-400"
+                      data-testid={`renew-button-${userItem.id}`}
+                    >
+                      Renew
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>

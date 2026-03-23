@@ -47,7 +47,16 @@ export default function Store() {
     enabled: !!user,
   });
 
-  const ownedItemIds = new Set(userItems.map((ui: any) => ui.itemId));
+  const ownedItemIds = new Set(
+    userItems
+      .filter((ui: any) => !ui.expiresAt || new Date(ui.expiresAt) > new Date())
+      .map((ui: any) => ui.itemId)
+  );
+  const expiredItemIds = new Set(
+    userItems
+      .filter((ui: any) => ui.expiresAt && new Date(ui.expiresAt) <= new Date())
+      .map((ui: any) => ui.itemId)
+  );
 
   const purchaseMutation = useMutation({
     mutationFn: ({ userId, itemId }: { userId: string; itemId: string }) => 
@@ -162,6 +171,7 @@ export default function Store() {
                   purchaseSuccess={purchaseSuccess === item.id}
                   userCoins={user?.coins || 0}
                   isOwned={ownedItemIds.has(item.id)}
+                  isExpired={expiredItemIds.has(item.id)}
                 />
               ))}
             </div>
@@ -196,6 +206,7 @@ export default function Store() {
                             purchaseSuccess={purchaseSuccess === item.id}
                             userCoins={user?.coins || 0}
                             isOwned={ownedItemIds.has(item.id)}
+                            isExpired={expiredItemIds.has(item.id)}
                           />
                         </div>
                       ))}
@@ -288,7 +299,8 @@ function ItemCard({
   isPurchasing,
   purchaseSuccess,
   userCoins,
-  isOwned
+  isOwned,
+  isExpired = false
 }: { 
   item: StoreItem; 
   onPurchase: (item: StoreItem) => void;
@@ -296,13 +308,14 @@ function ItemCard({
   purchaseSuccess: boolean;
   userCoins: number;
   isOwned: boolean;
+  isExpired?: boolean;
 }) {
   const canAfford = userCoins >= item.coinCost;
   
   return (
     <div 
       className={`bg-white/5 rounded-2xl p-3 border h-full flex flex-col ${
-        isOwned ? 'border-green-500/50 bg-green-500/5' : item.isFeatured ? 'border-primary/50' : 'border-white/10'
+        isOwned ? 'border-green-500/50 bg-green-500/5' : isExpired ? 'border-orange-500/50 bg-orange-500/5' : item.isFeatured ? 'border-primary/50' : 'border-white/10'
       }`}
       data-testid={`store-item-${item.id}`}
     >
@@ -310,6 +323,10 @@ function ItemCard({
         {isOwned ? (
           <div className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full inline-block">
             Owned
+          </div>
+        ) : isExpired ? (
+          <div className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full inline-block">
+            Expired
           </div>
         ) : item.isFeatured && (
           <div className="bg-primary text-white text-xs px-2 py-0.5 rounded-full inline-block">
@@ -349,7 +366,7 @@ function ItemCard({
               purchaseSuccess
                 ? 'bg-green-500 text-white'
                 : canAfford
-                  ? 'bg-primary text-white'
+                  ? isExpired ? 'bg-orange-500 text-white' : 'bg-primary text-white'
                   : 'bg-white/10 text-white/30'
             }`}
             data-testid={`buy-button-${item.id}`}
@@ -358,6 +375,8 @@ function ItemCard({
               <Check className="w-4 h-4" />
             ) : isPurchasing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isExpired ? (
+              'Renew'
             ) : (
               'Buy'
             )}
