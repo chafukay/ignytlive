@@ -9,6 +9,18 @@ export const itemTypeIcons: Record<string, string> = {
   vehicle: "\u{1F697}",
 };
 
+export const frameRingColors: Record<string, { gradient: string; shadow: string }> = {
+  "Golden Frame": { gradient: "from-yellow-400 via-amber-500 to-yellow-400", shadow: "shadow-[0_0_15px_rgba(250,204,21,0.5)]" },
+  "Silver Frame": { gradient: "from-gray-300 via-gray-400 to-gray-300", shadow: "shadow-[0_0_12px_rgba(209,213,219,0.4)]" },
+  "Diamond Frame": { gradient: "from-cyan-300 via-blue-400 to-purple-400", shadow: "shadow-[0_0_18px_rgba(103,232,249,0.5)]" },
+  "Neon Frame": { gradient: "from-green-400 via-emerald-500 to-teal-400", shadow: "shadow-[0_0_18px_rgba(74,222,128,0.6)]" },
+  "Rose Frame": { gradient: "from-pink-400 via-rose-500 to-red-400", shadow: "shadow-[0_0_15px_rgba(244,114,182,0.5)]" },
+  "Royal Frame": { gradient: "from-purple-400 via-violet-500 to-indigo-400", shadow: "shadow-[0_0_18px_rgba(192,132,252,0.5)]" },
+  "Flame Frame": { gradient: "from-orange-500 via-red-500 to-yellow-500", shadow: "shadow-[0_0_18px_rgba(249,115,22,0.5)]" },
+};
+
+export const defaultFrameRing = { gradient: "from-blue-400 via-indigo-400 to-blue-500", shadow: "shadow-[0_0_12px_rgba(96,165,250,0.4)]" };
+
 const frameStyles: Record<string, { border: string; shadow: string; bg: string; inner: string }> = {
   "Golden Frame": {
     border: "border-[3px] border-yellow-400",
@@ -69,7 +81,7 @@ const entranceColors: Record<string, string> = {
   "Galaxy Entrance": "from-indigo-600 via-purple-600 to-pink-600",
 };
 
-const badgeColors: Record<string, { bg: string; text: string; icon: string }> = {
+export const badgeColors: Record<string, { bg: string; text: string; icon: string }> = {
   "VIP Badge": { bg: "from-yellow-500 to-amber-600", text: "text-white", icon: "\u{1F451}" },
   "Heart Badge": { bg: "from-pink-500 to-red-500", text: "text-white", icon: "\u{2764}\u{FE0F}" },
   "Star Badge": { bg: "from-blue-500 to-indigo-600", text: "text-white", icon: "\u{2B50}" },

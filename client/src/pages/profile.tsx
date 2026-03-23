@@ -8,6 +8,7 @@ import { api, UserItemWithItem } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import BadgesDisplay from "@/components/badges-display";
 import UserAvatar from "@/components/user-avatar";
+import { frameRingColors, defaultFrameRing, badgeColors } from "@/components/item-preview";
 import { useState, useRef } from "react";
 import { getWealthLevel } from "@shared/wealth-utils";
 
@@ -198,11 +199,14 @@ export default function Profile() {
           <div className="relative z-10 flex flex-col items-center">
           <div className="relative mb-3">
             <div className="relative">
-              {equippedFrame && (
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 p-0.5 animate-pulse z-0">
-                  <div className="w-full h-full rounded-full bg-background" />
-                </div>
-              )}
+              {equippedFrame && (() => {
+                const ring = frameRingColors[equippedFrame.item.name] || defaultFrameRing;
+                return (
+                  <div className={`absolute -inset-2 rounded-full bg-gradient-to-br ${ring.gradient} ${ring.shadow} p-0.5 z-0`}>
+                    <div className="w-full h-full rounded-full bg-background" />
+                  </div>
+                );
+              })()}
               {equippedEffect && (
                 <div className="absolute -inset-4 flex items-center justify-center z-0">
                   <Sparkles className="w-8 h-8 text-yellow-400 absolute -top-2 -right-2 animate-pulse" />
@@ -240,11 +244,14 @@ export default function Profile() {
                 {user.verificationBadge || 'Verified'}
               </span>
             )}
-            {equippedBadge && (
-              <span className="bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {equippedBadge.item.emoji} {equippedBadge.item.name}
-              </span>
-            )}
+            {equippedBadge && (() => {
+              const badge = badgeColors[equippedBadge.item.name] || { bg: "from-pink-500 to-purple-500", icon: equippedBadge.item.emoji || "\u{1F3C5}" };
+              return (
+                <span className={`bg-gradient-to-r ${badge.bg} text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1`}>
+                  {badge.icon} {equippedBadge.item.name}
+                </span>
+              );
+            })()}
             <BadgesDisplay userId={user.id} size="md" />
           </div>
           <div className="flex items-center flex-wrap justify-center gap-2 text-sm text-white/90 mb-2 bg-black/60 rounded-lg px-3 py-1.5">
