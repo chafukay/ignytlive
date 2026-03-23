@@ -3,7 +3,7 @@ import { GuestGate } from "@/components/guest-gate";
 import { ChevronRight, Camera, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -18,6 +18,29 @@ export default function EditProfile() {
   const [birthdate, setBirthdate] = useState(
     user?.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : ""
   );
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Max size is 2MB", variant: "destructive" });
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setAvatarPreview(dataUrl);
+      setPendingAvatar(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const updateMutation = useMutation({
     mutationFn: (data: { username?: string; bio?: string; gender?: string; birthdate?: Date }) => 
@@ -44,6 +67,7 @@ export default function EditProfile() {
     if (birthdate && birthdate !== (user?.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : "")) {
       updates.birthdate = new Date(birthdate);
     }
+    if (pendingAvatar) updates.avatar = pendingAvatar;
     
     if (Object.keys(updates).length === 0) {
       toast({ title: "No changes to save" });
@@ -65,17 +89,25 @@ export default function EditProfile() {
         </div>
 
         <div className="flex flex-col items-center mb-8">
-          <div className="relative">
+          <div className="relative cursor-pointer" onClick={() => fileInputRef.current?.click()} data-testid="avatar-upload">
             <img 
-              src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`}
+              src={avatarPreview || user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`}
               className="w-24 h-24 rounded-full object-cover border-4 border-primary/30"
               alt="Profile"
             />
-            <button className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+            <div className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <Camera className="w-4 h-4 text-white" />
-            </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+              data-testid="avatar-file-input"
+            />
           </div>
-          <p className="text-primary text-sm mt-2">Change Photo</p>
+          <p className="text-primary text-sm mt-2 cursor-pointer" onClick={() => fileInputRef.current?.click()}>Change Photo</p>
         </div>
 
         <div className="space-y-4">
