@@ -342,9 +342,8 @@ export default function Shorts() {
                                 {REACTION_EMOJIS.map((emoji) => (
                                   <button
                                     key={emoji}
-                                    disabled={reactMutation.isPending}
                                     onClick={() => { if (isGuest) { requireAccount(); return; } user && reactMutation.mutate({ commentId: comment.id, reaction: emoji }); }}
-                                    className="hover:scale-125 transition-transform text-lg disabled:opacity-50"
+                                    className="hover:scale-125 transition-transform text-lg"
                                   >
                                     {emoji}
                                   </button>
@@ -410,9 +409,8 @@ export default function Shorts() {
                                               {REACTION_EMOJIS.map((emoji) => (
                                                 <button
                                                   key={emoji}
-                                                  disabled={reactMutation.isPending}
                                                   onClick={() => { if (isGuest) { requireAccount(); return; } user && reactMutation.mutate({ commentId: reply.id, reaction: emoji }); }}
-                                                  className="hover:scale-125 transition-transform text-lg disabled:opacity-50"
+                                                  className="hover:scale-125 transition-transform text-lg"
                                                 >
                                                   {emoji}
                                                 </button>
