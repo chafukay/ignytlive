@@ -1495,10 +1495,11 @@ export async function registerRoutes(
       if (await checkGuestRestriction(shortData.userId, res, storage)) return;
       
       if (shortData.description) {
-        const descResult = await filterContent(shortData.description);
+        const originalCaption = shortData.description;
+        const descResult = await filterContent(originalCaption);
         if (descResult.wasFiltered) {
           shortData.description = descResult.filtered;
-          logFlaggedContent(shortData.userId, "short_caption", shortData.description, descResult.filtered, descResult.matchedWords);
+          logFlaggedContent(shortData.userId, "short_caption", originalCaption, descResult.filtered, descResult.matchedWords);
         }
       }
 
