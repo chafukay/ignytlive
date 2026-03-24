@@ -687,16 +687,20 @@ export async function registerRoutes(
         return res.status(400).json({ error: "User ID is required" });
       }
 
-      const deleteKey = `delete:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
-      const rateCheck = checkLoginRateLimit(deleteKey);
-      if (!rateCheck.allowed) {
-        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+      const deleteKeyIp = `delete:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
+      const deleteKeyUser = `delete-user:${userId}`;
+      const ipCheck = checkLoginRateLimit(deleteKeyIp);
+      const userCheck = checkLoginRateLimit(deleteKeyUser);
+      if (!ipCheck.allowed || !userCheck.allowed) {
+        const retryMs = Math.max(ipCheck.retryAfterMs || 0, userCheck.retryAfterMs || 0);
+        const retryMinutes = Math.ceil(retryMs / 60000);
         return res.status(429).json({ error: `Too many attempts. Please try again in ${retryMinutes} minute(s).` });
       }
 
       const user = await storage.getUser(userId);
       if (!user) {
-        recordLoginFailure(deleteKey);
+        recordLoginFailure(deleteKeyIp);
+        recordLoginFailure(deleteKeyUser);
         return res.status(404).json({ error: "User not found" });
       }
       if (user.isDeleted) {
@@ -711,7 +715,8 @@ export async function registerRoutes(
       }
       const passwordValid = await bcrypt.compare(password, user.password);
       if (!passwordValid) {
-        recordLoginFailure(deleteKey);
+        recordLoginFailure(deleteKeyIp);
+        recordLoginFailure(deleteKeyUser);
         return res.status(401).json({ error: "Incorrect password" });
       }
 
