@@ -135,6 +135,19 @@ export const api = {
     return res.json() as Promise<User[]>;
   },
 
+  async deleteAccount(userId: string, password: string) {
+    const res = await fetch(`${API_BASE}/api/auth/delete-account`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Failed to delete account" }));
+      throw new Error(data.error || "Failed to delete account");
+    }
+    return res.json();
+  },
+
   async updateUser(userId: string, updates: Partial<User>) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/profile`, {
       method: "PATCH",

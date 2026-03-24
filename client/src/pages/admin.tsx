@@ -315,6 +315,7 @@ export default function AdminDashboard() {
                       <th className="px-4 py-3 text-zinc-400 font-medium">Diamonds</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Followers</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Email</th>
+                      <th className="px-4 py-3 text-zinc-400 font-medium">Status</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Joined</th>
                       <th className="px-4 py-3 text-zinc-400 font-medium">Actions</th>
                     </tr>
@@ -350,6 +351,13 @@ export default function AdminDashboard() {
                             <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-xs">Verified</span>
                           ) : (
                             <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs">Unverified</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {(u as any).isDeleted ? (
+                            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs" title={(u as any).deletedAt ? `Deleted ${new Date((u as any).deletedAt).toLocaleDateString()}` : ''}>Deleted</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-xs">Active</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-zinc-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>

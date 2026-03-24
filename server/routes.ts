@@ -659,6 +659,9 @@ export async function registerRoutes(
         recordLoginFailure(rateLimitKey);
         return res.status(401).json({ error: "Invalid credentials" });
       }
+      if (user.isDeleted) {
+        return res.status(403).json({ error: "This account has been deleted" });
+      }
       const passwordValid = await bcrypt.compare(password, user.password);
       if (!passwordValid) {
         recordLoginFailure(rateLimitKey);
@@ -673,6 +676,96 @@ export async function registerRoutes(
       res.json(response);
     } catch (error) {
       res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Account deletion endpoint
+  app.delete("/api/auth/delete-account", async (req, res) => {
+    try {
+      const { userId, password } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const deleteKey = `delete:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
+      const rateCheck = checkLoginRateLimit(deleteKey);
+      if (!rateCheck.allowed) {
+        const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many attempts. Please try again in ${retryMinutes} minute(s).` });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        recordLoginFailure(deleteKey);
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (user.isDeleted) {
+        return res.status(400).json({ error: "Account is already deleted" });
+      }
+      if (user.isGuest) {
+        return res.status(400).json({ error: "Guest accounts cannot be deleted" });
+      }
+
+      const isSocialOrPhoneOnly = user.socialProvider || (user.phone && user.phoneVerified);
+      if (isSocialOrPhoneOnly && !password) {
+        // Social/phone accounts can delete without password verification
+      } else {
+        if (!password) {
+          return res.status(400).json({ error: "Password is required" });
+        }
+        const passwordValid = await bcrypt.compare(password, user.password);
+        if (!passwordValid) {
+          recordLoginFailure(deleteKey);
+          return res.status(401).json({ error: "Incorrect password" });
+        }
+      }
+
+      const deletedUsername = `deleted_${user.id.slice(0, 8)}`;
+      const deletedEmail = `deleted_${user.id}@deleted.ignyt.live`;
+
+      await storage.updateUser(userId, {
+        isDeleted: true,
+        deletedAt: new Date(),
+        username: deletedUsername,
+        email: deletedEmail,
+        avatar: null,
+        bio: null,
+        profileBanner: null,
+        phone: null,
+        phoneVerified: false,
+        isLive: false,
+        availableForPrivateCall: false,
+        dndEnabled: true,
+        latitude: null,
+        longitude: null,
+        city: null,
+        state: null,
+        country: null,
+        socialProvider: null,
+        socialProviderId: null,
+        privacySettings: null,
+        notificationSettings: null,
+        emailVerificationToken: null,
+        emailVerificationExpiry: null,
+      });
+
+      try {
+        const userFollowers = await storage.getFollowers(userId);
+        for (const follower of userFollowers) {
+          await storage.deleteFollow(follower.id, userId);
+        }
+        const userFollowing = await storage.getFollowing(userId);
+        for (const followed of userFollowing) {
+          await storage.deleteFollow(userId, followed.id);
+        }
+      } catch (e) {
+        console.error("[Delete] Failed to clean follows:", e);
+      }
+
+      res.json({ success: true, message: "Account has been deleted" });
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      res.status(500).json({ error: "Failed to delete account" });
     }
   });
 
@@ -755,6 +848,10 @@ export async function registerRoutes(
 
       // Check if user exists with this phone
       let user = await storage.getUserByPhone(phone);
+      
+      if (user?.isDeleted) {
+        return res.status(403).json({ error: "This account has been deleted" });
+      }
       
       if (!user) {
         // Age gating for new users

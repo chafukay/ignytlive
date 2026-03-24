@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check, Globe } from "lucide-react";
+import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check, Globe, Trash2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useState, useEffect, type ReactNode } from "react";
@@ -57,6 +57,9 @@ export default function Settings() {
   const [billingMode, setBillingMode] = useState(user?.privateCallBillingMode || "per_minute");
   const [sessionPrice, setSessionPrice] = useState(user?.privateCallSessionPrice || 500);
   const [showCallSettings, setShowCallSettings] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -120,6 +123,21 @@ export default function Settings() {
     },
   });
 
+  const deleteAccountMutation = useMutation({
+    mutationFn: () => api.deleteAccount(user!.id, deletePassword),
+    onSuccess: () => {
+      toast({ title: "Account deleted", description: "Your account has been permanently deleted" });
+      setShowDeleteDialog(false);
+      localStorage.removeItem("user");
+      localStorage.removeItem("verifyToken");
+      setUser(null as any);
+      setLocation("/");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Deletion failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleNotificationToggle = async () => {
     const enabling = !notificationSettings.pushEnabled;
     const newSettings = { ...notificationSettings, pushEnabled: enabling };
@@ -136,6 +154,7 @@ export default function Settings() {
     }
   };
 
+  const isSocialOrPhoneAccount = !!(user?.socialProvider || (user?.phone && user?.phoneVerified));
   const currentLanguage = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0];
 
   const settingsItems: Array<{
@@ -309,8 +328,90 @@ export default function Settings() {
             </div>
           )}
 
+          <div className="mt-8 border-t border-border pt-4">
+            <div
+              onClick={() => setShowDeleteDialog(true)}
+              className="flex items-center gap-4 p-4 hover:bg-red-500/10 cursor-pointer transition-colors rounded-lg"
+              data-testid="button-delete-account"
+            >
+              <Trash2 className="w-5 h-5 text-red-500" />
+              <span className="flex-1 text-red-500 font-medium">Delete Account</span>
+              <ChevronRight className="w-5 h-5 text-red-500/50" />
+            </div>
+          </div>
+
         </div>
       </div>
+
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Delete Account</h2>
+                <p className="text-sm text-muted-foreground">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-sm text-red-400">
+              Deleting your account will permanently remove your profile, followers, and all associated data. This cannot be reversed.
+            </div>
+
+            <div className="space-y-3">
+              {!isSocialOrPhoneAccount && (
+                <div>
+                  <label className="text-sm text-muted-foreground block mb-1">Enter your password to confirm</label>
+                  <Input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Your password"
+                    className="bg-background border-border text-foreground"
+                    data-testid="input-delete-password"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">Type "DELETE" to confirm</label>
+                <Input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="bg-background border-border text-foreground"
+                  data-testid="input-delete-confirm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeletePassword("");
+                  setDeleteConfirmText("");
+                }}
+                data-testid="button-cancel-delete"
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                disabled={deleteConfirmText !== "DELETE" || (!isSocialOrPhoneAccount && !deletePassword) || deleteAccountMutation.isPending}
+                onClick={() => deleteAccountMutation.mutate()}
+                data-testid="button-confirm-delete"
+              >
+                {deleteAccountMutation.isPending ? "Deleting..." : "Delete Account"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showLanguageModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center">
