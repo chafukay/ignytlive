@@ -35,7 +35,7 @@ interface NotificationSettings {
 }
 
 export default function Settings() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
@@ -128,9 +128,7 @@ export default function Settings() {
     onSuccess: () => {
       toast({ title: "Account deleted", description: "Your account has been permanently deleted" });
       setShowDeleteDialog(false);
-      localStorage.removeItem("user");
-      localStorage.removeItem("verifyToken");
-      setUser(null as any);
+      logout();
       setLocation("/");
     },
     onError: (error: Error) => {

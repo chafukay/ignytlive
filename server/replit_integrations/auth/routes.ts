@@ -9,7 +9,7 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const userId = req.user.claims.sub;
       const user = await authStorage.getUser(userId);
-      if (user && (user as any).isDeleted) {
+      if (user && user.isDeleted) {
         return res.status(403).json({ message: "This account has been deleted" });
       }
       res.json(user);
