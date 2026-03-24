@@ -1,6 +1,6 @@
 import { GuestGate } from "@/components/guest-gate";
 import LocationPickerModal from "@/components/location-picker-modal";
-import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield, Sparkles, Wand2, Frame, Sticker, Stars, SunMedium, Contrast, Palette, Share2, Copy, Check, Radio, UserPlus, Gem } from "lucide-react";
+import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield, Sparkles, Wand2, Frame, Sticker, Stars, SunMedium, Contrast, Palette, Share2, Copy, Check, Radio, UserPlus, Gem, Link as LinkIcon } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -42,6 +42,7 @@ export default function GoLive() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [pendingGoLive, setPendingGoLive] = useState(false);
   const [showCountryOnStream, setShowCountryOnStream] = useState(true);
+  const [blockLinks, setBlockLinks] = useState(false);
   const [activePanel, setActivePanel] = useState<"beauty" | "effects" | null>(null);
   const [beautySettings, setBeautySettings] = useState({
     smooth: 0, slim: 0, eyes: 0, brightness: 0, contrast: 0, lipColor: 0,
@@ -189,6 +190,7 @@ export default function GoLive() {
         groupId: groupId || undefined,
         allowGuests: streamType === "multi",
         showCountry: showCountryOnStream,
+        blockLinks,
       });
       
       const effectsData = {
@@ -886,6 +888,16 @@ export default function GoLive() {
             </div>
           </button>
         )}
+
+        <button onClick={() => setBlockLinks(!blockLinks)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${blockLinks ? 'bg-red-500/10 border-red-500/30' : 'bg-white/5 border-white/10'}`} data-testid="button-toggle-block-links">
+          <div className="flex items-center gap-2">
+            <LinkIcon className="w-3.5 h-3.5 text-white/50" />
+            <span className="text-white/70 text-xs">Block links in chat</span>
+          </div>
+          <div className={`w-9 h-[18px] rounded-full transition-all relative ${blockLinks ? 'bg-red-500' : 'bg-white/20'}`}>
+            <div className={`absolute top-[2px] w-3.5 h-3.5 rounded-full bg-white shadow transition-all ${blockLinks ? 'left-[18px]' : 'left-[2px]'}`} />
+          </div>
+        </button>
       </div>
 
       <div className="flex gap-2">

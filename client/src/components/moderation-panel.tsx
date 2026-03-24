@@ -56,6 +56,17 @@ export default function ModerationPanel({ streamId, hostId, currentUserId, onClo
     queryFn: () => api.getRoomBans(streamId),
   });
 
+  const toggleBlockLinksMutation = useMutation({
+    mutationFn: (blockLinks: boolean) => api.updateStreamSettings(streamId, currentUserId, { blockLinks }),
+    onSuccess: () => {
+      toast({ title: stream?.blockLinks ? "Links allowed in chat" : "Links blocked in chat" });
+      queryClient.invalidateQueries({ queryKey: ['stream', streamId] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update link blocking", variant: "destructive" });
+    },
+  });
+
   const updateSlowModeMutation = useMutation({
     mutationFn: (seconds: number) => api.updateStreamSettings(streamId, currentUserId, { slowModeSeconds: seconds }),
     onSuccess: () => {
@@ -167,6 +178,25 @@ export default function ModerationPanel({ streamId, hostId, currentUserId, onClo
                     Slow mode is ON: {stream.slowModeSeconds}s between messages
                   </p>
                 ) : null}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Block Links in Chat</h4>
+                <button
+                  onClick={() => toggleBlockLinksMutation.mutate(!stream?.blockLinks)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                    stream?.blockLinks ? 'bg-red-500/10 border-red-500/30' : 'bg-gray-700 border-gray-600'
+                  }`}
+                  data-testid="button-toggle-block-links-live"
+                >
+                  <span className="text-sm text-gray-300">
+                    {stream?.blockLinks ? "Links are blocked" : "Links are allowed"}
+                  </span>
+                  <div className={`w-10 h-5 rounded-full transition-all relative ${stream?.blockLinks ? 'bg-red-500' : 'bg-gray-500'}`}>
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${stream?.blockLinks ? 'left-5' : 'left-0.5'}`} />
+                  </div>
+                </button>
+                <p className="text-xs text-gray-500 mt-1">When enabled, URLs in chat messages are replaced with asterisks. Links are always logged for review.</p>
               </div>
             </div>
           )}

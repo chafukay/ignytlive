@@ -360,6 +360,15 @@ export async function registerRoutes(
                 result.matchedWords,
                 `stream:${streamId}`
               );
+            } else if (result.containsLinks && !blockLinks) {
+              logFlaggedContent(
+                message.data.userId || "unknown",
+                "chat_link",
+                originalContent,
+                originalContent,
+                ["[link detected]"],
+                `stream:${streamId}`
+              );
             }
           }
 
@@ -1271,7 +1280,7 @@ export async function registerRoutes(
 
   app.post("/api/streams", async (req, res) => {
     try {
-      const { userId, title, description, category, thumbnail, tags, isPrivate, accessType, minVipTier, groupId, showCountry } = req.body;
+      const { userId, title, description, category, thumbnail, tags, isPrivate, accessType, minVipTier, groupId, showCountry, blockLinks } = req.body;
       
       if (!userId || !title) {
         return res.status(400).json({ error: "userId and title are required" });
@@ -1315,6 +1324,7 @@ export async function registerRoutes(
         accessType: accessType || "public",
         minVipTier: minVipTier || 0,
         groupId: groupId || null,
+        blockLinks: blockLinks || false,
         country: streamCountry,
         showCountry: showCountry !== false,
         streamKey: `stream_${Date.now()}_${Math.random().toString(36).substring(2)}`,
