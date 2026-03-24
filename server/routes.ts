@@ -706,18 +706,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Guest accounts cannot be deleted" });
       }
 
-      const isSocialOrPhoneOnly = user.socialProvider || (user.phone && user.phoneVerified);
-      if (isSocialOrPhoneOnly && !password) {
-        // Social/phone accounts can delete without password verification
-      } else {
-        if (!password) {
-          return res.status(400).json({ error: "Password is required" });
-        }
-        const passwordValid = await bcrypt.compare(password, user.password);
-        if (!passwordValid) {
-          recordLoginFailure(deleteKey);
-          return res.status(401).json({ error: "Incorrect password" });
-        }
+      if (!password) {
+        return res.status(400).json({ error: "Password is required for account deletion" });
+      }
+      const passwordValid = await bcrypt.compare(password, user.password);
+      if (!passwordValid) {
+        recordLoginFailure(deleteKey);
+        return res.status(401).json({ error: "Incorrect password" });
       }
 
       const deletedUsername = `deleted_${user.id.slice(0, 8)}`;
@@ -778,6 +773,12 @@ export async function registerRoutes(
         }
       } catch (e) {
         console.error("[Delete] Failed to clean shorts:", e);
+      }
+
+      try {
+        await storage.anonymizeUserMessages(userId);
+      } catch (e) {
+        console.error("[Delete] Failed to anonymize messages:", e);
       }
 
       try {

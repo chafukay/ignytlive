@@ -188,6 +188,7 @@ export interface IStorage {
   getConversation(userId1: string, userId2: string): Promise<Message[]>;
   deleteConversation(userId1: string, userId2: string): Promise<void>;
   deleteMessage(messageId: string, userId: string): Promise<boolean>;
+  anonymizeUserMessages(userId: string): Promise<void>;
   updateMessage(messageId: string, userId: string, content: string): Promise<Message | null>;
   deleteMultipleConversations(userId: string, otherUserIds: string[]): Promise<number>;
   getRecentChats(userId: string): Promise<Array<{ user: User; lastMessage: Message }>>;
@@ -1016,6 +1017,13 @@ export class DatabaseStorage implements IStorage {
           )
         )
       );
+  }
+
+  async anonymizeUserMessages(userId: string): Promise<void> {
+    await db
+      .update(messages)
+      .set({ content: "[deleted user]" })
+      .where(eq(messages.senderId, userId));
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<boolean> {

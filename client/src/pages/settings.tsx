@@ -154,7 +154,6 @@ export default function Settings() {
     }
   };
 
-  const isSocialOrPhoneAccount = !!(user?.socialProvider || (user?.phone && user?.phoneVerified));
   const currentLanguage = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0];
 
   const settingsItems: Array<{
@@ -361,19 +360,17 @@ export default function Settings() {
             </div>
 
             <div className="space-y-3">
-              {!isSocialOrPhoneAccount && (
-                <div>
-                  <label className="text-sm text-muted-foreground block mb-1">Enter your password to confirm</label>
-                  <Input
-                    type="password"
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    placeholder="Your password"
-                    className="bg-background border-border text-foreground"
-                    data-testid="input-delete-password"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">Enter your password to confirm</label>
+                <Input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Your password"
+                  className="bg-background border-border text-foreground"
+                  data-testid="input-delete-password"
+                />
+              </div>
               <div>
                 <label className="text-sm text-muted-foreground block mb-1">Type "DELETE" to confirm</label>
                 <Input
@@ -402,7 +399,7 @@ export default function Settings() {
               </Button>
               <Button
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-                disabled={deleteConfirmText !== "DELETE" || (!isSocialOrPhoneAccount && !deletePassword) || deleteAccountMutation.isPending}
+                disabled={deleteConfirmText !== "DELETE" || !deletePassword || deleteAccountMutation.isPending}
                 onClick={() => deleteAccountMutation.mutate()}
                 data-testid="button-confirm-delete"
               >
