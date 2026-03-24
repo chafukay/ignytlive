@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 ### Core Features
 - **Real-time Interactions**: Live chat, gift animations, viewer count updates via WebSockets.
 - **Moderation**: Room moderators, user bans (permanent/temporary), mutes (duration-based), slow mode, enforced via REST API and WebSockets.
+- **Automated Content Moderation**: Text filtering service (`server/content-filter.ts`) with default profanity/slur list plus admin-configurable custom words. Filters chat messages (WebSocket), stream titles, and short captions. Filtered words replaced with asterisks. Link detection with optional per-stream blocking (`blockLinks` column on streams). Flagged content logged to DB for admin review. Admin panel "Moderation" tab for managing filter words (CRUD) and reviewing flagged content.
 - **User Control**: Block, report, and mute specific users.
 - **Private Video Calls**: Agora integration for 1:1 video/audio calls with per-minute or per-session billing.
 - **Families (Social Groups)**: User-creatable groups with roles (Owner, Admin, Member), membership management, group chat, and leaderboards.

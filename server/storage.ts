@@ -128,6 +128,12 @@ import {
   adminUsers,
   type AdminUser,
   type InsertAdminUser,
+  filterWords,
+  flaggedContent,
+  type FilterWord,
+  type InsertFilterWord,
+  type FlaggedContent,
+  type InsertFlaggedContent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -380,6 +386,19 @@ export interface IStorage {
   getAdminUser(id: string): Promise<AdminUser | undefined>;
   getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
   createAdminUser(user: InsertAdminUser): Promise<AdminUser>;
+
+  // Content Filter operations
+  getActiveFilterWords(): Promise<FilterWord[]>;
+  getAllFilterWords(): Promise<FilterWord[]>;
+  createFilterWord(word: InsertFilterWord): Promise<FilterWord>;
+  updateFilterWord(id: number, updates: Partial<FilterWord>): Promise<FilterWord | undefined>;
+  deleteFilterWord(id: number): Promise<boolean>;
+
+  // Flagged Content operations
+  createFlaggedContent(entry: InsertFlaggedContent): Promise<FlaggedContent>;
+  getFlaggedContent(limit?: number, offset?: number, reviewed?: boolean): Promise<FlaggedContent[]>;
+  getFlaggedContentCount(reviewed?: boolean): Promise<number>;
+  markFlaggedContentReviewed(id: number): Promise<FlaggedContent | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2423,6 +2442,64 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCoinPackage(id: number): Promise<void> {
     await db.update(coinPackages).set({ isActive: false }).where(eq(coinPackages.id, id));
+  }
+
+  async getActiveFilterWords(): Promise<FilterWord[]> {
+    return await db.select().from(filterWords).where(eq(filterWords.isActive, true));
+  }
+
+  async getAllFilterWords(): Promise<FilterWord[]> {
+    return await db.select().from(filterWords).orderBy(desc(filterWords.createdAt));
+  }
+
+  async createFilterWord(word: InsertFilterWord): Promise<FilterWord> {
+    const [created] = await db.insert(filterWords).values(word).returning();
+    return created;
+  }
+
+  async updateFilterWord(id: number, updates: Partial<FilterWord>): Promise<FilterWord | undefined> {
+    const [updated] = await db.update(filterWords).set(updates).where(eq(filterWords.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteFilterWord(id: number): Promise<boolean> {
+    const result = await db.delete(filterWords).where(eq(filterWords.id, id));
+    return true;
+  }
+
+  async createFlaggedContent(entry: InsertFlaggedContent): Promise<FlaggedContent> {
+    const [created] = await db.insert(flaggedContent).values(entry).returning();
+    return created;
+  }
+
+  async getFlaggedContent(limit = 50, offset = 0, reviewed?: boolean): Promise<FlaggedContent[]> {
+    let query = db.select().from(flaggedContent).orderBy(desc(flaggedContent.createdAt)).limit(limit).offset(offset);
+    if (reviewed !== undefined) {
+      return await db.select().from(flaggedContent)
+        .where(eq(flaggedContent.reviewed, reviewed))
+        .orderBy(desc(flaggedContent.createdAt))
+        .limit(limit).offset(offset);
+    }
+    return await query;
+  }
+
+  async getFlaggedContentCount(reviewed?: boolean): Promise<number> {
+    if (reviewed !== undefined) {
+      const [result] = await db.select({ count: sql<number>`count(*)` })
+        .from(flaggedContent)
+        .where(eq(flaggedContent.reviewed, reviewed));
+      return Number(result?.count || 0);
+    }
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(flaggedContent);
+    return Number(result?.count || 0);
+  }
+
+  async markFlaggedContentReviewed(id: number): Promise<FlaggedContent | undefined> {
+    const [updated] = await db.update(flaggedContent)
+      .set({ reviewed: true })
+      .where(eq(flaggedContent.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 

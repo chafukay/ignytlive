@@ -131,7 +131,8 @@ export const streams = pgTable("streams", {
   accessType: text("access_type").notNull().default("public"),
   minVipTier: integer("min_vip_tier").notNull().default(0),
   groupId: varchar("group_id"),
-  slowModeSeconds: integer("slow_mode_seconds").notNull().default(0), // 0 = disabled, otherwise rate limit in seconds
+  slowModeSeconds: integer("slow_mode_seconds").notNull().default(0),
+  blockLinks: boolean("block_links").notNull().default(false),
   pinnedMessageId: varchar("pinned_message_id"),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
@@ -1231,6 +1232,46 @@ export const insertCoinPackageSchema = createInsertSchema(coinPackages).omit({
 });
 export type InsertCoinPackage = z.infer<typeof insertCoinPackageSchema>;
 export type CoinPackage = typeof coinPackages.$inferSelect;
+
+// Content Filter Words - admin-managed word filter list
+export const filterWords = pgTable("filter_words", {
+  id: serial("id").primaryKey(),
+  word: text("word").notNull().unique(),
+  category: text("category").notNull().default("profanity"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertFilterWordSchema = createInsertSchema(filterWords).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertFilterWord = z.infer<typeof insertFilterWordSchema>;
+export type FilterWord = typeof filterWords.$inferSelect;
+
+// Flagged Content Log - records of filtered content for admin review
+export const flaggedContent = pgTable("flagged_content", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  contentType: text("content_type").notNull(),
+  originalContent: text("original_content").notNull(),
+  filteredContent: text("filtered_content").notNull(),
+  matchedWords: text("matched_words").notNull(),
+  context: text("context"),
+  reviewed: boolean("reviewed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const flaggedContentRelations = relations(flaggedContent, ({ one }) => ({
+  user: one(users, { fields: [flaggedContent.userId], references: [users.id] }),
+}));
+
+export const insertFlaggedContentSchema = createInsertSchema(flaggedContent).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertFlaggedContent = z.infer<typeof insertFlaggedContentSchema>;
+export type FlaggedContent = typeof flaggedContent.$inferSelect;
 
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";

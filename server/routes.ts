@@ -45,6 +45,7 @@ function stripPasswords(obj: any): any {
   }
   return obj;
 }
+import { filterContent, logFlaggedContent, forceRefreshFilterWords } from "./content-filter";
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import { sendVerificationEmail, isEmailServiceConfigured } from "./email-service";
@@ -344,7 +345,24 @@ export async function registerRoutes(
             }
           }
           
-          // Broadcast validated message to all viewers of the stream
+          if (message.type === 'comment' && message.data?.content) {
+            const stream = await storage.getStream(streamId);
+            const blockLinks = stream?.blockLinks ?? false;
+            const originalContent = message.data.content;
+            const result = await filterContent(originalContent, blockLinks);
+            if (result.wasFiltered) {
+              message.data.content = result.filtered;
+              logFlaggedContent(
+                message.data.userId || "unknown",
+                "chat",
+                originalContent,
+                result.filtered,
+                result.matchedWords,
+                `stream:${streamId}`
+              );
+            }
+          }
+
           streamConnections.get(streamId)?.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify(message));
@@ -1259,8 +1277,22 @@ export async function registerRoutes(
         return res.status(400).json({ error: "userId and title are required" });
       }
       
-      // Guest restriction
       if (await checkGuestRestriction(userId, res, storage)) return;
+
+      let filteredTitle = title;
+      let filteredDesc = description || null;
+      const titleResult = await filterContent(title);
+      if (titleResult.wasFiltered) {
+        filteredTitle = titleResult.filtered;
+        logFlaggedContent(userId, "stream_title", title, filteredTitle, titleResult.matchedWords);
+      }
+      if (description) {
+        const descResult = await filterContent(description);
+        if (descResult.wasFiltered) {
+          filteredDesc = descResult.filtered;
+          logFlaggedContent(userId, "stream_description", description, filteredDesc, descResult.matchedWords);
+        }
+      }
 
       const user = await storage.getUser(userId);
       const streamCountry = user?.country || null;
@@ -1274,8 +1306,8 @@ export async function registerRoutes(
 
       const stream = await storage.createStream({
         userId,
-        title,
-        description: description || null,
+        title: filteredTitle,
+        description: filteredDesc,
         category: category || null,
         thumbnail: thumbnail || null,
         tags: tags || null,
@@ -1460,9 +1492,16 @@ export async function registerRoutes(
     try {
       const shortData = insertShortSchema.parse(req.body);
       
-      // Guest restriction
       if (await checkGuestRestriction(shortData.userId, res, storage)) return;
       
+      if (shortData.description) {
+        const descResult = await filterContent(shortData.description);
+        if (descResult.wasFiltered) {
+          shortData.description = descResult.filtered;
+          logFlaggedContent(shortData.userId, "short_caption", shortData.description, descResult.filtered, descResult.matchedWords);
+        }
+      }
+
       const short = await storage.createShort(shortData);
       res.json(short);
     } catch (error) {
@@ -4345,6 +4384,96 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete coin package" });
+    }
+  });
+
+  app.get("/api/admin/filter-words", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const words = await storage.getAllFilterWords();
+      res.json(words);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch filter words" });
+    }
+  });
+
+  app.post("/api/admin/filter-words", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const { word, category } = req.body;
+      if (!word || typeof word !== "string" || word.trim().length === 0) {
+        return res.status(400).json({ error: "Word is required" });
+      }
+      const created = await storage.createFilterWord({
+        word: word.trim().toLowerCase(),
+        category: category || "custom",
+        isActive: true,
+      });
+      forceRefreshFilterWords();
+      res.json(created);
+    } catch (error: any) {
+      if (error?.code === "23505") {
+        return res.status(409).json({ error: "Word already exists in filter list" });
+      }
+      res.status(500).json({ error: "Failed to add filter word" });
+    }
+  });
+
+  app.put("/api/admin/filter-words/:id", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      const { isActive } = req.body;
+      const updated = await storage.updateFilterWord(id, { isActive });
+      if (!updated) return res.status(404).json({ error: "Filter word not found" });
+      forceRefreshFilterWords();
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update filter word" });
+    }
+  });
+
+  app.delete("/api/admin/filter-words/:id", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      await storage.deleteFilterWord(id);
+      forceRefreshFilterWords();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete filter word" });
+    }
+  });
+
+  app.get("/api/admin/flagged-content", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const reviewed = req.query.reviewed === "true" ? true : req.query.reviewed === "false" ? false : undefined;
+      const [items, total, unreviewed] = await Promise.all([
+        storage.getFlaggedContent(limit, offset, reviewed),
+        storage.getFlaggedContentCount(),
+        storage.getFlaggedContentCount(false),
+      ]);
+      res.json({ items, total, unreviewed });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch flagged content" });
+    }
+  });
+
+  app.patch("/api/admin/flagged-content/:id/review", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      const updated = await storage.markFlaggedContentReviewed(id);
+      if (!updated) return res.status(404).json({ error: "Flagged content not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark as reviewed" });
     }
   });
 

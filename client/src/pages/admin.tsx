@@ -4,14 +4,15 @@ import {
   Shield, Users, Crown, Coins, Diamond, TrendingUp, 
   Search, Edit, AlertTriangle, Eye, UserCheck,
   Calendar, BarChart3, Award, Flame, X, LogOut,
-  Plus, Trash2, ToggleLeft, ToggleRight, Percent, Loader2
+  Plus, Trash2, ToggleLeft, ToggleRight, Percent, Loader2,
+  Filter, MessageSquareWarning, Check
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth, adminFetch } from "@/lib/admin-auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
 
-type AdminTab = 'dashboard' | 'users' | 'reports' | 'economy';
+type AdminTab = 'dashboard' | 'users' | 'reports' | 'economy' | 'moderation';
 
 interface AdminStats {
   totalUsers: number;
@@ -49,6 +50,9 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [editingPackage, setEditingPackage] = useState<CoinPackageData | null>(null);
   const [showPackageForm, setShowPackageForm] = useState(false);
+  const [newFilterWord, setNewFilterWord] = useState("");
+  const [newFilterCategory, setNewFilterCategory] = useState("custom");
+  const [flaggedFilter, setFlaggedFilter] = useState<"all" | "unreviewed" | "reviewed">("unreviewed");
 
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ['admin', 'stats'],
@@ -89,6 +93,27 @@ export default function AdminDashboard() {
       return res.json();
     },
     enabled: activeTab === 'economy' && !!token,
+  });
+
+  const { data: filterWordsData = [], isLoading: filterWordsLoading } = useQuery<any[]>({
+    queryKey: ['admin', 'filter-words'],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/admin/filter-words`, token!);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: activeTab === 'moderation' && !!token,
+  });
+
+  const { data: flaggedData } = useQuery<{ items: any[]; total: number; unreviewed: number }>({
+    queryKey: ['admin', 'flagged-content', flaggedFilter],
+    queryFn: async () => {
+      const reviewed = flaggedFilter === "all" ? "" : flaggedFilter === "reviewed" ? "&reviewed=true" : "&reviewed=false";
+      const res = await adminFetch(`/api/admin/flagged-content?limit=50${reviewed}`, token!);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: activeTab === 'moderation' && !!token,
   });
 
   const updateUserMutation = useMutation({
@@ -174,6 +199,68 @@ export default function AdminDashboard() {
     },
   });
 
+  const addFilterWordMutation = useMutation({
+    mutationFn: async (data: { word: string; category: string }) => {
+      const res = await adminFetch(`/api/admin/filter-words`, token!, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'filter-words'] });
+      toast({ title: "Filter word added" });
+      setNewFilterWord("");
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteFilterWordMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/filter-words/${id}`, token!, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'filter-words'] });
+      toast({ title: "Filter word removed" });
+    },
+  });
+
+  const toggleFilterWordMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
+      const res = await adminFetch(`/api/admin/filter-words/${id}`, token!, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'filter-words'] });
+    },
+  });
+
+  const reviewFlaggedMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/flagged-content/${id}/review`, token!, { method: "PATCH" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'flagged-content'] });
+      toast({ title: "Marked as reviewed" });
+    },
+  });
+
   const togglePackageMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const res = await adminFetch(`/api/admin/coin-packages/${id}`, token!, {
@@ -201,6 +288,7 @@ export default function AdminDashboard() {
     { id: 'dashboard' as AdminTab, label: 'Dashboard', icon: BarChart3 },
     { id: 'users' as AdminTab, label: 'Users', icon: Users },
     { id: 'reports' as AdminTab, label: 'Reports', icon: AlertTriangle },
+    { id: 'moderation' as AdminTab, label: 'Moderation', icon: Filter },
     { id: 'economy' as AdminTab, label: 'Economy', icon: Coins },
   ];
 
@@ -233,6 +321,9 @@ export default function AdminDashboard() {
               {tab.label}
               {tab.id === 'reports' && reports.length > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{reports.length}</span>
+              )}
+              {tab.id === 'moderation' && flaggedData && flaggedData.unreviewed > 0 && (
+                <span className="ml-auto bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{flaggedData.unreviewed}</span>
               )}
             </button>
           ))}
@@ -409,6 +500,163 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
+          </motion.div>
+        )}
+
+        {activeTab === 'moderation' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <h2 className="text-2xl font-bold text-white mb-6" data-testid="text-moderation-title">Content Moderation</h2>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Custom Filter Words</h3>
+                  <span className="text-zinc-500 text-sm">{filterWordsData.length} words</span>
+                </div>
+
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={newFilterWord}
+                    onChange={(e) => setNewFilterWord(e.target.value)}
+                    placeholder="Add word to filter..."
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg py-2 px-3 text-white placeholder:text-zinc-500 focus:outline-none focus:border-orange-500/50 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newFilterWord.trim()) {
+                        addFilterWordMutation.mutate({ word: newFilterWord, category: newFilterCategory });
+                      }
+                    }}
+                    data-testid="input-filter-word"
+                  />
+                  <select
+                    value={newFilterCategory}
+                    onChange={(e) => setNewFilterCategory(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg py-2 px-2 text-white text-sm"
+                    data-testid="select-filter-category"
+                  >
+                    <option value="custom">Custom</option>
+                    <option value="profanity">Profanity</option>
+                    <option value="slur">Slur</option>
+                    <option value="spam">Spam</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (newFilterWord.trim()) addFilterWordMutation.mutate({ word: newFilterWord, category: newFilterCategory });
+                    }}
+                    disabled={!newFilterWord.trim() || addFilterWordMutation.isPending}
+                    className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
+                    data-testid="button-add-filter-word"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="bg-zinc-900 rounded-xl border border-zinc-800 max-h-[400px] overflow-y-auto">
+                  {filterWordsLoading ? (
+                    <div className="p-4 text-center text-zinc-500">Loading...</div>
+                  ) : filterWordsData.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Filter className="w-10 h-10 text-zinc-700 mx-auto mb-2" />
+                      <p className="text-zinc-500 text-sm">No custom filter words yet</p>
+                      <p className="text-zinc-600 text-xs mt-1">Default profanity list is always active</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-zinc-800/50">
+                      {filterWordsData.map((fw: any) => (
+                        <div key={fw.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-zinc-800/30" data-testid={`filter-word-${fw.id}`}>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => toggleFilterWordMutation.mutate({ id: fw.id, isActive: !fw.isActive })}
+                              data-testid={`toggle-filter-${fw.id}`}
+                            >
+                              {fw.isActive ? (
+                                <ToggleRight className="w-5 h-5 text-green-400" />
+                              ) : (
+                                <ToggleLeft className="w-5 h-5 text-zinc-600" />
+                              )}
+                            </button>
+                            <span className={`text-sm ${fw.isActive ? 'text-white' : 'text-zinc-600 line-through'}`}>{fw.word}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 text-xs">{fw.category}</span>
+                          </div>
+                          <button
+                            onClick={() => deleteFilterWordMutation.mutate(fw.id)}
+                            className="p-1 rounded hover:bg-red-500/10 text-zinc-500 hover:text-red-400"
+                            data-testid={`delete-filter-${fw.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="text-zinc-600 text-xs mt-2">A default list of common profanity and slurs is always active in addition to custom words above.</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <MessageSquareWarning className="w-5 h-5 text-amber-400" />
+                    Flagged Content
+                    {flaggedData && flaggedData.unreviewed > 0 && (
+                      <span className="bg-amber-500/20 text-amber-400 text-xs px-2 py-0.5 rounded-full">{flaggedData.unreviewed} unreviewed</span>
+                    )}
+                  </h3>
+                  <div className="flex gap-1">
+                    {(["unreviewed", "all", "reviewed"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setFlaggedFilter(f)}
+                        className={`px-2.5 py-1 rounded text-xs font-medium ${flaggedFilter === f ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        data-testid={`filter-flagged-${f}`}
+                      >
+                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-zinc-900 rounded-xl border border-zinc-800 max-h-[500px] overflow-y-auto">
+                  {!flaggedData || flaggedData.items.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Check className="w-10 h-10 text-green-500/30 mx-auto mb-2" />
+                      <p className="text-zinc-500 text-sm">No flagged content</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-zinc-800/50">
+                      {flaggedData.items.map((item: any) => (
+                        <div key={item.id} className="p-3 hover:bg-zinc-800/30" data-testid={`flagged-${item.id}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-xs">{item.contentType}</span>
+                                <span className="text-zinc-600 text-xs">{new Date(item.createdAt).toLocaleString()}</span>
+                              </div>
+                              <p className="text-white text-sm break-words">{item.filteredContent}</p>
+                              {item.context && <p className="text-zinc-600 text-xs mt-1">{item.context}</p>}
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {JSON.parse(item.matchedWords || "[]").map((w: string, i: number) => (
+                                  <span key={i} className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 text-xs">{w}</span>
+                                ))}
+                              </div>
+                            </div>
+                            {!item.reviewed && (
+                              <button
+                                onClick={() => reviewFlaggedMutation.mutate(item.id)}
+                                className="shrink-0 px-2 py-1 rounded bg-green-500/10 text-green-400 text-xs hover:bg-green-500/20"
+                                data-testid={`review-flagged-${item.id}`}
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
 
