@@ -19,6 +19,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { filterContent, logFlaggedContent, forceRefreshFilterWords } from "./content-filter";
 
 function toSafeUser(user: any) {
   if (!user) return user;
@@ -45,7 +46,6 @@ function stripPasswords(obj: any): any {
   }
   return obj;
 }
-import { filterContent, logFlaggedContent, forceRefreshFilterWords } from "./content-filter";
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import { sendVerificationEmail, isEmailServiceConfigured } from "./email-service";
