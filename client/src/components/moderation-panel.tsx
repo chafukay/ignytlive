@@ -58,8 +58,8 @@ export default function ModerationPanel({ streamId, hostId, currentUserId, onClo
 
   const toggleBlockLinksMutation = useMutation({
     mutationFn: (blockLinks: boolean) => api.updateStreamSettings(streamId, currentUserId, { blockLinks }),
-    onSuccess: () => {
-      toast({ title: stream?.blockLinks ? "Links allowed in chat" : "Links blocked in chat" });
+    onSuccess: (_data, blockLinks) => {
+      toast({ title: blockLinks ? "Links blocked in chat" : "Links allowed in chat" });
       queryClient.invalidateQueries({ queryKey: ['stream', streamId] });
     },
     onError: () => {

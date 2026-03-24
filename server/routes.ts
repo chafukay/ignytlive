@@ -3124,7 +3124,7 @@ export async function registerRoutes(
   // Update stream settings (slow mode, pinned message) - host only
   app.patch("/api/streams/:streamId/settings", async (req, res) => {
     try {
-      const { slowModeSeconds, pinnedMessageId, userId } = req.body;
+      const { slowModeSeconds, pinnedMessageId, blockLinks, userId } = req.body;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
@@ -3139,6 +3139,7 @@ export async function registerRoutes(
       const updates: any = {};
       if (slowModeSeconds !== undefined) updates.slowModeSeconds = slowModeSeconds;
       if (pinnedMessageId !== undefined) updates.pinnedMessageId = pinnedMessageId;
+      if (blockLinks !== undefined) updates.blockLinks = !!blockLinks;
       
       const updated = await storage.updateStream(req.params.streamId, updates);
       res.json(updated);
