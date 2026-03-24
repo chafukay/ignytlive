@@ -762,6 +762,30 @@ export async function registerRoutes(
         console.error("[Delete] Failed to clean follows:", e);
       }
 
+      try {
+        const userStreams = await storage.getUserStreams(userId);
+        for (const stream of userStreams) {
+          await storage.updateStream(stream.id, { isLive: false, endedAt: new Date() });
+        }
+      } catch (e) {
+        console.error("[Delete] Failed to end streams:", e);
+      }
+
+      try {
+        const userShorts = await storage.getUserShorts(userId);
+        for (const short of userShorts) {
+          await storage.updateShort(short.id, { description: "[deleted]" });
+        }
+      } catch (e) {
+        console.error("[Delete] Failed to clean shorts:", e);
+      }
+
+      try {
+        await storage.removeAllPushSubscriptions(userId);
+      } catch (e) {
+        console.error("[Delete] Failed to clean push subscriptions:", e);
+      }
+
       res.json({ success: true, message: "Account has been deleted" });
     } catch (error) {
       console.error("Account deletion error:", error);

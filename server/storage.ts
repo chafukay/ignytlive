@@ -359,6 +359,7 @@ export interface IStorage {
   // Push Subscription operations
   savePushSubscription(userId: string, endpoint: string, p256dh: string, auth: string): Promise<PushSub>;
   removePushSubscription(endpoint: string): Promise<void>;
+  removeAllPushSubscriptions(userId: string): Promise<void>;
   getUserPushSubscriptions(userId: string): Promise<PushSub[]>;
 
   // Scheduled Event operations
@@ -2262,6 +2263,10 @@ export class DatabaseStorage implements IStorage {
 
   async removePushSubscription(endpoint: string): Promise<void> {
     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  }
+
+  async removeAllPushSubscriptions(userId: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
   }
 
   async getUserPushSubscriptions(userId: string): Promise<PushSub[]> {

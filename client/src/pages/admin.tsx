@@ -354,8 +354,8 @@ export default function AdminDashboard() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {(u as any).isDeleted ? (
-                            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs" title={(u as any).deletedAt ? `Deleted ${new Date((u as any).deletedAt).toLocaleDateString()}` : ''}>Deleted</span>
+                          {u.isDeleted ? (
+                            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs" title={u.deletedAt ? `Deleted ${new Date(u.deletedAt).toLocaleDateString()}` : ''}>Deleted</span>
                           ) : (
                             <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-xs">Active</span>
                           )}
