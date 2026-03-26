@@ -4,13 +4,13 @@ import StreamCard from "@/components/stream-card";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { Search, Flame, Calendar } from "lucide-react";
+import { Search, Flame, Calendar, Users, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Following() {
   const { user } = useAuth();
 
-  const { data: liveStreamsData, isLoading } = useQuery({
+  const { data: liveStreamsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
   });
@@ -49,7 +49,22 @@ export default function Following() {
 
 
         {/* Stream Grid */}
-        {isLoading ? (
+        {isError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-destructive/50" />
+            </div>
+            <p className="text-foreground font-medium">Something went wrong</p>
+            <p className="text-muted-foreground text-sm mt-1">We couldn't load the streams. Please try again.</p>
+            <button
+              onClick={() => refetch()}
+              className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-full text-sm hover:opacity-90 transition-opacity"
+              data-testid="button-retry-following"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="aspect-[3/4] rounded-2xl bg-white/5 animate-pulse" />
@@ -62,9 +77,20 @@ export default function Following() {
                 <StreamCard key={stream.id} stream={stream} />
               ))
             ) : (
-              <div className="col-span-full text-center py-12 text-white/50">
-                <p className="text-lg">No live streams from people you follow</p>
-                <p className="text-sm mt-2">Explore to find new streamers!</p>
+              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Users className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+                <p className="text-foreground font-medium">No live streams yet</p>
+                <p className="text-muted-foreground text-sm mt-1">People you follow aren't streaming right now.</p>
+                <Link href="/explore">
+                  <button
+                    className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-full text-sm hover:opacity-90 transition-opacity"
+                    data-testid="button-explore-streamers"
+                  >
+                    Discover Streamers
+                  </button>
+                </Link>
               </div>
             )}
           </div>
