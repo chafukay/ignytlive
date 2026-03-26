@@ -126,6 +126,8 @@ export default function Explore() {
   const {
     data: newData,
     isLoading: newLoading,
+    isError: newError,
+    refetch: refetchNew,
     fetchNextPage: fetchNextNew,
     hasNextPage: hasNextNew,
     isFetchingNextPage: isFetchingNextNew,
@@ -140,6 +142,8 @@ export default function Explore() {
   const {
     data: popularData,
     isLoading: popularLoading,
+    isError: popularError,
+    refetch: refetchPopular,
     fetchNextPage: fetchNextPopular,
     hasNextPage: hasNextPopular,
     isFetchingNextPage: isFetchingNextPopular,
@@ -151,7 +155,7 @@ export default function Explore() {
     enabled: activeTab === 'popular',
   });
 
-  const { data: nearbyStreams, isLoading: nearbyLoading } = useQuery({
+  const { data: nearbyStreams, isLoading: nearbyLoading, isError: nearbyError, refetch: refetchNearby } = useQuery({
     queryKey: ['nearbyStreams', userLocation?.lat, userLocation?.lng],
     queryFn: () => api.getNearbyStreams(userLocation!.lat, userLocation!.lng, 500),
     enabled: activeTab === 'nearby' && !!userLocation,
@@ -181,6 +185,14 @@ export default function Explore() {
   const fetchNextPage = activeTab === 'new' ? fetchNextNew
     : activeTab === 'popular' ? fetchNextPopular
     : undefined;
+
+  const isError = activeTab === 'new' ? newError
+    : activeTab === 'popular' ? popularError
+    : nearbyError;
+
+  const refetch = activeTab === 'new' ? refetchNew
+    : activeTab === 'popular' ? refetchPopular
+    : refetchNearby;
 
   const observerCallback = useCallback((entries: IntersectionObserverEntry[]) => {
     const [entry] = entries;
@@ -291,7 +303,22 @@ export default function Explore() {
 
         {!(activeTab === 'nearby' && (locationError || locationLoading)) && (
           <>
-            {isLoading ? (
+            {isError ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                  <Flame className="w-8 h-8 text-destructive/50" />
+                </div>
+                <p className="text-foreground font-medium">Something went wrong</p>
+                <p className="text-muted-foreground text-sm mt-1">We couldn't load the streams. Please try again.</p>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-full text-sm hover:opacity-90 transition-opacity"
+                  data-testid="button-retry-explore"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : isLoading ? (
               <div className="grid grid-cols-3 lg:grid-cols-4 gap-2">
                 {[...Array(9)].map((_, i) => (
                   <div
