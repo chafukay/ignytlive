@@ -37,7 +37,7 @@ export default function Shorts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: shorts, isLoading } = useQuery({
+  const { data: shorts, isLoading, isError: shortsError, refetch: refetchShorts } = useQuery({
     queryKey: ['shorts'],
     queryFn: () => api.getShortsFeed(),
   });
@@ -132,8 +132,38 @@ export default function Shorts() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="h-[calc(100vh-5rem)] md:h-screen w-full bg-background flex items-center justify-center">
-          <div className="text-foreground">Loading...</div>
+        <div className="h-[calc(100vh-5rem)] md:h-screen w-full bg-background flex flex-col items-center justify-center gap-4">
+          <div className="w-full max-w-sm px-6 space-y-4">
+            <div className="w-20 h-20 rounded-full bg-muted animate-pulse mx-auto" />
+            <div className="h-4 w-3/4 bg-muted animate-pulse rounded mx-auto" />
+            <div className="h-3 w-1/2 bg-muted animate-pulse rounded mx-auto" />
+            <div className="flex justify-center gap-6 mt-6">
+              <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
+              <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
+              <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (shortsError) {
+    return (
+      <Layout>
+        <div className="h-[calc(100vh-5rem)] md:h-screen w-full bg-background flex flex-col items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+            <Video className="w-8 h-8 text-destructive/50" />
+          </div>
+          <p className="text-foreground font-medium">Couldn't load shorts</p>
+          <p className="text-muted-foreground text-sm mt-1">Something went wrong. Please try again.</p>
+          <button
+            onClick={() => refetchShorts()}
+            className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-full text-sm hover:opacity-90 transition-opacity"
+            data-testid="button-retry-shorts"
+          >
+            Try Again
+          </button>
         </div>
       </Layout>
     );

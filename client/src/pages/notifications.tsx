@@ -199,9 +199,12 @@ export default function Notifications() {
                 })}
               </div>
             ) : (
-              <div className="text-center py-12 text-white/50" data-testid="text-empty-notifications">
-                <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>No notifications yet</p>
+              <div className="flex flex-col items-center justify-center py-16 text-center" data-testid="text-empty-notifications">
+                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                  <Bell className="w-8 h-8 text-white/20" />
+                </div>
+                <p className="text-white/70 font-medium">No notifications yet</p>
+                <p className="text-white/40 text-sm mt-1 max-w-xs">When someone follows you, sends a gift, or interacts with your content, you'll see it here.</p>
               </div>
             )}
           </div>

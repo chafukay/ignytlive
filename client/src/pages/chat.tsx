@@ -1079,11 +1079,12 @@ export default function Chat() {
                     ))}
                   </>
                 ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-white/40">
-                      <p className="text-sm">No messages yet</p>
-                      <p className="text-xs mt-1">Say hello!</p>
+                  <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                    <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                      <MessageCircle className="w-7 h-7 text-white/20" />
                     </div>
+                    <p className="text-white/60 font-medium text-sm">No messages yet</p>
+                    <p className="text-white/30 text-xs mt-1">Send a message to start the conversation!</p>
                   </div>
                 )}
                 <div ref={messagesEndRef} />

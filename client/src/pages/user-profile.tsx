@@ -6,7 +6,7 @@ import Layout from "@/components/layout";
 import UserAvatar from "@/components/user-avatar";
 import BadgesDisplay from "@/components/badges-display";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Sparkles, MapPin, Crown, Share2, Eye, Gift, Loader2 } from "lucide-react";
+import { ArrowLeft, MessageCircle, Video, UserPlus, UserCheck, Coins, Sparkles, MapPin, Crown, Share2, Eye, Gift, Loader2, User } from "lucide-react";
 import GiftPanel from "@/components/gift-panel";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -34,7 +34,7 @@ export default function UserProfile() {
   const [showCallDialog, setShowCallDialog] = useState(false);
   const [showGiftPanel, setShowGiftPanel] = useState(false);
 
-  const { data: profileUser, isLoading } = useQuery({
+  const { data: profileUser, isLoading, isError: profileError, refetch: refetchProfile } = useQuery({
     queryKey: ['user', userId],
     queryFn: () => api.getUser(userId!),
     enabled: !!userId,
@@ -136,8 +136,53 @@ export default function UserProfile() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-white">Loading...</div>
+        <div className="p-4 pb-24 max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded bg-muted animate-pulse" />
+            <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-24 h-24 rounded-full bg-muted animate-pulse mb-3" />
+            <div className="h-5 w-40 bg-muted animate-pulse rounded mb-2" />
+            <div className="h-3 w-24 bg-muted animate-pulse rounded mb-4" />
+            <div className="flex gap-8">
+              <div className="text-center space-y-1">
+                <div className="h-5 w-12 bg-muted animate-pulse rounded mx-auto" />
+                <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="text-center space-y-1">
+                <div className="h-5 w-12 bg-muted animate-pulse rounded mx-auto" />
+                <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="text-center space-y-1">
+                <div className="h-5 w-12 bg-muted animate-pulse rounded mx-auto" />
+                <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+              </div>
+            </div>
+          </div>
+          <div className="h-12 w-full bg-muted animate-pulse rounded-xl mb-4" />
+          <div className="h-12 w-full bg-muted animate-pulse rounded-xl" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+            <User className="w-8 h-8 text-destructive/50" />
+          </div>
+          <p className="text-foreground font-medium">Couldn't load profile</p>
+          <p className="text-muted-foreground text-sm mt-1">Something went wrong. Please try again.</p>
+          <button
+            onClick={() => refetchProfile()}
+            className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-full text-sm hover:opacity-90 transition-opacity"
+            data-testid="button-retry-profile"
+          >
+            Try Again
+          </button>
         </div>
       </Layout>
     );
@@ -146,8 +191,12 @@ export default function UserProfile() {
   if (!profileUser) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-white">User not found</div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <User className="w-8 h-8 text-muted-foreground/40" />
+          </div>
+          <p className="text-foreground font-medium">User not found</p>
+          <p className="text-muted-foreground text-sm mt-1">This profile doesn't exist or has been removed.</p>
         </div>
       </Layout>
     );

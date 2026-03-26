@@ -135,7 +135,7 @@ export default function Home() {
     }
   }, [showCountryDropdown]);
 
-  const { data: liveStreamsData, isLoading } = useQuery({
+  const { data: liveStreamsData, isLoading, isError: streamsError, refetch: refetchStreams } = useQuery({
     queryKey: ['liveStreams'],
     queryFn: () => api.getLiveStreams(),
     refetchInterval: 15000,
@@ -540,7 +540,22 @@ export default function Home() {
         {/* Stream Grid */}
         <div className="mb-8">
           
-          {isLoading ? (
+          {streamsError ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <Video className="w-8 h-8 text-destructive/50" />
+              </div>
+              <p className="text-foreground font-medium">Something went wrong</p>
+              <p className="text-muted-foreground text-sm mt-1">We couldn't load the streams. Please try again.</p>
+              <button
+                onClick={() => refetchStreams()}
+                className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-full text-sm hover:opacity-90 transition-opacity"
+                data-testid="button-retry-streams"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {[...Array(10)].map((_, i) => (
                 <div 
@@ -595,9 +610,19 @@ export default function Home() {
                   <StreamCard key={stream.id} stream={stream} rank={index < 25 ? index + 1 : undefined} />
                 ))
               ) : (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  <p className="text-lg">No live streams at the moment</p>
-                  <p className="text-sm mt-2">Check back soon!</p>
+                <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Video className="w-8 h-8 text-muted-foreground/40" />
+                  </div>
+                  <p className="text-foreground font-medium">No live streams right now</p>
+                  <p className="text-muted-foreground text-sm mt-1">Be the first to go live, or check back soon!</p>
+                  {user && (
+                    <Link href="/go-live">
+                      <button className="mt-4 px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-full text-sm hover:opacity-90 transition-opacity" data-testid="button-go-live-empty">
+                        Go Live
+                      </button>
+                    </Link>
+                  )}
                 </div>
               )}
             </div>

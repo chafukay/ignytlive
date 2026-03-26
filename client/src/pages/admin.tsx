@@ -553,7 +553,14 @@ export default function AdminDashboard() {
 
                 <div className="bg-zinc-900 rounded-xl border border-zinc-800 max-h-[400px] overflow-y-auto">
                   {filterWordsLoading ? (
-                    <div className="p-4 text-center text-zinc-500">Loading...</div>
+                    <div className="p-4 space-y-2">
+                      {[...Array(4)].map((_, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50 animate-pulse">
+                          <div className="h-4 w-24 bg-zinc-700 rounded" />
+                          <div className="h-4 w-16 bg-zinc-700 rounded" />
+                        </div>
+                      ))}
+                    </div>
                   ) : filterWordsData.length === 0 ? (
                     <div className="p-8 text-center">
                       <Filter className="w-10 h-10 text-zinc-700 mx-auto mb-2" />
