@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "mTrpudoNVEwF9hxN1yBVj"
+uri = "file://QA_Test_Cases_IgnytLive.csv"
+type = "table"
+title = "QA Test Cases - IgnytLive Platform"
