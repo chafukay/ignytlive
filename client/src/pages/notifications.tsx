@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { ChevronLeft, ChevronRight, UserPlus, Gift, Phone, Bell, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, UserPlus, Gift, Phone, Bell, TrendingUp, AlertCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -83,7 +83,7 @@ export default function Notifications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: notifications, isLoading } = useQuery({
+  const { data: notifications, isLoading, isError, refetch } = useQuery({
     queryKey: ["notifications", user?.id],
     queryFn: () => api.getNotifications(user!.id),
     enabled: !!user?.id,
@@ -152,7 +152,22 @@ export default function Notifications() {
           </Link>
 
           <div className="p-4">
-            {isLoading ? (
+            {isError ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                  <AlertCircle className="w-8 h-8 text-destructive/50" />
+                </div>
+                <p className="text-foreground font-medium">Couldn't load notifications</p>
+                <p className="text-muted-foreground text-sm mt-1">Something went wrong. Please try again.</p>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-full text-sm hover:opacity-90 transition-opacity"
+                  data-testid="button-retry-notifications"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : isLoading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 animate-pulse">
