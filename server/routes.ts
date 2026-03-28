@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -114,18 +115,62 @@ function clearLoginFailures(key: string): void {
   loginAttempts.delete(key);
 }
 
-const validateUserAccess = async (userId: string | undefined, res: any): Promise<boolean> => {
+const USER_JWT_SECRET = process.env.USER_JWT_SECRET || crypto.randomBytes(64).toString("hex");
+const USER_TOKEN_EXPIRY = "7d";
+
+function generateUserToken(userId: string): string {
+  return jwt.sign({ userId }, USER_JWT_SECRET, { expiresIn: USER_TOKEN_EXPIRY });
+}
+
+function verifyUserToken(token: string): { userId: string } | null {
+  try {
+    return jwt.verify(token, USER_JWT_SECRET) as { userId: string };
+  } catch {
+    return null;
+  }
+}
+
+function extractAuthUserId(req: any): string | null {
+  const authHeader = req.headers.authorization as string;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    const decoded = verifyUserToken(token);
+    if (decoded) return decoded.userId;
+  }
+  return null;
+}
+
+const requireAuth = async (req: any, res: any): Promise<string | null> => {
+  const userId = extractAuthUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Authentication required" });
-    return false;
+    return null;
   }
   const user = await storage.getUser(userId);
   if (!user) {
     res.status(401).json({ error: "Invalid user" });
-    return false;
+    return null;
   }
   if (user.isDeleted) {
     res.status(403).json({ error: "Account has been deleted" });
+    return null;
+  }
+  return userId;
+};
+
+const requireOwnership = async (req: any, res: any, targetUserId: string): Promise<boolean> => {
+  const authUserId = extractAuthUserId(req);
+  if (!authUserId) {
+    res.status(401).json({ error: "Authentication required" });
+    return false;
+  }
+  if (authUserId !== targetUserId) {
+    res.status(403).json({ error: "Access denied" });
+    return false;
+  }
+  const user = await storage.getUser(authUserId);
+  if (!user || user.isDeleted) {
+    res.status(403).json({ error: "Account unavailable" });
     return false;
   }
   return true;
@@ -330,6 +375,11 @@ export async function registerRoutes(
           
           if (message.data && (ws as any)._validatedUserId) {
             message.data.userId = (ws as any)._validatedUserId;
+          }
+
+          if ((message.type === 'comment' || message.type === 'gift') && !(ws as any)._validatedUserId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required to send messages' }));
+            return;
           }
 
           if (message.type === 'comment' && message.data?.userId) {
@@ -538,7 +588,8 @@ export async function registerRoutes(
       }
 
       const verifyToken = createVerifyToken(user.id);
-      res.json({ user: toSafeUser(user), emailServiceConfigured: isEmailServiceConfigured(), verifyToken });
+      const token = generateUserToken(user.id);
+      res.json({ user: toSafeUser(user), token, emailServiceConfigured: isEmailServiceConfigured(), verifyToken });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
     }
@@ -688,7 +739,8 @@ export async function registerRoutes(
         birthdate: dob,
         disclaimerAccepted: true,
       });
-      res.json({ user: toSafeUser(guestUser) });
+      const token = generateUserToken(guestUser.id);
+      res.json({ user: toSafeUser(guestUser), token });
     } catch (error) {
       console.error("Guest login error:", error);
       res.status(500).json({ error: "Failed to create guest session" });
@@ -753,27 +805,23 @@ export async function registerRoutes(
       }
       
       clearLoginFailures(rateLimitKey);
-      const response: any = { user: toSafeUser(user) };
+      const token = generateUserToken(user.id);
+      const response: any = { user: toSafeUser(user), token };
       if (!user.emailVerified && !user.isGuest) {
         response.verifyToken = createVerifyToken(user.id);
       }
       res.json(response);
     } catch (error) {
+      console.error("Login error:", error);
       res.status(500).json({ error: "Login failed" });
     }
   });
 
   app.post("/api/auth/ws-token", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      const token = createWsAuthToken(userId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const token = createWsAuthToken(authUserId);
       res.json({ token });
     } catch (error) {
       res.status(500).json({ error: "Failed to create WebSocket token" });
@@ -1003,7 +1051,8 @@ export async function registerRoutes(
         });
       }
 
-      res.json({ user: toSafeUser(user) });
+      const token = generateUserToken(user.id);
+      res.json({ user: toSafeUser(user), token });
     } catch (error) {
       console.error("Phone verify error:", error);
       res.status(500).json({ error: "Verification failed" });
@@ -1283,7 +1332,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id/profile", async (req, res) => {
     try {
       const userId = req.params.id;
-      if (!(await validateUserAccess(userId, res))) return;
+      if (!(await requireOwnership(req, res, userId))) return;
       const { username, bio, gender, birthdate, avatar, privacySettings, notificationSettings, language } = req.body;
       
       const existingUser = await storage.getUser(userId);
@@ -1911,7 +1960,7 @@ export async function registerRoutes(
     try {
       const messageData = insertMessageSchema.parse(req.body);
       
-      if (!(await validateUserAccess(messageData.senderId, res))) return;
+      if (!(await requireOwnership(req, res, messageData.senderId))) return;
       if (await checkGuestRestriction(messageData.senderId, res, storage)) return;
       
       const [blocked1, blocked2] = await Promise.all([
@@ -2057,7 +2106,7 @@ export async function registerRoutes(
 
   app.post("/api/users/:userId/block/:blockedId", async (req, res) => {
     try {
-      if (!(await validateUserAccess(req.params.userId, res))) return;
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       await storage.blockUser(req.params.userId, req.params.blockedId);
       res.json({ success: true });
     } catch (error) {
@@ -2067,7 +2116,7 @@ export async function registerRoutes(
 
   app.delete("/api/users/:userId/block/:blockedId", async (req, res) => {
     try {
-      if (!(await validateUserAccess(req.params.userId, res))) return;
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       await storage.unblockUser(req.params.userId, req.params.blockedId);
       res.json({ success: true });
     } catch (error) {
@@ -2086,7 +2135,7 @@ export async function registerRoutes(
 
   app.post("/api/users/:userId/report/:reportedId", async (req, res) => {
     try {
-      if (!(await validateUserAccess(req.params.userId, res))) return;
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       const { reason, description } = req.body;
       if (!reason) return res.status(400).json({ error: "Reason is required" });
       await storage.reportUser(req.params.userId, req.params.reportedId, reason, description);
@@ -2098,7 +2147,7 @@ export async function registerRoutes(
 
   app.post("/api/users/:userId/mute-calls/:mutedUserId", async (req, res) => {
     try {
-      if (!(await validateUserAccess(req.params.userId, res))) return;
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       await storage.muteCallsFromUser(req.params.userId, req.params.mutedUserId);
       res.json({ success: true });
     } catch (error) {
@@ -2108,7 +2157,7 @@ export async function registerRoutes(
 
   app.delete("/api/users/:userId/mute-calls/:mutedUserId", async (req, res) => {
     try {
-      if (!(await validateUserAccess(req.params.userId, res))) return;
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       await storage.unmuteCallsFromUser(req.params.userId, req.params.mutedUserId);
       res.json({ success: true });
     } catch (error) {
@@ -2188,7 +2237,6 @@ export async function registerRoutes(
   });
 
   // ===== Admin JWT Authentication =====
-  const jwt = await import("jsonwebtoken");
   if (!process.env.ADMIN_JWT_SECRET) {
     console.warn("⚠️  ADMIN_JWT_SECRET not set — using a random secret. Admin sessions will not persist across restarts. Set ADMIN_JWT_SECRET in production.");
   }
@@ -2200,7 +2248,7 @@ export async function registerRoutes(
   const verifyAdminToken = (token: string): { adminId: string } | null => {
     try {
       if (invalidatedAdminTokens.has(token)) return null;
-      const decoded = jwt.default.verify(token, ADMIN_JWT_SECRET) as { adminId: string };
+      const decoded = jwt.verify(token, ADMIN_JWT_SECRET) as { adminId: string };
       return decoded;
     } catch {
       return null;
@@ -3318,7 +3366,7 @@ export async function registerRoutes(
       if (!userId || !packageId) {
         return res.status(400).json({ error: "userId and packageId are required" });
       }
-      if (!(await validateUserAccess(userId, res))) return;
+      if (!(await requireOwnership(req, res, userId))) return;
 
       const pkg = await storage.getCoinPackageById(packageId);
       if (!pkg || !pkg.isActive) {
@@ -4052,7 +4100,7 @@ export async function registerRoutes(
 
   app.post("/api/notifications/:userId/mark-read", async (req, res) => {
     try {
-      if (!(await validateUserAccess(req.params.userId, res))) return;
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       await storage.markAllNotificationsRead(req.params.userId);
       res.json({ success: true });
     } catch (error) {
@@ -4270,7 +4318,7 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Invalid credentials" });
       }
       clearLoginFailures(rateLimitKey);
-      const token = jwt.default.sign({ adminId: admin.id }, ADMIN_JWT_SECRET, { expiresIn: ADMIN_TOKEN_EXPIRY });
+      const token = jwt.sign({ adminId: admin.id }, ADMIN_JWT_SECRET, { expiresIn: ADMIN_TOKEN_EXPIRY });
       const { password: _, ...safeAdmin } = admin;
       res.json({ ...safeAdmin, token });
     } catch (error) {

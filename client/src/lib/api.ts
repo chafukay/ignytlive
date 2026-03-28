@@ -1,6 +1,20 @@
 import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest, Group, GroupMember, GroupMessage, MediaUnlock, Notification, ScheduledEvent } from "@shared/schema";
+import { getAuthToken } from "./auth-context";
 
 const API_BASE = "";
+
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+function authJsonHeaders(): Record<string, string> {
+  return authHeaders({ "Content-Type": "application/json" });
+}
 
 export const api = {
   // Auth
@@ -11,7 +25,7 @@ export const api = {
       body: JSON.stringify({ username, email, password, birthdate }),
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<{ user: User; verifyToken?: string }>;
+    return res.json() as Promise<{ user: User; token?: string; verifyToken?: string }>;
   },
 
   async login(username: string, password: string) {
@@ -21,7 +35,7 @@ export const api = {
       body: JSON.stringify({ username, password }),
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<{ user: User; verifyToken?: string }>;
+    return res.json() as Promise<{ user: User; token?: string; verifyToken?: string }>;
   },
 
   async sendPhoneCode(phone: string) {
@@ -41,7 +55,7 @@ export const api = {
       body: JSON.stringify({ phone, code }),
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<{ user: User }>;
+    return res.json() as Promise<{ user: User; token?: string }>;
   },
 
   async sendEmailVerification(userId: string, verifyToken: string) {
@@ -80,7 +94,7 @@ export const api = {
       const err = await res.json().catch(() => ({ error: "Failed to create guest session" }));
       throw new Error(err.error || "Failed to create guest session");
     }
-    return res.json() as Promise<{ user: User }>;
+    return res.json() as Promise<{ user: User; token?: string }>;
   },
 
   // Location
@@ -125,10 +139,11 @@ export const api = {
     return res.json() as Promise<{ country: string | null; countryCode: string | null }>;
   },
 
-  async getAllUsers(adminUserId?: string) {
+  async getAllUsers() {
+    const adminToken = localStorage.getItem("adminToken");
     const headers: Record<string, string> = {};
-    if (adminUserId) {
-      headers["x-admin-user-id"] = adminUserId;
+    if (adminToken) {
+      headers["Authorization"] = `Bearer ${adminToken}`;
     }
     const res = await fetch(`${API_BASE}/api/admin/users`, { headers });
     if (!res.ok) throw new Error(await res.text());
@@ -138,7 +153,7 @@ export const api = {
   async deleteAccount(userId: string, password: string) {
     const res = await fetch(`${API_BASE}/api/auth/delete-account`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, password }),
     });
     if (!res.ok) {
@@ -151,20 +166,22 @@ export const api = {
   async updateUser(userId: string, updates: Partial<User>) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/profile`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User>;
   },
 
-  async updateUserAdmin(userId: string, updates: Partial<User>, adminUserId: string) {
+  async updateUserAdmin(userId: string, updates: Partial<User>) {
+    const adminToken = localStorage.getItem("adminToken");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (adminToken) {
+      headers["Authorization"] = `Bearer ${adminToken}`;
+    }
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
       method: "PATCH",
-      headers: { 
-        "Content-Type": "application/json",
-        "x-admin-user-id": adminUserId,
-      },
+      headers,
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -429,7 +446,7 @@ export const api = {
   async sendMessage(senderId: string, receiverId: string, content: string, replyToId?: string) {
     const res = await fetch(`${API_BASE}/api/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ senderId, receiverId, content, ...(replyToId ? { replyToId } : {}) }),
     });
     if (!res.ok) {
@@ -520,6 +537,7 @@ export const api = {
   async blockUser(userId: string, blockedId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/block/${blockedId}`, {
       method: "POST",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -528,6 +546,7 @@ export const api = {
   async unblockUser(userId: string, blockedId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/block/${blockedId}`, {
       method: "DELETE",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -542,7 +561,7 @@ export const api = {
   async reportUser(userId: string, reportedId: string, reason: string, description?: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/report/${reportedId}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ reason, description }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -552,6 +571,7 @@ export const api = {
   async muteCallsFromUser(userId: string, mutedUserId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/mute-calls/${mutedUserId}`, {
       method: "POST",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -560,6 +580,7 @@ export const api = {
   async unmuteCallsFromUser(userId: string, mutedUserId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/mute-calls/${mutedUserId}`, {
       method: "DELETE",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1168,6 +1189,7 @@ export const api = {
   async markAllNotificationsRead(userId: string) {
     const res = await fetch(`${API_BASE}/api/notifications/${userId}/mark-read`, {
       method: "POST",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1176,6 +1198,7 @@ export const api = {
   async markNotificationRead(notifId: string) {
     const res = await fetch(`${API_BASE}/api/notifications/${notifId}/read`, {
       method: "POST",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Notification>;

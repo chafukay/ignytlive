@@ -212,7 +212,7 @@ export default function Home() {
 
   if (!user) {
     api.login('NeonQueen', 'demo123')
-      .then(({ user }) => login(user))
+      .then((result) => login(result.user, result.token))
       .catch(() => {});
   }
 

@@ -30,7 +30,7 @@ export default function Login() {
     setIsLoading(true);
     try {
       const result = await api.login(username, password);
-      login(result.user);
+      login(result.user, result.token);
       if (result.verifyToken) {
         localStorage.setItem("verifyToken", result.verifyToken);
       }
@@ -69,9 +69,9 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      const { user: loggedInUser } = await api.verifyPhoneCode(phone, verificationCode);
-      login(loggedInUser);
-      toast({ title: `Welcome, ${loggedInUser.username}!` });
+      const result = await api.verifyPhoneCode(phone, verificationCode);
+      login(result.user, (result as any).token);
+      toast({ title: `Welcome, ${result.user.username}!` });
       setLocation("/");
     } catch (error) {
       toast({ title: "Invalid code", description: "Please check the code and try again", variant: "destructive" });
@@ -92,13 +92,13 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      const { user: guestUser } = await api.guestLogin({
+      const guestResult = await api.guestLogin({
         username: guestUsername.trim() || undefined,
         birthdate: guestBirthdate,
         disclaimerAccepted,
       });
-      login(guestUser);
-      toast({ title: `Welcome${guestUser.username.startsWith('guest_') ? '' : `, ${guestUser.username}`}! You're browsing as a guest`, description: "Some features are limited" });
+      login(guestResult.user, (guestResult as any).token);
+      toast({ title: `Welcome${guestResult.user.username.startsWith('guest_') ? '' : `, ${guestResult.user.username}`}! You're browsing as a guest`, description: "Some features are limited" });
       setLocation("/");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to start guest session";

@@ -118,9 +118,12 @@ export default function Coins() {
 
   const checkoutMutation = useMutation({
     mutationFn: async (pkg: CoinPackageAPI) => {
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch('/api/coins/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           userId: user!.id,
           packageId: pkg.id,
