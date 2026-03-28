@@ -4,7 +4,7 @@ import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { api, UserItemWithItem } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import BadgesDisplay from "@/components/badges-display";
 
@@ -12,6 +12,9 @@ import UserAvatar from "@/components/user-avatar";
 import { frameRingColors, defaultFrameRing, badgeColors } from "@/components/item-preview";
 import { useState, useRef } from "react";
 import { getWealthLevel } from "@shared/wealth-utils";
+import type { UserItem, StoreItem } from "@shared/schema";
+
+type UserItemWithItem = UserItem & { item: StoreItem };
 
 export default function Profile() {
   const { user, logout, setUser } = useAuth();
