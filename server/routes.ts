@@ -116,6 +116,9 @@ function clearLoginFailures(key: string): void {
 }
 
 const USER_JWT_SECRET = process.env.USER_JWT_SECRET || crypto.randomBytes(64).toString("hex");
+if (!process.env.USER_JWT_SECRET) {
+  console.warn("⚠️  USER_JWT_SECRET not set — using a random secret. User sessions will not persist across restarts. Set USER_JWT_SECRET in production.");
+}
 const USER_TOKEN_EXPIRY = "7d";
 
 function generateUserToken(userId: string): string {
@@ -3468,7 +3471,7 @@ export async function registerRoutes(
           webhookSecret
         );
       } else {
-        console.warn("STRIPE_WEBHOOK_SECRET not set — webhook signature verification disabled. Set it in production.");
+        console.warn("STRIPE_WEBHOOK_SECRET not set — webhook rejected. Set it in production to process payments.");
         return res.status(400).json({ error: "Webhook not configured" });
       }
     } catch (err: any) {
