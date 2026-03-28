@@ -99,9 +99,10 @@ export const api = {
 
   // Location
   async updateUserLocation(userId: string, location: { latitude: number; longitude: number; city?: string; state?: string; country?: string }) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/location`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
       body: JSON.stringify(location),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1142,17 +1143,20 @@ export const api = {
   },
 
   async generateReferralCode(userId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/referral-code`, {
       method: "POST",
+      headers: token ? { "Authorization": `Bearer ${token}` } : {},
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ referralCode: string }>;
   },
 
   async applyReferralCode(userId: string, referralCode: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/apply-referral`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
       body: JSON.stringify({ referralCode }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1172,9 +1176,10 @@ export const api = {
   },
 
   async claimDailyLogin(userId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/daily-login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<DailyLoginResult>;

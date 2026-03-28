@@ -1311,6 +1311,7 @@ export async function registerRoutes(
   // Update user location
   app.post("/api/users/:id/location", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.id))) return;
       const { latitude, longitude, city, state, country } = req.body;
 
       if (typeof latitude !== "number" || typeof longitude !== "number") {
@@ -2205,6 +2206,7 @@ export async function registerRoutes(
   // XP and Level routes
   app.post("/api/users/:id/daily-login", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.id))) return;
       const userId = req.params.id;
       const result = await checkDailyLoginBonus(userId);
       res.json(result);
@@ -2221,6 +2223,7 @@ export async function registerRoutes(
 
   app.post("/api/users/:id/upgrade-vip", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.id))) return;
       const userId = req.params.id;
       const { tier, cost } = vipUpgradeSchema.parse(req.body);
       
@@ -4035,6 +4038,7 @@ export async function registerRoutes(
   // Generate referral code for user
   app.post("/api/users/:userId/referral-code", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       const userId = req.params.userId;
       const user = await storage.getUser(userId);
       
@@ -4059,6 +4063,7 @@ export async function registerRoutes(
   // Apply referral code
   app.post("/api/users/:userId/apply-referral", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       const userId = req.params.userId;
       const { referralCode } = req.body;
       
