@@ -477,38 +477,42 @@ export const api = {
   },
 
   async markMessagesAsRead(userId: string, otherUserId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/mark-read`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, otherUserId }),
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ otherUserId }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ success: boolean }>;
   },
 
   async deleteConversation(userId1: string, userId2: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/conversation/${userId1}/${userId2}`, {
       method: "DELETE",
+      headers: token ? { "Authorization": `Bearer ${token}` } : {},
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async deleteMessage(messageId: string, userId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async editMessage(messageId: string, userId: string, content: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, content }),
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ content }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

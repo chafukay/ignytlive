@@ -1064,6 +1064,7 @@ export async function registerRoutes(
   // Link email to existing account
   app.post("/api/users/:userId/link-email", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       const userId = req.params.userId;
       const { email, password } = req.body;
 
@@ -1111,6 +1112,7 @@ export async function registerRoutes(
   // Link phone to existing account - send code
   app.post("/api/users/:userId/link-phone/send-code", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       const { phone } = req.body;
 
       if (!phone || typeof phone !== "string") {
@@ -1166,6 +1168,7 @@ export async function registerRoutes(
   // Link phone to existing account - verify code
   app.post("/api/users/:userId/link-phone/verify", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       const userId = req.params.userId;
       const { phone, code } = req.body;
 
@@ -1206,6 +1209,7 @@ export async function registerRoutes(
   // Unlink phone from account
   app.post("/api/users/:userId/unlink-phone", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.userId))) return;
       const userId = req.params.userId;
       const user = await storage.getUser(userId);
       if (!user) {
