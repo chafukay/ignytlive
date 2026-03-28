@@ -527,8 +527,8 @@ export const api = {
   async deleteMultipleConversations(userId: string, otherUserIds: string[]) {
     const res = await fetch(`${API_BASE}/api/messages/delete-conversations`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, otherUserIds }),
+      headers: authJsonHeaders(),
+      body: JSON.stringify({ otherUserIds }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1214,8 +1214,8 @@ export const api = {
   async savePushSubscription(userId: string, endpoint: string, p256dh: string, auth: string) {
     const res = await fetch(`${API_BASE}/api/push/subscribe`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, endpoint, p256dh, auth }),
+      headers: authJsonHeaders(),
+      body: JSON.stringify({ endpoint, p256dh, auth }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1250,7 +1250,7 @@ export const api = {
   async createEvent(data: { hostId: string; title: string; description?: string; category?: string; coverImage?: string; scheduledAt: string; durationMinutes?: number }) {
     const res = await fetch(`${API_BASE}/api/events`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1260,7 +1260,7 @@ export const api = {
   async updateEvent(id: string, data: Record<string, any>) {
     const res = await fetch(`${API_BASE}/api/events/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1268,7 +1268,7 @@ export const api = {
   },
 
   async deleteEvent(id: string) {
-    const res = await fetch(`${API_BASE}/api/events/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API_BASE}/api/events/${id}`, { method: "DELETE", headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -1276,8 +1276,7 @@ export const api = {
   async rsvpEvent(eventId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1286,8 +1285,7 @@ export const api = {
   async unrsvpEvent(eventId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

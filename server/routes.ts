@@ -2093,11 +2093,13 @@ export async function registerRoutes(
 
   app.post("/api/messages/delete-conversations", async (req, res) => {
     try {
-      const { userId, otherUserIds } = req.body;
-      if (!userId || !otherUserIds || !Array.isArray(otherUserIds)) {
-        return res.status(400).json({ error: "userId and otherUserIds array are required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { otherUserIds } = req.body;
+      if (!otherUserIds || !Array.isArray(otherUserIds)) {
+        return res.status(400).json({ error: "otherUserIds array is required" });
       }
-      const count = await storage.deleteMultipleConversations(userId, otherUserIds);
+      const count = await storage.deleteMultipleConversations(authUserId, otherUserIds);
       res.json({ success: true, deleted: count });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete conversations" });
@@ -4131,11 +4133,13 @@ export async function registerRoutes(
 
   app.post("/api/push/subscribe", async (req, res) => {
     try {
-      const { userId, endpoint, p256dh, auth } = req.body;
-      if (!userId || !endpoint || !p256dh || !auth) {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { endpoint, p256dh, auth } = req.body;
+      if (!endpoint || !p256dh || !auth) {
         return res.status(400).json({ error: "Missing required fields" });
       }
-      const sub = await storage.savePushSubscription(userId, endpoint, p256dh, auth);
+      const sub = await storage.savePushSubscription(authUserId, endpoint, p256dh, auth);
       res.json({ success: true, id: sub.id });
     } catch (error) {
       res.status(500).json({ error: "Failed to save push subscription" });
@@ -4159,13 +4163,15 @@ export async function registerRoutes(
   
   app.post("/api/events", async (req, res) => {
     try {
-      const { hostId, title, description, category, coverImage, scheduledAt, durationMinutes, status } = req.body;
-      if (!hostId || !title || !scheduledAt) {
-        return res.status(400).json({ error: "hostId, title, and scheduledAt are required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { title, description, category, coverImage, scheduledAt, durationMinutes, status } = req.body;
+      if (!title || !scheduledAt) {
+        return res.status(400).json({ error: "title and scheduledAt are required" });
       }
-      if (await checkGuestRestriction(hostId, res, storage)) return;
+      if (await checkGuestRestriction(authUserId, res, storage)) return;
       const event = await storage.createScheduledEvent({
-        hostId, title, description, category, coverImage,
+        hostId: authUserId, title, description, category, coverImage,
         scheduledAt: new Date(scheduledAt),
         durationMinutes: durationMinutes || 60,
         status: status || "upcoming",
@@ -4209,11 +4215,11 @@ export async function registerRoutes(
 
   app.patch("/api/events/:id", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) return res.status(400).json({ error: "userId is required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const event = await storage.getScheduledEvent(req.params.id);
       if (!event) return res.status(404).json({ error: "Event not found" });
-      if (event.hostId !== userId) return res.status(403).json({ error: "Only the host can edit this event" });
+      if (event.hostId !== authUserId) return res.status(403).json({ error: "Only the host can edit this event" });
       const updates: any = {};
       if (req.body.title !== undefined) updates.title = req.body.title;
       if (req.body.description !== undefined) updates.description = req.body.description;
@@ -4231,11 +4237,11 @@ export async function registerRoutes(
 
   app.delete("/api/events/:id", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) return res.status(400).json({ error: "userId is required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const event = await storage.getScheduledEvent(req.params.id);
       if (!event) return res.status(404).json({ error: "Event not found" });
-      if (event.hostId !== userId) return res.status(403).json({ error: "Only the host can delete this event" });
+      if (event.hostId !== authUserId) return res.status(403).json({ error: "Only the host can delete this event" });
       const deleted = await storage.deleteScheduledEvent(req.params.id);
       res.json({ success: true });
     } catch (error) {
@@ -4245,10 +4251,10 @@ export async function registerRoutes(
 
   app.post("/api/events/:id/rsvp", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) return res.status(400).json({ error: "userId is required" });
-      if (await checkGuestRestriction(userId, res, storage)) return;
-      const rsvp = await storage.rsvpEvent(req.params.id, userId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      if (await checkGuestRestriction(authUserId, res, storage)) return;
+      const rsvp = await storage.rsvpEvent(req.params.id, authUserId);
       res.json(rsvp);
     } catch (error) {
       res.status(400).json({ error: "Failed to RSVP" });
@@ -4257,9 +4263,9 @@ export async function registerRoutes(
 
   app.delete("/api/events/:id/rsvp", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) return res.status(400).json({ error: "userId is required" });
-      const removed = await storage.unrsvpEvent(req.params.id, userId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const removed = await storage.unrsvpEvent(req.params.id, authUserId);
       res.json({ success: removed });
     } catch (error) {
       res.status(400).json({ error: "Failed to remove RSVP" });
