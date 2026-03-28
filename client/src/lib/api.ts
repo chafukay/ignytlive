@@ -668,9 +668,10 @@ export const api = {
 
   // DND
   async toggleDND(userId: string, enabled: boolean) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/dnd`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
       body: JSON.stringify({ enabled }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1292,7 +1293,10 @@ export const api = {
   },
 
   async checkRsvp(eventId: string, userId: string) {
-    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp/check?userId=${userId}`);
+    const token = localStorage.getItem("authToken");
+    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp/check`, {
+      headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ hasRsvped: boolean }>;
   },

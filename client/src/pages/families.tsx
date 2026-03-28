@@ -75,7 +75,10 @@ export default function Families() {
   const { data: myFamily } = useQuery<FamilyMember | null>({
     queryKey: ["my-family", user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/families/my?userId=${user?.id}`);
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`/api/families/my`, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+      });
       return res.json();
     },
     enabled: !!user?.id,
@@ -83,10 +86,11 @@ export default function Families() {
 
   const createFamilyMutation = useMutation({
     mutationFn: async (data: typeof newFamily) => {
+      const token = localStorage.getItem("authToken");
       const res = await fetch("/api/families", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, ownerId: user?.id }),
+        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        body: JSON.stringify(data),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -109,10 +113,11 @@ export default function Families() {
 
   const joinFamilyMutation = useMutation({
     mutationFn: async (familyId: string) => {
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/families/${familyId}/join`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id }),
+        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         const error = await res.json();

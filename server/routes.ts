@@ -1404,10 +1404,13 @@ export async function registerRoutes(
 
   app.post("/api/streams", async (req, res) => {
     try {
-      const { userId, title, description, category, thumbnail, tags, isPrivate, accessType, minVipTier, groupId, showCountry, blockLinks } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { title, description, category, thumbnail, tags, isPrivate, accessType, minVipTier, groupId, showCountry, blockLinks } = req.body;
+      const userId = authUserId;
       
-      if (!userId || !title) {
-        return res.status(400).json({ error: "userId and title are required" });
+      if (!title) {
+        return res.status(400).json({ error: "title is required" });
       }
       
       if (await checkGuestRestriction(userId, res, storage)) return;
@@ -1480,15 +1483,15 @@ export async function registerRoutes(
   // End stream (properly mark as not live)
   app.post("/api/streams/:id/end", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const stream = await storage.getStream(req.params.id);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      // Only stream owner can end the stream
-      if (stream.userId !== userId) {
+      if (stream.userId !== authUserId) {
         return res.status(403).json({ error: "Not authorized to end this stream" });
       }
       
@@ -1526,10 +1529,12 @@ export async function registerRoutes(
   
   app.post("/api/streams/:id/comments", async (req, res) => {
     try {
-      const { userId, text } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { text } = req.body;
+      const userId = authUserId;
       const streamId = req.params.id;
       
-      // Guest restriction
       if (await checkGuestRestriction(userId, res, storage)) return;
       
       // Get stream to check slow mode and host
@@ -1646,13 +1651,11 @@ export async function registerRoutes(
 
   app.post("/api/shorts/:id/like", async (req, res) => {
     try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const { id } = req.params;
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
+      const userId = authUserId;
       
-      // Guest restriction
       if (await checkGuestRestriction(userId, res, storage)) return;
       
       const liked = await storage.likeShort(id, userId);
@@ -1684,12 +1687,14 @@ export async function registerRoutes(
 
   app.post("/api/shorts/:id/comments", async (req, res) => {
     try {
-      const { userId, content, parentId } = req.body;
-      if (!userId || !content) {
-        return res.status(400).json({ error: "userId and content are required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { content, parentId } = req.body;
+      const userId = authUserId;
+      if (!content) {
+        return res.status(400).json({ error: "content is required" });
       }
       
-      // Guest restriction
       if (await checkGuestRestriction(userId, res, storage)) return;
       
       const comment = await storage.createShortComment({
@@ -1708,11 +1713,9 @@ export async function registerRoutes(
 
   app.delete("/api/shorts/comments/:commentId", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-      const deleted = await storage.deleteShortComment(req.params.commentId, userId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const deleted = await storage.deleteShortComment(req.params.commentId, authUserId);
       if (!deleted) {
         return res.status(404).json({ error: "Comment not found or not authorized" });
       }
@@ -1725,11 +1728,13 @@ export async function registerRoutes(
   // Comment reactions routes
   app.post("/api/shorts/comments/:commentId/react", async (req, res) => {
     try {
-      const { userId, reaction } = req.body;
-      if (!userId || !reaction) {
-        return res.status(400).json({ error: "userId and reaction are required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { reaction } = req.body;
+      if (!reaction) {
+        return res.status(400).json({ error: "reaction is required" });
       }
-      await storage.reactToComment(req.params.commentId, userId, reaction);
+      await storage.reactToComment(req.params.commentId, authUserId, reaction);
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to react to comment" });
@@ -1738,11 +1743,9 @@ export async function registerRoutes(
 
   app.delete("/api/shorts/comments/:commentId/react", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-      await storage.removeCommentReaction(req.params.commentId, userId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      await storage.removeCommentReaction(req.params.commentId, authUserId);
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to remove reaction" });
@@ -2017,11 +2020,13 @@ export async function registerRoutes(
 
   app.post("/api/messages/mark-read", async (req, res) => {
     try {
-      const { userId, otherUserId } = req.body;
-      if (!userId || !otherUserId) {
-        return res.status(400).json({ error: "userId and otherUserId are required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { otherUserId } = req.body;
+      if (!otherUserId) {
+        return res.status(400).json({ error: "otherUserId is required" });
       }
-      await storage.markMessagesAsRead(userId, otherUserId);
+      await storage.markMessagesAsRead(authUserId, otherUserId);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to mark messages as read" });
@@ -2030,6 +2035,11 @@ export async function registerRoutes(
 
   app.delete("/api/messages/conversation/:userId1/:userId2", async (req, res) => {
     try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      if (authUserId !== req.params.userId1 && authUserId !== req.params.userId2) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
       await storage.deleteConversation(req.params.userId1, req.params.userId2);
       res.json({ success: true });
     } catch (error) {
@@ -2039,11 +2049,9 @@ export async function registerRoutes(
 
   app.delete("/api/messages/:messageId", async (req, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-      const deleted = await storage.deleteMessage(req.params.messageId, userId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const deleted = await storage.deleteMessage(req.params.messageId, authUserId);
       if (!deleted) {
         return res.status(404).json({ error: "Message not found or unauthorized" });
       }
@@ -2055,11 +2063,13 @@ export async function registerRoutes(
 
   app.patch("/api/messages/:messageId", async (req, res) => {
     try {
-      const { userId, content } = req.body;
-      if (!userId || !content?.trim()) {
-        return res.status(400).json({ error: "userId and content are required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { content } = req.body;
+      if (!content?.trim()) {
+        return res.status(400).json({ error: "content is required" });
       }
-      const updated = await storage.updateMessage(req.params.messageId, userId, content.trim());
+      const updated = await storage.updateMessage(req.params.messageId, authUserId, content.trim());
       if (!updated) {
         return res.status(404).json({ error: "Message not found or you can only edit your own messages" });
       }
@@ -2371,8 +2381,10 @@ export async function registerRoutes(
 
   app.post("/api/wheel/spin", async (req, res) => {
     try {
-      const { userId, streamId } = req.body;
-      const result = await storage.spinWheel(userId, streamId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { streamId } = req.body;
+      const result = await storage.spinWheel(authUserId, streamId);
       res.json(result);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Spin failed" });
@@ -2382,6 +2394,7 @@ export async function registerRoutes(
   // DND toggle route
   app.patch("/api/users/:id/dnd", async (req, res) => {
     try {
+      if (!(await requireOwnership(req, res, req.params.id))) return;
       const { enabled } = req.body;
       const user = await storage.updateUser(req.params.id, { dndEnabled: enabled });
       res.json(toSafeUser(user));
@@ -2810,14 +2823,14 @@ export async function registerRoutes(
   // Accept a private call - only host can accept
   app.post("/api/private-calls/:id/accept", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const call = await storage.getPrivateCall(req.params.id);
       if (!call) {
         return res.status(404).json({ error: "Call not found" });
       }
       
-      // Authorization check: only host can accept
-      if (userId !== call.hostId) {
+      if (authUserId !== call.hostId) {
         return res.status(403).json({ error: "Only the host can accept this call" });
       }
       
@@ -2854,14 +2867,14 @@ export async function registerRoutes(
   // Decline a private call - only host can decline
   app.post("/api/private-calls/:id/decline", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const call = await storage.getPrivateCall(req.params.id);
       if (!call) {
         return res.status(404).json({ error: "Call not found" });
       }
       
-      // Authorization check: only host can decline
-      if (userId !== call.hostId) {
+      if (authUserId !== call.hostId) {
         return res.status(403).json({ error: "Only the host can decline this call" });
       }
       
@@ -2884,14 +2897,15 @@ export async function registerRoutes(
   // End a private call - either party can end
   app.post("/api/private-calls/:id/end", async (req, res) => {
     try {
-      const { endReason, userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { endReason } = req.body;
       const call = await storage.getPrivateCall(req.params.id);
       if (!call) {
         return res.status(404).json({ error: "Call not found" });
       }
       
-      // Authorization check: only viewer or host can end
-      if (userId !== call.viewerId && userId !== call.hostId) {
+      if (authUserId !== call.viewerId && authUserId !== call.hostId) {
         return res.status(403).json({ error: "Only call participants can end this call" });
       }
       
@@ -2899,11 +2913,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Call cannot be ended" });
       }
       
-      // Calculate duration
       const startTime = call.startedAt ? new Date(call.startedAt).getTime() : Date.now();
       const durationSeconds = call.startedAt ? Math.floor((Date.now() - startTime) / 1000) : 0;
       
-      const actualEndReason = endReason || (userId === call.hostId ? "host_ended" : "viewer_ended");
+      const actualEndReason = endReason || (authUserId === call.hostId ? "host_ended" : "viewer_ended");
       
       const updatedCall = await storage.updatePrivateCall(req.params.id, {
         status: "ended",
@@ -2921,14 +2934,14 @@ export async function registerRoutes(
   // Bill per minute (called by viewer client every minute during active call)
   app.post("/api/private-calls/:id/bill-minute", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const call = await storage.getPrivateCall(req.params.id);
       if (!call) {
         return res.status(404).json({ error: "Call not found" });
       }
       
-      // Authorization check: only viewer can trigger billing (prevents malicious billing)
-      if (userId !== call.viewerId) {
+      if (authUserId !== call.viewerId) {
         return res.status(403).json({ error: "Only the viewer can trigger billing" });
       }
       
@@ -3014,12 +3027,8 @@ export async function registerRoutes(
   // Update host private call settings - only user can update their own settings
   app.patch("/api/users/:id/private-call-settings", async (req, res) => {
     try {
-      const { availableForPrivateCall, privateCallRate, privateCallBillingMode, privateCallSessionPrice, userId } = req.body;
-      
-      // Authorization check: only user can update their own settings
-      if (userId !== req.params.id) {
-        return res.status(403).json({ error: "You can only update your own settings" });
-      }
+      if (!(await requireOwnership(req, res, req.params.id))) return;
+      const { availableForPrivateCall, privateCallRate, privateCallBillingMode, privateCallSessionPrice } = req.body;
       
       const updates: any = {};
       
@@ -3040,22 +3049,23 @@ export async function registerRoutes(
   // Add room moderator - host only
   app.post("/api/streams/:streamId/moderators", async (req, res) => {
     try {
-      const { userId, assignedBy } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { userId } = req.body;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      // Only host can assign moderators
-      if (stream.userId !== assignedBy) {
+      if (stream.userId !== authUserId) {
         return res.status(403).json({ error: "Only the host can assign moderators" });
       }
       
       const moderator = await storage.addRoomModerator({
         streamId: req.params.streamId,
         userId,
-        assignedBy,
+        assignedBy: authUserId,
       });
       res.json(moderator);
     } catch (error) {
@@ -3066,15 +3076,15 @@ export async function registerRoutes(
   // Remove room moderator - host only
   app.delete("/api/streams/:streamId/moderators/:userId", async (req, res) => {
     try {
-      const { requesterId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      // Only host can remove moderators
-      if (stream.userId !== requesterId) {
+      if (stream.userId !== authUserId) {
         return res.status(403).json({ error: "Only the host can remove moderators" });
       }
       
@@ -3108,22 +3118,22 @@ export async function registerRoutes(
   // Ban user from room - host or moderator
   app.post("/api/streams/:streamId/bans", async (req, res) => {
     try {
-      const { userId, bannedBy, reason, isPermanent, durationSeconds } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { userId, reason, isPermanent, durationSeconds } = req.body;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      // Check if requester is host or moderator
-      const isHost = stream.userId === bannedBy;
-      const isMod = await storage.isRoomModerator(req.params.streamId, bannedBy);
+      const isHost = stream.userId === authUserId;
+      const isMod = await storage.isRoomModerator(req.params.streamId, authUserId);
       
       if (!isHost && !isMod) {
         return res.status(403).json({ error: "Only host or moderators can ban users" });
       }
       
-      // Can't ban the host
       if (userId === stream.userId) {
         return res.status(400).json({ error: "Cannot ban the host" });
       }
@@ -3133,7 +3143,7 @@ export async function registerRoutes(
       const ban = await storage.createRoomBan({
         streamId: req.params.streamId,
         userId,
-        bannedBy,
+        bannedBy: authUserId,
         reason,
         isPermanent: isPermanent || false,
         expiresAt,
@@ -3147,15 +3157,16 @@ export async function registerRoutes(
   // Unban user - host or moderator
   app.delete("/api/streams/:streamId/bans/:userId", async (req, res) => {
     try {
-      const { requesterId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      const isHost = stream.userId === requesterId;
-      const isMod = await storage.isRoomModerator(req.params.streamId, requesterId);
+      const isHost = stream.userId === authUserId;
+      const isMod = await storage.isRoomModerator(req.params.streamId, authUserId);
       
       if (!isHost && !isMod) {
         return res.status(403).json({ error: "Only host or moderators can unban users" });
@@ -3191,15 +3202,17 @@ export async function registerRoutes(
   // Mute user with duration - host or moderator
   app.post("/api/streams/:streamId/mutes", async (req, res) => {
     try {
-      const { userId, mutedBy, reason, durationSeconds } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { userId, reason, durationSeconds } = req.body;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      const isHost = stream.userId === mutedBy;
-      const isMod = await storage.isRoomModerator(req.params.streamId, mutedBy);
+      const isHost = stream.userId === authUserId;
+      const isMod = await storage.isRoomModerator(req.params.streamId, authUserId);
       
       if (!isHost && !isMod) {
         return res.status(403).json({ error: "Only host or moderators can mute users" });
@@ -3216,7 +3229,7 @@ export async function registerRoutes(
       const mute = await storage.createRoomMute({
         streamId: req.params.streamId,
         userId,
-        mutedBy,
+        mutedBy: authUserId,
         reason,
         durationSeconds: duration,
         expiresAt,
@@ -3274,15 +3287,16 @@ export async function registerRoutes(
   // Update stream settings (slow mode, pinned message) - host only
   app.patch("/api/streams/:streamId/settings", async (req, res) => {
     try {
-      const { slowModeSeconds, pinnedMessageId, blockLinks, userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { slowModeSeconds, pinnedMessageId, blockLinks } = req.body;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      // Only host can update stream settings
-      if (stream.userId !== userId) {
+      if (stream.userId !== authUserId) {
         return res.status(403).json({ error: "Only the host can update stream settings" });
       }
       
@@ -3485,10 +3499,8 @@ export async function registerRoutes(
   // Stripe - verify checkout session and credit coins (fallback for webhook)
   app.post("/api/coins/verify-session/:sessionId", async (req, res) => {
     try {
-      const { userId: requestingUserId } = req.body;
-      if (!requestingUserId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
 
       const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
 
@@ -3498,7 +3510,7 @@ export async function registerRoutes(
 
       const { userId, packageCoins, priceUsd } = session.metadata;
 
-      if (userId !== requestingUserId) {
+      if (userId !== authUserId) {
         return res.status(403).json({ error: "Unauthorized" });
       }
 
@@ -3655,10 +3667,8 @@ export async function registerRoutes(
   // Get current user's family
   app.get("/api/families/my", async (req, res) => {
     try {
-      const userId = req.query.userId as string;
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required" });
-      }
+      const userId = await requireAuth(req, res);
+      if (!userId) return;
       const membership = await storage.getUserFamily(userId);
       res.json(membership || null);
     } catch (error) {
@@ -3682,13 +3692,15 @@ export async function registerRoutes(
   // Create family
   app.post("/api/families", async (req, res) => {
     try {
-      const { name, description, ownerId, isPublic, minLevel } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { name, description, isPublic, minLevel } = req.body;
+      const ownerId = authUserId;
       
-      if (!name || !ownerId) {
-        return res.status(400).json({ error: "Name and owner required" });
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
       }
 
-      // Check if user already has a family
       const existingMembership = await storage.getUserFamily(ownerId);
       if (existingMembership) {
         return res.status(400).json({ error: "You must leave your current family first" });
@@ -3722,16 +3734,17 @@ export async function registerRoutes(
   // Update family
   app.patch("/api/families/:id", async (req, res) => {
     try {
-      const { userId, name, description, isPublic, minLevel, maxMembers } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { name, description, isPublic, minLevel, maxMembers } = req.body;
       
       const family = await storage.getFamily(req.params.id);
       if (!family) {
         return res.status(404).json({ error: "Family not found" });
       }
 
-      // Check if user is owner or admin
       const members = await storage.getFamilyMembers(family.id);
-      const member = members.find(m => m.userId === userId);
+      const member = members.find(m => m.userId === authUserId);
       if (!member || (member.role !== "owner" && member.role !== "admin")) {
         return res.status(403).json({ error: "Only owners and admins can edit family" });
       }
@@ -3753,14 +3766,15 @@ export async function registerRoutes(
   // Delete family
   app.delete("/api/families/:id", async (req, res) => {
     try {
-      const userId = req.query.userId as string;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const family = await storage.getFamily(req.params.id);
       
       if (!family) {
         return res.status(404).json({ error: "Family not found" });
       }
 
-      if (family.ownerId !== userId) {
+      if (family.ownerId !== authUserId) {
         return res.status(403).json({ error: "Only the owner can delete the family" });
       }
 
@@ -3784,14 +3798,11 @@ export async function registerRoutes(
   // Join family
   app.post("/api/families/:id/join", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const userId = authUserId;
       const familyId = req.params.id;
-      
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required" });
-      }
 
-      // Check if user already has a family
       const existingMembership = await storage.getUserFamily(userId);
       if (existingMembership) {
         return res.status(400).json({ error: "You must leave your current family first" });
@@ -3831,23 +3842,20 @@ export async function registerRoutes(
   // Leave family
   app.post("/api/families/:id/leave", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const familyId = req.params.id;
-      
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required" });
-      }
 
       const family = await storage.getFamily(familyId);
       if (!family) {
         return res.status(404).json({ error: "Family not found" });
       }
 
-      if (family.ownerId === userId) {
+      if (family.ownerId === authUserId) {
         return res.status(400).json({ error: "Owner cannot leave. Transfer ownership or delete the family." });
       }
 
-      await storage.removeFamilyMember(familyId, userId);
+      await storage.removeFamilyMember(familyId, authUserId);
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ error: "Failed to leave family" });
@@ -3857,7 +3865,9 @@ export async function registerRoutes(
   // Promote/demote member
   app.patch("/api/families/:id/members/:memberId", async (req, res) => {
     try {
-      const { userId, role } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { role } = req.body;
       const familyId = req.params.id;
       const memberId = req.params.memberId;
       
@@ -3866,8 +3876,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Family not found" });
       }
 
-      // Only owner can promote/demote
-      if (family.ownerId !== userId) {
+      if (family.ownerId !== authUserId) {
         return res.status(403).json({ error: "Only the owner can change roles" });
       }
 
@@ -3885,7 +3894,8 @@ export async function registerRoutes(
   // Kick member
   app.delete("/api/families/:id/members/:memberId", async (req, res) => {
     try {
-      const userId = req.query.userId as string;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const familyId = req.params.id;
       const memberId = req.params.memberId;
       
@@ -3895,7 +3905,7 @@ export async function registerRoutes(
       }
 
       const members = await storage.getFamilyMembers(familyId);
-      const actor = members.find(m => m.userId === userId);
+      const actor = members.find(m => m.userId === authUserId);
       const target = members.find(m => m.userId === memberId);
 
       if (!actor || !target) {
@@ -3935,14 +3945,16 @@ export async function registerRoutes(
   // Send family message
   app.post("/api/families/:id/messages", async (req, res) => {
     try {
-      const { userId, content } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { content } = req.body;
+      const userId = authUserId;
       const familyId = req.params.id;
       
-      if (!userId || !content) {
-        return res.status(400).json({ error: "User ID and content required" });
+      if (!content) {
+        return res.status(400).json({ error: "Content required" });
       }
 
-      // Verify user is a member
       const membership = await storage.getUserFamily(userId);
       if (!membership || membership.familyId !== familyId) {
         return res.status(403).json({ error: "You must be a member to send messages" });
@@ -4274,8 +4286,8 @@ export async function registerRoutes(
 
   app.get("/api/events/:id/rsvp/check", async (req, res) => {
     try {
-      const userId = req.query.userId as string;
-      if (!userId) return res.status(400).json({ error: "userId query param required" });
+      const userId = await requireAuth(req, res);
+      if (!userId) return;
       const hasRsvped = await storage.hasRsvped(req.params.id, userId);
       res.json({ hasRsvped });
     } catch (error) {

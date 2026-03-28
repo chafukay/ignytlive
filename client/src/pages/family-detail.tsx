@@ -121,10 +121,11 @@ export default function FamilyDetail() {
 
   const leaveMutation = useMutation({
     mutationFn: async () => {
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/families/${id}/leave`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id }),
+        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -144,8 +145,10 @@ export default function FamilyDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/families/${id}?userId=${user?.id}`, {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`/api/families/${id}`, {
         method: "DELETE",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
       });
       if (!res.ok) {
         const error = await res.json();
@@ -166,10 +169,11 @@ export default function FamilyDetail() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof editData) => {
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/families/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, userId: user?.id }),
+        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        body: JSON.stringify(data),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -189,10 +193,11 @@ export default function FamilyDetail() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/families/${id}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id, content }),
+        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ content }),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -211,8 +216,10 @@ export default function FamilyDetail() {
 
   const kickMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      const res = await fetch(`/api/families/${id}/members/${memberId}?userId=${user?.id}`, {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`/api/families/${id}/members/${memberId}`, {
         method: "DELETE",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
       });
       if (!res.ok) {
         const error = await res.json();
