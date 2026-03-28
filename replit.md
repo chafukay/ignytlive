@@ -90,10 +90,16 @@ Preferred communication style: Simple, everyday language.
 - **jsonwebtoken**: For admin JWT session tokens.
 
 ### Security
+- **HTTP Security Headers**: Helmet middleware with configured CSP (allows Stripe, Google Fonts, dicebear, Agora, WebSockets).
+- **JSON Body Limit**: 5MB max request body size.
 - **Global API Rate Limiting**: All `/api` endpoints are limited to 100 requests per minute per IP. Returns 429 with `Retry-After` header when exceeded. Stale entries cleaned every 5 minutes.
 - **Brute Force Protection**: Both login endpoints (`/api/auth/login` and `/api/admin/auth/login`) have additional stricter rate limiting - 5 attempts per 15-minute window per IP, with 15-minute lockout after exceeding.
 - **Registration Rate Limiting**: Registration endpoint uses same brute force limiter (5 per 15 min per IP).
 - **SMS Rate Limiting**: Phone verification limited to 3 codes per phone number per hour.
 - **Password Hashing**: All user passwords hashed with bcrypt (cost factor 10). Startup migration auto-hashes any remaining plain text passwords.
-- **Admin Auth**: JWT Bearer tokens with 8-hour expiry, bcrypt-hashed passwords, server-side token invalidation on logout.
-- **Admin Panel**: Fully isolated from main app - separate `admin_users` table, own `AdminAuthProvider` context, independent localStorage key (`adminToken`), no main app providers (no DailyLoginModal, IncomingCallBanner, etc.). Default admin: username `admin`, password `admin123`.
+- **Admin Auth**: JWT Bearer tokens with 8-hour expiry, bcrypt-hashed passwords, server-side token invalidation on logout. Single `requireAdmin` middleware defined early and shared by all admin routes. `ADMIN_JWT_SECRET` env var recommended; falls back to random secret with startup warning.
+- **Admin Panel**: Fully isolated from main app - separate `admin_users` table, own `AdminAuthProvider` context, independent localStorage key (`adminToken`), no main app providers (no DailyLoginModal, IncomingCallBanner, etc.). Default admin: username `admin`, password `admin123`. Admin user update schema restricted to vipTier/coins/diamonds/level — no role escalation via update endpoint.
+- **Route Ownership Validation**: `validateUserAccess()` checks on sensitive user-mutating routes (profile updates, block/unblock, report, mute, messaging, coin checkout, notifications). Validates user exists and is not deleted.
+- **WebSocket Auth**: Token-based WebSocket authentication via `POST /api/auth/ws-token`. Tokens are single-use, 30-second TTL. Server-validated userId bound to WebSocket connection and overrides client-supplied userId in messages.
+- **Cookie Consent**: Banner component (`client/src/components/cookie-consent.tsx`) in Layout. Shows on first visit, stores preference in localStorage. Links to Privacy Policy.
+- **CSRF**: Not applicable — app uses localStorage JWT tokens (not cookies) for auth, so no CSRF surface on API endpoints.

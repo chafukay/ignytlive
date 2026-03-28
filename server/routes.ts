@@ -114,6 +114,23 @@ function clearLoginFailures(key: string): void {
   loginAttempts.delete(key);
 }
 
+const validateUserAccess = async (userId: string | undefined, res: any): Promise<boolean> => {
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return false;
+  }
+  const user = await storage.getUser(userId);
+  if (!user) {
+    res.status(401).json({ error: "Invalid user" });
+    return false;
+  }
+  if (user.isDeleted) {
+    res.status(403).json({ error: "Account has been deleted" });
+    return false;
+  }
+  return true;
+};
+
 // Helper to check if user is a guest and block write actions
 const checkGuestRestriction = async (userId: string | undefined, res: any, storage: any): Promise<boolean> => {
   if (!userId) return false;
@@ -175,6 +192,30 @@ const verifyAge = (birthdate: string | Date | null | undefined): { valid: boolea
   return { valid: true, age };
 };
 
+// WebSocket authentication tokens (short-lived, single-use)
+const wsAuthTokens = new Map<string, { userId: string; expiresAt: number }>();
+
+function createWsAuthToken(userId: string): string {
+  const token = crypto.randomBytes(32).toString("hex");
+  wsAuthTokens.set(token, { userId, expiresAt: Date.now() + 30000 });
+  return token;
+}
+
+function validateWsAuthToken(token: string): string | null {
+  const entry = wsAuthTokens.get(token);
+  if (!entry) return null;
+  wsAuthTokens.delete(token);
+  if (Date.now() > entry.expiresAt) return null;
+  return entry.userId;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, entry] of wsAuthTokens) {
+    if (now > entry.expiresAt) wsAuthTokens.delete(token);
+  }
+}, 60000);
+
 // WebSocket connections per stream
 const streamConnections = new Map<string, Set<WebSocket>>();
 
@@ -217,7 +258,20 @@ export async function registerRoutes(
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const streamId = url.searchParams.get("streamId");
     const isPreview = url.searchParams.get("preview") === "true";
-    const userId = url.searchParams.get("userId");
+    const wsToken = url.searchParams.get("wsToken");
+    let userId: string | null = null;
+
+    if (wsToken) {
+      const validatedUserId = validateWsAuthToken(wsToken);
+      if (validatedUserId) {
+        userId = validatedUserId;
+      } else {
+        ws.close(4001, "Invalid or expired WebSocket token");
+        return;
+      }
+    }
+
+    (ws as any)._validatedUserId = userId;
     
     if (streamId) {
       if (!streamConnections.has(streamId)) {
@@ -274,7 +328,10 @@ export async function registerRoutes(
         try {
           const message = JSON.parse(data.toString());
           
-          // If this is a chat comment, validate through moderation checks
+          if (message.data && (ws as any)._validatedUserId) {
+            message.data.userId = (ws as any)._validatedUserId;
+          }
+
           if (message.type === 'comment' && message.data?.userId) {
             const userId = message.data.userId;
             
@@ -703,6 +760,23 @@ export async function registerRoutes(
       res.json(response);
     } catch (error) {
       res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/ws-token", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const token = createWsAuthToken(userId);
+      res.json({ token });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create WebSocket token" });
     }
   });
 
@@ -1209,6 +1283,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id/profile", async (req, res) => {
     try {
       const userId = req.params.id;
+      if (!(await validateUserAccess(userId, res))) return;
       const { username, bio, gender, birthdate, avatar, privacySettings, notificationSettings, language } = req.body;
       
       const existingUser = await storage.getUser(userId);
@@ -1836,7 +1911,7 @@ export async function registerRoutes(
     try {
       const messageData = insertMessageSchema.parse(req.body);
       
-      // Guest restriction
+      if (!(await validateUserAccess(messageData.senderId, res))) return;
       if (await checkGuestRestriction(messageData.senderId, res, storage)) return;
       
       const [blocked1, blocked2] = await Promise.all([
@@ -1982,6 +2057,7 @@ export async function registerRoutes(
 
   app.post("/api/users/:userId/block/:blockedId", async (req, res) => {
     try {
+      if (!(await validateUserAccess(req.params.userId, res))) return;
       await storage.blockUser(req.params.userId, req.params.blockedId);
       res.json({ success: true });
     } catch (error) {
@@ -1991,6 +2067,7 @@ export async function registerRoutes(
 
   app.delete("/api/users/:userId/block/:blockedId", async (req, res) => {
     try {
+      if (!(await validateUserAccess(req.params.userId, res))) return;
       await storage.unblockUser(req.params.userId, req.params.blockedId);
       res.json({ success: true });
     } catch (error) {
@@ -2009,6 +2086,7 @@ export async function registerRoutes(
 
   app.post("/api/users/:userId/report/:reportedId", async (req, res) => {
     try {
+      if (!(await validateUserAccess(req.params.userId, res))) return;
       const { reason, description } = req.body;
       if (!reason) return res.status(400).json({ error: "Reason is required" });
       await storage.reportUser(req.params.userId, req.params.reportedId, reason, description);
@@ -2020,6 +2098,7 @@ export async function registerRoutes(
 
   app.post("/api/users/:userId/mute-calls/:mutedUserId", async (req, res) => {
     try {
+      if (!(await validateUserAccess(req.params.userId, res))) return;
       await storage.muteCallsFromUser(req.params.userId, req.params.mutedUserId);
       res.json({ success: true });
     } catch (error) {
@@ -2029,6 +2108,7 @@ export async function registerRoutes(
 
   app.delete("/api/users/:userId/mute-calls/:mutedUserId", async (req, res) => {
     try {
+      if (!(await validateUserAccess(req.params.userId, res))) return;
       await storage.unmuteCallsFromUser(req.params.userId, req.params.mutedUserId);
       res.json({ success: true });
     } catch (error) {
@@ -2107,9 +2187,48 @@ export async function registerRoutes(
     }
   });
 
+  // ===== Admin JWT Authentication =====
+  const jwt = await import("jsonwebtoken");
+  if (!process.env.ADMIN_JWT_SECRET) {
+    console.warn("⚠️  ADMIN_JWT_SECRET not set — using a random secret. Admin sessions will not persist across restarts. Set ADMIN_JWT_SECRET in production.");
+  }
+  const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || crypto.randomBytes(64).toString("hex");
+  const ADMIN_TOKEN_EXPIRY = "8h";
+
+  const invalidatedAdminTokens = new Set<string>();
+
+  const verifyAdminToken = (token: string): { adminId: string } | null => {
+    try {
+      if (invalidatedAdminTokens.has(token)) return null;
+      const decoded = jwt.default.verify(token, ADMIN_JWT_SECRET) as { adminId: string };
+      return decoded;
+    } catch {
+      return null;
+    }
+  };
+
+  const requireAdmin = async (req: any, res: any): Promise<boolean> => {
+    const authHeader = req.headers.authorization as string;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Admin authentication required" });
+      return false;
+    }
+    const token = authHeader.substring(7);
+    const decoded = verifyAdminToken(token);
+    if (!decoded) {
+      res.status(401).json({ error: "Invalid or expired admin token" });
+      return false;
+    }
+    const adminUser = await storage.getAdminUser(decoded.adminId);
+    if (!adminUser) {
+      res.status(403).json({ error: "Access denied" });
+      return false;
+    }
+    return true;
+  };
+
   // Admin routes
   const adminUpdateSchema = z.object({
-    role: z.enum(["user", "admin", "superadmin"]).optional(),
     vipTier: z.number().min(0).max(5).optional(),
     coins: z.number().min(0).optional(),
     diamonds: z.number().min(0).optional(),
@@ -2117,51 +2236,32 @@ export async function registerRoutes(
   });
 
   app.get("/api/admin/users", async (req, res) => {
-    // Check admin access via header (in production, use proper session/JWT)
-    const adminUserId = req.headers["x-admin-user-id"] as string;
-    if (adminUserId) {
-      const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || (adminUser.role !== "admin" && adminUser.role !== "superadmin")) {
-        return res.status(403).json({ error: "Access denied" });
-      }
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const allUsers = await storage.getAllUsers();
+      const safeUsers = allUsers.map(toSafeUser);
+      res.json(safeUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
     }
-    
-    const allUsers = await storage.getAllUsers();
-    const safeUsers = allUsers.map(toSafeUser);
-    res.json(safeUsers);
   });
 
   app.patch("/api/admin/users/:id", async (req, res) => {
-    // Check admin access via header (in production, use proper session/JWT)
-    const adminUserId = req.headers["x-admin-user-id"] as string;
-    let requestingUser = null;
-    
-    if (adminUserId) {
-      requestingUser = await storage.getUser(adminUserId);
-      if (!requestingUser || (requestingUser.role !== "admin" && requestingUser.role !== "superadmin")) {
-        return res.status(403).json({ error: "Access denied" });
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const parseResult = adminUpdateSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid update data", details: parseResult.error.errors });
       }
+      const updates = parseResult.data;
+      const updatedUser = await storage.updateUser(req.params.id, updates);
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json(toSafeUser(updatedUser));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update user" });
     }
-    
-    // Validate update payload
-    const parseResult = adminUpdateSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      return res.status(400).json({ error: "Invalid update data", details: parseResult.error.errors });
-    }
-    
-    const updates = parseResult.data;
-    
-    // Only superadmin can change roles
-    if (updates.role && (!requestingUser || requestingUser.role !== "superadmin")) {
-      return res.status(403).json({ error: "Only superadmin can change user roles" });
-    }
-    
-    const updatedUser = await storage.updateUser(req.params.id, updates);
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    res.json(toSafeUser(updatedUser));
   });
 
   // Badge routes
@@ -3218,6 +3318,7 @@ export async function registerRoutes(
       if (!userId || !packageId) {
         return res.status(400).json({ error: "userId and packageId are required" });
       }
+      if (!(await validateUserAccess(userId, res))) return;
 
       const pkg = await storage.getCoinPackageById(packageId);
       if (!pkg || !pkg.isActive) {
@@ -3951,6 +4052,7 @@ export async function registerRoutes(
 
   app.post("/api/notifications/:userId/mark-read", async (req, res) => {
     try {
+      if (!(await validateUserAccess(req.params.userId, res))) return;
       await storage.markAllNotificationsRead(req.params.userId);
       res.json({ success: true });
     } catch (error) {
@@ -4143,42 +4245,7 @@ export async function registerRoutes(
     }
   });
 
-  // ===== Admin API Routes =====
-  const jwt = await import("jsonwebtoken");
-  const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "admin-secret-key-change-in-production-" + Date.now();
-  const ADMIN_TOKEN_EXPIRY = "8h";
-
-  const invalidatedAdminTokens = new Set<string>();
-
-  const verifyAdminToken = (token: string): { adminId: string } | null => {
-    try {
-      if (invalidatedAdminTokens.has(token)) return null;
-      const decoded = jwt.default.verify(token, ADMIN_JWT_SECRET) as { adminId: string };
-      return decoded;
-    } catch {
-      return null;
-    }
-  };
-
-  const requireAdmin = async (req: any, res: any): Promise<boolean> => {
-    const authHeader = req.headers.authorization as string;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({ error: "Admin authentication required" });
-      return false;
-    }
-    const token = authHeader.substring(7);
-    const decoded = verifyAdminToken(token);
-    if (!decoded) {
-      res.status(401).json({ error: "Invalid or expired admin token" });
-      return false;
-    }
-    const adminUser = await storage.getAdminUser(decoded.adminId);
-    if (!adminUser) {
-      res.status(403).json({ error: "Access denied" });
-      return false;
-    }
-    return true;
-  };
+  // ===== Admin API Routes (login, logout, etc.) =====
 
   app.post("/api/admin/auth/login", async (req, res) => {
     try {
@@ -4276,17 +4343,6 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/users", async (req, res) => {
-    if (!await requireAdmin(req, res)) return;
-    try {
-      const allUsers = await storage.getAllUsers();
-      const safeUsers = allUsers.map(toSafeUser);
-      res.json(safeUsers);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch users" });
-    }
-  });
-
   app.get("/api/admin/reports", async (req, res) => {
     if (!await requireAdmin(req, res)) return;
     try {
@@ -4312,7 +4368,11 @@ export async function registerRoutes(
     try {
       const { userId, updates } = req.body;
       if (!userId) return res.status(400).json({ error: "userId required" });
-      const updated = await storage.updateUser(userId, updates);
+      const parseResult = adminUpdateSchema.safeParse(updates);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid update data", details: parseResult.error.errors });
+      }
+      const updated = await storage.updateUser(userId, parseResult.data);
       if (!updated) return res.status(404).json({ error: "User not found" });
       res.json(toSafeUser(updated));
     } catch (error) {

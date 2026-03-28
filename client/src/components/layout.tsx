@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import PullToRefresh from "./pull-to-refresh";
 import EmailVerificationBanner from "./email-verification-banner";
+import { CookieConsent } from "./cookie-consent";
 
 function NavBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -115,6 +116,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
           })}
         </div>
       </nav>
+      <CookieConsent />
     </div>
   );
 }

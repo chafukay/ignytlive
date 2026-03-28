@@ -298,10 +298,10 @@ export default function LiveRoom() {
     let ws: WebSocket;
     let isClosing = false; // Flag to prevent reconnection on intentional close
     
-    const connect = () => {
-      if (isClosing) return; // Don't connect if we're closing
+    const connect = async () => {
+      if (isClosing) return;
       
-      ws = createStreamWebSocket(streamId, { userId: user?.id });
+      ws = await createStreamWebSocket(streamId, { userId: user?.id });
       wsRef.current = ws;
       
       ws.onopen = () => {
