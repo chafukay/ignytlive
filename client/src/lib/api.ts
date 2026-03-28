@@ -983,10 +983,10 @@ export const api = {
   },
 
   async removeRoomModerator(streamId: string, userId: string, requesterId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators/${userId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requesterId }),
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1009,10 +1009,10 @@ export const api = {
   },
 
   async unbanUser(streamId: string, userId: string, requesterId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans/${userId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requesterId }),
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1041,10 +1041,10 @@ export const api = {
   },
 
   async unmuteUser(streamId: string, userId: string, requesterId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes/${userId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requesterId }),
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1093,10 +1093,11 @@ export const api = {
   },
 
   async purchaseItem(userId: string, itemId: string) {
+    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/store/purchase`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, itemId }),
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ itemId }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

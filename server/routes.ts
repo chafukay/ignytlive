@@ -3243,15 +3243,16 @@ export async function registerRoutes(
   // Unmute user - host or moderator
   app.delete("/api/streams/:streamId/mutes/:userId", async (req, res) => {
     try {
-      const { requesterId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
       const stream = await storage.getStream(req.params.streamId);
       
       if (!stream) {
         return res.status(404).json({ error: "Stream not found" });
       }
       
-      const isHost = stream.userId === requesterId;
-      const isMod = await storage.isRoomModerator(req.params.streamId, requesterId);
+      const isHost = stream.userId === authUserId;
+      const isMod = await storage.isRoomModerator(req.params.streamId, authUserId);
       
       if (!isHost && !isMod) {
         return res.status(403).json({ error: "Only host or moderators can unmute users" });
@@ -3581,13 +3582,15 @@ export async function registerRoutes(
   // Purchase item
   app.post("/api/store/purchase", async (req, res) => {
     try {
-      const { userId, itemId } = req.body;
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { itemId } = req.body;
       
-      if (!userId || !itemId) {
-        return res.status(400).json({ error: "userId and itemId are required" });
+      if (!itemId) {
+        return res.status(400).json({ error: "itemId is required" });
       }
       
-      const userItem = await storage.purchaseItem(userId, itemId);
+      const userItem = await storage.purchaseItem(authUserId, itemId);
       res.json(userItem);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to purchase item" });
