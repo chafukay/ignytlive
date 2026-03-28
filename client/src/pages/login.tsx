@@ -70,7 +70,7 @@ export default function Login() {
     setIsLoading(true);
     try {
       const result = await api.verifyPhoneCode(phone, verificationCode);
-      login(result.user, (result as any).token);
+      login(result.user, result.token);
       toast({ title: `Welcome, ${result.user.username}!` });
       setLocation("/");
     } catch (error) {
@@ -97,7 +97,7 @@ export default function Login() {
         birthdate: guestBirthdate,
         disclaimerAccepted,
       });
-      login(guestResult.user, (guestResult as any).token);
+      login(guestResult.user, guestResult.token);
       toast({ title: `Welcome${guestResult.user.username.startsWith('guest_') ? '' : `, ${guestResult.user.username}`}! You're browsing as a guest`, description: "Some features are limited" });
       setLocation("/");
     } catch (err) {

@@ -76,7 +76,7 @@ export default function Register() {
     setIsLoading(true);
     try {
       const result = await api.register(username, email, password, birthdate);
-      login(result.user, (result as any).token);
+      login(result.user, result.token);
       if (result.verifyToken) {
         localStorage.setItem("verifyToken", result.verifyToken);
       }

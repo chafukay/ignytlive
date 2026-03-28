@@ -831,10 +831,10 @@ export async function registerRoutes(
   // Account deletion endpoint
   app.delete("/api/auth/delete-account", async (req, res) => {
     try {
-      const { userId, password } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required" });
-      }
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { password } = req.body;
+      const userId = authUserId;
 
       const deleteKeyIp = `delete:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
       const deleteKeyUser = `delete-user:${userId}`;
@@ -4110,7 +4110,9 @@ export async function registerRoutes(
 
   app.post("/api/notifications/:notifId/read", async (req, res) => {
     try {
-      const notif = await storage.markNotificationRead(req.params.notifId);
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const notif = await storage.markNotificationRead(req.params.notifId, authUserId);
       if (!notif) {
         return res.status(404).json({ error: "Notification not found" });
       }
