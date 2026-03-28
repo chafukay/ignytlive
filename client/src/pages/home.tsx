@@ -678,6 +678,7 @@ export default function Home() {
                           isOnline={true}
                           size="lg"
                           showStatus={true}
+                          linkToProfile={false}
                         />
                         <span className="text-foreground text-xs truncate max-w-[60px]">{user.username}</span>
                       </div>
@@ -707,6 +708,7 @@ export default function Home() {
                           isOnline={false}
                           size="lg"
                           showStatus={true}
+                          linkToProfile={false}
                         />
                         <span className="text-foreground text-xs truncate max-w-[60px]">{streamer.username}</span>
                       </div>
@@ -736,6 +738,7 @@ export default function Home() {
                       isOnline={suggestion.user.isLive}
                       size="lg"
                       showStatus={true}
+                      linkToProfile={false}
                     />
                     <span className="text-foreground text-xs truncate max-w-[80px] font-medium">{suggestion.user.username}</span>
                     <span className="text-pink-400 text-[10px]">
@@ -769,6 +772,7 @@ export default function Home() {
                       isOnline={suggestedUser.isLive}
                       size="lg"
                       showStatus={true}
+                      linkToProfile={false}
                     />
                     <span className="text-foreground text-xs truncate max-w-[70px]">{suggestedUser.username}</span>
                     <span className="text-cyan-400 text-[10px]">Level {suggestedUser.level}</span>

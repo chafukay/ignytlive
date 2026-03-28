@@ -1,0 +1,43 @@
+injected.js:37 In HTML, <a> cannot be a descendant of <a>.
+This will cause a hydration error.
+
+  ...
+    <Switch data-replit-metadata="client/src..." data-component-name="Switch">
+      <Route data-replit-metadata="client/src..." data-component-name="Route" path="/" match={[...]}>
+        <Home data-replit-metadata="client/src..." data-component-name="Home">
+          <Layout data-replit-metadata="client/src..." data-component-name="Layout">
+            <div data-replit-metadata="client/src..." data-component-name="div" className="min-h-scre...">
+              <main data-replit-metadata="client/src..." data-component-name="main" className="h-screen w...">
+                <EmailVerificationBanner>
+                <PullToRefresh data-replit-metadata="client/src..." data-component-name="PullToRefresh">
+                  <div data-replit-metadata="client/src..." data-component-name="div" ref={{...}} ...>
+                    <div>
+                    <div data-replit-metadata="client/src..." data-component-name="div" className="h-full w-full" ...>
+                      <div data-replit-metadata="client/src..." data-component-name="div" className="p-4 max-w-...">
+                        <div>
+                        <SearchOverlay>
+                        <div>
+                        <div>
+                        <div>
+                        <div data-replit-metadata="client/src..." data-component-name="div" className="mb-8">
+                          <div data-replit-metadata="client/src..." data-component-name="div">
+                            <div>
+                            <div data-replit-metadata="client/src..." data-component-name="div" className="flex gap-4...">
+>                             <a
+>                               data-replit-metadata="client/src/pages/home.tsx:700:20"
+>                               data-component-name="Link"
+>                               onClick={function}
+>                               href="/profile/Y-tH6s"
+>                               className={undefined}
+>                               ref={null}
+>                             >
+                                <div data-replit-metadata="client/src..." data-component-name="div" ...>
+                                  <UserAvatar data-replit-metadata="client/src..." data-component-name="UserAvatar" ...>
+>                                   <a
+>                                     data-replit-metadata="client/src/components/user-avatar.tsx:92:6"
+>                                     data-component-name="Link"
+>                                     data-testid="avatar-Y-tH6s"
+>                                     onClick={function}
+>                                     href="/profile/Y-tH6s"
+>                                     className={undefined}
+>                                     ref={null}
