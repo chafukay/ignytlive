@@ -1,10 +1,13 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Medal, Lock, CheckCircle, ArrowLeft, Trophy, Star, Gift, Users, Crown } from "lucide-react";
+import { Medal, Lock, CheckCircle, ArrowLeft, Trophy, Star, Gift, Users, Crown, RefreshCw } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useLocation, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
+import { getAuthToken } from "@/lib/auth-context";
+import { useEffect, useRef } from "react";
 
 interface Achievement {
   id: string;
@@ -26,6 +29,18 @@ interface UserAchievement {
   achievement: Achievement;
 }
 
+interface ScanResult {
+  unlocked: Array<{
+    achievementId: string;
+    name: string;
+    emoji: string;
+    description: string;
+    rewardXp: number;
+    rewardCoins: number;
+  }>;
+  count: number;
+}
+
 const categoryColors: Record<string, string> = {
   leveling: "text-blue-400 bg-blue-500/20 border-blue-500/30",
   social: "text-pink-400 bg-pink-500/20 border-pink-500/30",
@@ -45,6 +60,9 @@ const categoryIcons: Record<string, React.ReactNode> = {
 export default function Achievements() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const hasScanned = useRef(false);
 
   const { data: allAchievements = [], isLoading: loadingAll } = useQuery<Achievement[]>({
     queryKey: ['achievements'],
@@ -64,6 +82,39 @@ export default function Achievements() {
     },
     enabled: !!user,
   });
+
+  const scanMutation = useMutation({
+    mutationFn: async () => {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`/api/users/${user!.id}/achievements/scan`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to scan achievements");
+      return res.json() as Promise<ScanResult>;
+    },
+    onSuccess: (data) => {
+      if (data.count > 0) {
+        queryClient.invalidateQueries({ queryKey: ['user-achievements', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['user'] });
+        for (const a of data.unlocked) {
+          toast({
+            title: `${a.emoji} Achievement Unlocked!`,
+            description: `${a.name} — +${a.rewardXp} XP, +${a.rewardCoins} Coins`,
+          });
+        }
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (user && !hasScanned.current && !loadingAll && !loadingUser) {
+      hasScanned.current = true;
+      scanMutation.mutate();
+    }
+  }, [user, loadingAll, loadingUser]);
 
   const unlockedIds = new Set(userAchievements.map(ua => ua.achievementId));
   const unlockedCount = userAchievements.length;
@@ -98,7 +149,15 @@ export default function Achievements() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold">Achievements</h1>
+          <h1 className="text-2xl font-bold flex-1">Achievements</h1>
+          <button
+            onClick={() => scanMutation.mutate()}
+            disabled={scanMutation.isPending}
+            className="p-2 rounded-full bg-muted hover:bg-muted/80 disabled:opacity-50"
+            data-testid="button-scan-achievements"
+          >
+            <RefreshCw className={`w-5 h-5 ${scanMutation.isPending ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-6 mb-6">
@@ -107,7 +166,7 @@ export default function Achievements() {
               <Medal className="w-8 h-8 text-white" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold mb-1">Your Progress</h2>
+              <h2 className="text-xl font-bold mb-1" data-testid="text-achievement-progress">Your Progress</h2>
               <p className="text-muted-foreground text-sm">
                 {unlockedCount} / {totalCount} achievements unlocked
               </p>
@@ -141,6 +200,7 @@ export default function Achievements() {
                     <h3 className="font-bold capitalize">{category}</h3>
                   </div>
                   <div className="grid gap-3">
+                    <AnimatePresence>
                     {categoryAchievements.map(achievement => {
                       const isUnlocked = unlockedIds.has(achievement.id);
                       const colorClass = categoryColors[achievement.category] || categoryColors.leveling;
@@ -182,6 +242,7 @@ export default function Achievements() {
                         </motion.div>
                       );
                     })}
+                    </AnimatePresence>
                   </div>
                 </div>
               );

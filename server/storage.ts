@@ -927,10 +927,13 @@ export class DatabaseStorage implements IStorage {
       .values(transaction)
       .returning();
     
-    // Deduct coins from sender
+    // Deduct coins from sender and track total spent
     await db
       .update(users)
-      .set({ coins: sql`${users.coins} - ${transaction.totalCoins}` })
+      .set({
+        coins: sql`${users.coins} - ${transaction.totalCoins}`,
+        totalSpent: sql`${users.totalSpent} + ${transaction.totalCoins}`,
+      })
       .where(eq(users.id, transaction.senderId));
     
     // Add diamonds to receiver

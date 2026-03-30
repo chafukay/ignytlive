@@ -2,6 +2,7 @@ import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { XP_REWARDS, XPAction, getLevelFromXP } from "@shared/level-utils";
+import { checkAchievements } from "./achievement-service";
 
 export interface XPResult {
   xpAwarded: number;
@@ -36,6 +37,10 @@ export async function awardXP(userId: string, action: XPAction, multiplier: numb
     })
     .where(eq(users.id, userId));
   
+  if (leveledUp) {
+    checkAchievements(userId, "level").catch(() => {});
+  }
+
   return {
     xpAwarded: xpAmount,
     newTotalXP,

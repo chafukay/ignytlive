@@ -21,6 +21,7 @@ import {
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { filterContent, logFlaggedContent, forceRefreshFilterWords } from "./content-filter";
+import { checkAchievements, checkAllAchievementsForUser } from "./achievement-service";
 
 function toSafeUser(user: any) {
   if (!user) return user;
@@ -589,6 +590,8 @@ export async function registerRoutes(
       if (userData.email) {
         await sendVerificationEmail(userData.email, verificationCode, userData.username);
       }
+
+      checkAchievements(user.id, "account_created").catch(() => {});
 
       const verifyToken = createVerifyToken(user.id);
       const token = generateUserToken(user.id);
@@ -1470,6 +1473,8 @@ export async function registerRoutes(
 
       await storage.updateUser(userId, { isLive: true });
 
+      checkAchievements(userId, "streams").catch(() => {});
+
       res.json(stream);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data" });
@@ -1791,6 +1796,8 @@ export async function registerRoutes(
       // Award XP to both users
       await awardXP(followData.followerId, "FOLLOW_USER").catch(() => {});
       await awardXP(followData.followingId, "GET_FOLLOWED").catch(() => {});
+
+      checkAchievements(followData.followingId, "followers").catch(() => {});
       
       // Create follow notification + push for the followed user
       const followerUser = await storage.getUser(followData.followerId);
@@ -1913,6 +1920,9 @@ export async function registerRoutes(
       const quantity = transactionData.quantity || 1;
       await awardXP(transactionData.senderId, "SEND_GIFT", quantity).catch(() => {});
       await awardXP(transactionData.receiverId, "RECEIVE_GIFT", quantity).catch(() => {});
+
+      checkAchievements(transactionData.senderId, "gifts_sent").catch(() => {});
+      checkAchievements(transactionData.senderId, "total_spent").catch(() => {});
       
       // Create gift notification + push for the receiver
       const senderUser = await storage.getUser(transactionData.senderId);
@@ -4005,6 +4015,20 @@ export async function registerRoutes(
       res.json(userAchievements);
     } catch (error) {
       res.status(500).json({ error: "Failed to get user achievements" });
+    }
+  });
+
+  app.post("/api/users/:userId/achievements/scan", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      if (authUserId !== req.params.userId) {
+        return res.status(403).json({ error: "Cannot scan achievements for another user" });
+      }
+      const unlocked = await checkAllAchievementsForUser(req.params.userId);
+      res.json({ unlocked, count: unlocked.length });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to scan achievements" });
     }
   });
 
