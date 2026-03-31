@@ -79,6 +79,13 @@ function formatTimeAgo(date: Date | string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+interface ProfileVisitor {
+  visitorId: string;
+  visitorUsername: string;
+  visitorAvatar: string | null;
+  visitedAt: string;
+}
+
 export default function Notifications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -86,6 +93,12 @@ export default function Notifications() {
   const { data: notifications, isLoading, isError, refetch } = useQuery({
     queryKey: ["notifications", user?.id],
     queryFn: () => api.getNotifications(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const { data: recentVisitors = [] } = useQuery<ProfileVisitor[]>({
+    queryKey: ["profile-visitors-preview", user?.id],
+    queryFn: () => api.getProfileVisitors(user!.id, 4),
     enabled: !!user?.id,
   });
 
@@ -104,13 +117,6 @@ export default function Notifications() {
   }, [notifications]);
 
   const groupOrder = ["Today", "Yesterday", "This Week", "Earlier"];
-
-  const mockProfileViewers = [
-    { id: "1", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=viewer1" },
-    { id: "2", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=viewer2" },
-    { id: "3", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=viewer3" },
-    { id: "4", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=viewer4" },
-  ];
 
   return (
     <GuestGate>
@@ -136,14 +142,17 @@ export default function Notifications() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex -space-x-2">
-                    {mockProfileViewers.map((viewer) => (
+                    {recentVisitors.length > 0 ? recentVisitors.map((visitor) => (
                       <img
-                        key={viewer.id}
-                        src={viewer.avatar}
+                        key={visitor.visitorId}
+                        src={visitor.visitorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${visitor.visitorUsername}`}
                         className="w-8 h-8 rounded-full border-2 border-background"
-                        alt="Viewer"
+                        alt={visitor.visitorUsername}
+                        data-testid={`img-visitor-${visitor.visitorId}`}
                       />
-                    ))}
+                    )) : (
+                      <span className="text-white/30 text-sm">No recent visitors</span>
+                    )}
                   </div>
                   <ChevronRight className="w-5 h-5 text-white/30" />
                 </div>

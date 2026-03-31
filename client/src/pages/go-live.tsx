@@ -266,6 +266,13 @@ export default function GoLive() {
 
   const handleShare = useCallback(async () => {
     const url = window.location.origin;
+    const platform = navigator.share ? "native" : "clipboard";
+    const token = localStorage.getItem("authToken");
+    fetch("/api/shares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ contentType: "stream", contentId: null, platform }),
+    }).catch(() => {});
     if (navigator.share) {
       try {
         await navigator.share({ title: title || "Watch me live on IgnytLIVE!", url });
@@ -606,17 +613,25 @@ export default function GoLive() {
         </button>
       </div>
       <div className="space-y-3">
-        {([
-          // TODO: Smooth Skin - will be added later
-          // { key: "smooth" as const, label: "Smooth Skin", icon: "✨", color: "from-pink-500 to-rose-400" },
+        {[
+          { key: "smooth" as const, label: "Smooth Skin", icon: "✨", color: "from-pink-500 to-rose-400", comingSoon: true },
           { key: "slim" as const, label: "Face Slim", icon: "💫", color: "from-violet-500 to-purple-400" },
-          // TODO: Big Eyes - will be added later
-          // { key: "eyes" as const, label: "Big Eyes", icon: "👁️", color: "from-blue-500 to-cyan-400" },
-          // TODO: Lip Color - will be added later
-          // { key: "lipColor" as const, label: "Lip Color", icon: "💋", color: "from-red-500 to-pink-400" },
+          { key: "eyes" as const, label: "Big Eyes", icon: "👁️", color: "from-blue-500 to-cyan-400", comingSoon: true },
+          { key: "lipColor" as const, label: "Lip Color", icon: "💋", color: "from-red-500 to-pink-400", comingSoon: true },
           { key: "brightness" as const, label: "Brightness", icon: "☀️", color: "from-amber-500 to-yellow-400" },
           { key: "contrast" as const, label: "Contrast", icon: "◐", color: "from-gray-400 to-gray-600" },
-        ]).map(({ key, label, icon, color }) => (
+        ].map(({ key, label, icon, color, comingSoon }) => (
+          comingSoon ? (
+            <div key={key} className="opacity-50" data-testid={`beauty-slider-${key}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-white/70 text-xs flex items-center gap-1.5">
+                  <span>{icon}</span> {label}
+                </span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-medium">Coming Soon</span>
+              </div>
+              <div className="h-1.5 bg-white/10 rounded-full" />
+            </div>
+          ) :
           <div key={key} data-testid={`beauty-slider-${key}`}>
             <div className="flex items-center justify-between mb-1">
               <span className="text-white/70 text-xs flex items-center gap-1.5">

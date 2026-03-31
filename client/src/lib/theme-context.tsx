@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 
 type Theme = "light" | "dark";
 
@@ -6,6 +6,7 @@ interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  syncFromUser: (themePreference: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -38,8 +39,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
+  const syncFromUser = useCallback((themePreference: string) => {
+    if (themePreference === "light" || themePreference === "dark") {
+      setThemeState(themePreference);
+    }
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, syncFromUser }}>
       {children}
     </ThemeContext.Provider>
   );

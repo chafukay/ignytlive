@@ -45,7 +45,9 @@ export const users = pgTable("users", {
   socialProviderId: text("social_provider_id"), // Provider's unique user ID
   privacySettings: text("privacy_settings"), // JSON string for privacy settings
   notificationSettings: text("notification_settings"), // JSON string for notification settings
-  language: text("language").notNull().default("en"), // User's preferred language
+  language: text("language").notNull().default("en"),
+  themePreference: text("theme_preference").notNull().default("dark"),
+  preferredCountry: text("preferred_country"),
   isVerified: boolean("is_verified").notNull().default(false),
   verificationBadge: text("verification_badge"), // official, creator, celebrity, talent
   totalSpent: integer("total_spent").notNull().default(0), // Total coins spent (for wealth level)
@@ -1272,6 +1274,37 @@ export const insertFlaggedContentSchema = createInsertSchema(flaggedContent).omi
 });
 export type InsertFlaggedContent = z.infer<typeof insertFlaggedContentSchema>;
 export type FlaggedContent = typeof flaggedContent.$inferSelect;
+
+// VIP Tiers - DB-driven VIP plan configuration
+export const vipTiers = pgTable("vip_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tier: integer("tier").notNull().unique(),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+  icon: text("icon").notNull(),
+  color: text("color").notNull(),
+  borderColor: text("border_color").notNull(),
+  benefits: text("benefits").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const insertVipTierSchema = createInsertSchema(vipTiers).omit({ id: true });
+export type InsertVipTier = z.infer<typeof insertVipTierSchema>;
+export type VipTier = typeof vipTiers.$inferSelect;
+
+// Share tracking - record share events
+export const shareEvents = pgTable("share_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  contentType: text("content_type").notNull(),
+  contentId: text("content_id"),
+  platform: text("platform"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertShareEventSchema = createInsertSchema(shareEvents).omit({ id: true, createdAt: true });
+export type InsertShareEvent = z.infer<typeof insertShareEventSchema>;
+export type ShareEvent = typeof shareEvents.$inferSelect;
 
 // Agencies - groups where hosts earn extra diamonds
 export const agencies = pgTable("agencies", {

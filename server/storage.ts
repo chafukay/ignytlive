@@ -140,6 +140,11 @@ import {
   type InsertAgency,
   type AgencyMember,
   type InsertAgencyMember,
+  vipTiers,
+  type VipTier,
+  shareEvents,
+  type ShareEvent,
+  type InsertShareEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -2628,6 +2633,20 @@ export class DatabaseStorage implements IStorage {
 
   async getAgencyLeaderboard(agencyId: string): Promise<(AgencyMember & { user: User })[]> {
     return this.getAgencyMembers(agencyId);
+  }
+
+  async getVipTiers(): Promise<VipTier[]> {
+    return db.select().from(vipTiers).orderBy(vipTiers.sortOrder);
+  }
+
+  async trackShare(data: InsertShareEvent): Promise<ShareEvent> {
+    const [event] = await db.insert(shareEvents).values(data).returning();
+    return event;
+  }
+
+  async getShareCount(userId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(shareEvents).where(eq(shareEvents.userId, userId));
+    return Number(result[0]?.count || 0);
   }
 }
 

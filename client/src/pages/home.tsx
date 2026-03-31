@@ -82,7 +82,14 @@ export default function Home() {
   const [showSearch, setShowSearch] = useState(false);
   const [showTabDropdown, setShowTabDropdown] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(() => {
+    if (user?.preferredCountry) {
+      try {
+        return JSON.parse(user.preferredCountry);
+      } catch { return []; }
+    }
+    return [];
+  });
   const [countrySearch, setCountrySearch] = useState('');
   const [activeRegion, setActiveRegion] = useState('All');
   const tabDropdownRef = useRef<HTMLDivElement>(null);
@@ -100,9 +107,13 @@ export default function Home() {
   }, [activeRegion, countrySearch]);
 
   const toggleCountry = (code: string) => {
-    setSelectedCountries(prev =>
-      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
-    );
+    setSelectedCountries(prev => {
+      const updated = prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code];
+      if (user?.id) {
+        api.updateUser(user.id, { preferredCountry: JSON.stringify(updated) }).catch(() => {});
+      }
+      return updated;
+    });
   };
 
   useEffect(() => {
@@ -466,7 +477,12 @@ export default function Home() {
                         </button>
                         <button
                           data-testid="button-clear-all-countries"
-                          onClick={() => setSelectedCountries([])}
+                          onClick={() => {
+                            setSelectedCountries([]);
+                            if (user?.id) {
+                              api.updateUser(user.id, { preferredCountry: JSON.stringify([]) }).catch(() => {});
+                            }
+                          }}
                           disabled={selectedCountries.length === 0}
                           className={`flex-1 md:flex-none px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap flex items-center justify-center gap-1 transition-colors ${
                             selectedCountries.length > 0

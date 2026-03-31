@@ -136,6 +136,14 @@ export default function Settings() {
     },
   });
 
+  const handleThemeToggle = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    toggleTheme();
+    if (user?.id) {
+      api.updateUser(user.id, { themePreference: newTheme }).catch(() => {});
+    }
+  };
+
   const handleNotificationToggle = async () => {
     const enabling = !notificationSettings.pushEnabled;
     const newSettings = { ...notificationSettings, pushEnabled: enabling };
@@ -170,8 +178,8 @@ export default function Settings() {
     { icon: User, label: "Edit Profile", href: "/edit-profile" },
     { icon: Bell, label: "Notifications", toggle: true, value: notificationSettings.pushEnabled, onChange: handleNotificationToggle, testId: "toggle-notifications" },
     { icon: Lock, label: "Privacy", href: "/privacy-settings" },
-    { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2 text-muted-foreground">🇺🇸 English</span>, disabled: true, testId: "language-disabled" },
-    { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", onChange: toggleTheme, isTheme: true, testId: "toggle-dark-mode" },
+    { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2 text-muted-foreground">{currentLanguage.flag} {currentLanguage.name}</span>, onClick: () => setShowLanguageModal(true), testId: "button-language" },
+    { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", onChange: handleThemeToggle, isTheme: true, testId: "toggle-dark-mode" },
     { icon: HelpCircle, label: "Help & Support", href: "/help" },
     { icon: Info, label: "About", href: "/about" },
   ];

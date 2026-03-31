@@ -1,95 +1,23 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { ChevronRight, Crown, Check, Star, Zap, Shield, Gift, MessageSquare, Sparkles } from "lucide-react";
+import { ChevronRight, Crown, Check, Star, Zap, Shield, Gift, MessageSquare, Sparkles, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 
-const VIP_TIERS = [
-  {
-    tier: 1,
-    name: "Bronze",
-    price: 500,
-    color: "from-amber-700 to-amber-900",
-    borderColor: "border-amber-600",
-    icon: "🥉",
-    benefits: [
-      "Bronze profile badge",
-      "Exclusive chat color",
-      "5% bonus on coin purchases",
-      "Ad-free experience",
-    ],
-  },
-  {
-    tier: 2,
-    name: "Silver",
-    price: 1500,
-    color: "from-gray-400 to-gray-600",
-    borderColor: "border-gray-400",
-    icon: "🥈",
-    benefits: [
-      "Silver profile badge",
-      "Custom entrance effect",
-      "10% bonus on coin purchases",
-      "Priority customer support",
-      "All Bronze benefits",
-    ],
-  },
-  {
-    tier: 3,
-    name: "Gold",
-    price: 5000,
-    color: "from-yellow-500 to-yellow-700",
-    borderColor: "border-yellow-500",
-    icon: "🥇",
-    benefits: [
-      "Gold profile badge",
-      "Animated profile frame",
-      "15% bonus on coin purchases",
-      "Exclusive Gold gifts",
-      "Featured on leaderboard",
-      "All Silver benefits",
-    ],
-  },
-  {
-    tier: 4,
-    name: "Platinum",
-    price: 15000,
-    color: "from-cyan-400 to-cyan-600",
-    borderColor: "border-cyan-400",
-    icon: "💎",
-    benefits: [
-      "Platinum profile badge",
-      "VIP entrance animation",
-      "20% bonus on coin purchases",
-      "Private messaging priority",
-      "Custom chat bubbles",
-      "Monthly diamond bonus",
-      "All Gold benefits",
-    ],
-  },
-  {
-    tier: 5,
-    name: "Millionaire",
-    price: 50000,
-    color: "from-purple-500 via-pink-500 to-red-500",
-    borderColor: "border-purple-500",
-    icon: "👑",
-    benefits: [
-      "Millionaire crown badge",
-      "Legendary entrance effects",
-      "25% bonus on all purchases",
-      "Exclusive Millionaire gifts",
-      "Personal account manager",
-      "Weekly diamond bonus",
-      "VIP-only events access",
-      "Custom profile effects",
-      "All Platinum benefits",
-    ],
-  },
-];
+interface VipTierData {
+  id: string;
+  tier: number;
+  name: string;
+  price: number;
+  icon: string;
+  color: string;
+  borderColor: string;
+  benefits: string;
+  sortOrder: number;
+}
 
 export default function VIPPlans() {
   const [, setLocation] = useLocation();
@@ -97,9 +25,18 @@ export default function VIPPlans() {
   const currentTier = user?.vipTier || 0;
   const [selectedTier, setSelectedTier] = useState<number | null>(null);
 
+  const { data: tiers = [], isLoading } = useQuery<VipTierData[]>({
+    queryKey: ["vip-tiers"],
+    queryFn: async () => {
+      const res = await fetch("/api/vip-tiers");
+      if (!res.ok) throw new Error("Failed to fetch VIP tiers");
+      return res.json();
+    },
+  });
+
   const upgradeMutation = useMutation({
     mutationFn: async (tier: number) => {
-      const plan = VIP_TIERS.find(p => p.tier === tier);
+      const plan = tiers.find(p => p.tier === tier);
       if (!plan) throw new Error("Invalid tier");
       
       const response = await apiRequest("POST", `/api/users/${user?.id}/upgrade-vip`, {
@@ -116,7 +53,7 @@ export default function VIPPlans() {
 
   const getCurrentTierInfo = () => {
     if (currentTier === 0) return { name: "Free", icon: "🆓", color: "text-gray-400" };
-    const tier = VIP_TIERS.find(t => t.tier === currentTier);
+    const tier = tiers.find(t => t.tier === currentTier);
     return tier || { name: "Free", icon: "🆓", color: "text-gray-400" };
   };
 
@@ -154,11 +91,17 @@ export default function VIPPlans() {
           Upgrade Your Status
         </h2>
 
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+        ) : (
         <div className="space-y-4">
-          {VIP_TIERS.map((plan) => {
+          {tiers.map((plan) => {
             const isOwned = currentTier >= plan.tier;
             const canAfford = (user?.coins || 0) >= plan.price;
             const isUpgrade = plan.tier === currentTier + 1;
+            const benefitsList = plan.benefits.split("|");
 
             return (
               <div
@@ -217,7 +160,7 @@ export default function VIPPlans() {
                   </div>
 
                   <div className="space-y-2">
-                    {plan.benefits.map((benefit, idx) => (
+                    {benefitsList.map((benefit, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-sm">
                         <Check className={`w-4 h-4 ${isOwned ? "text-green-400" : "text-primary"}`} />
                         <span className={isOwned ? "text-muted-foreground" : "text-foreground"}>{benefit}</span>
@@ -229,6 +172,7 @@ export default function VIPPlans() {
             );
           })}
         </div>
+        )}
 
         <div className="mt-8 p-4 bg-muted/30 rounded-xl border border-border">
           <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">

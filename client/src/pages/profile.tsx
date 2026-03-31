@@ -169,15 +169,22 @@ export default function Profile() {
             <Users className="w-4 h-4" />
           </button>
           <button 
-            onClick={() => {
+            onClick={async () => {
+              const url = `${window.location.origin}/profile/${user.id}`;
+              const platform = navigator.share ? "native" : "clipboard";
+              fetch("/api/shares", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("authToken")}` },
+                body: JSON.stringify({ contentType: "profile", contentId: user.id, platform }),
+              }).catch(() => {});
               if (navigator.share) {
                 navigator.share({
                   title: `${user.username} on IgnytLIVE`,
                   text: `Check out ${user.username}'s profile on IgnytLIVE!`,
-                  url: `${window.location.origin}/profile/${user.id}`,
+                  url,
                 }).catch(() => {});
               } else {
-                navigator.clipboard.writeText(`${window.location.origin}/profile/${user.id}`);
+                navigator.clipboard.writeText(url);
                 toast({ title: "Profile link copied!" });
               }
             }}

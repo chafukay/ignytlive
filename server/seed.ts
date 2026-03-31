@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, gifts, badges, wheelPrizes, adminUsers, coinPackages } from "@shared/schema";
+import { users, gifts, badges, wheelPrizes, adminUsers, coinPackages, vipTiers } from "@shared/schema";
 import { eq, and, lt, notInArray, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -335,6 +335,31 @@ export async function seedCoinPackages() {
       console.log("Coin packages table not yet created, skipping seed");
     } else {
       console.error("Failed to seed coin packages:", error);
+    }
+  }
+}
+
+export async function seedVipTiers() {
+  try {
+    const existing = await db.select().from(vipTiers).limit(1);
+    if (existing.length > 0) {
+      console.log("✓ VIP tiers already seeded");
+      return;
+    }
+
+    await db.insert(vipTiers).values([
+      { tier: 1, name: "Bronze", price: 500, icon: "🥉", color: "from-amber-700 to-amber-900", borderColor: "border-amber-600", benefits: "Bronze profile badge|Exclusive chat color|5% bonus on coin purchases|Ad-free experience", sortOrder: 1 },
+      { tier: 2, name: "Silver", price: 1500, icon: "🥈", color: "from-gray-400 to-gray-600", borderColor: "border-gray-400", benefits: "Silver profile badge|Custom entrance effect|10% bonus on coin purchases|Priority customer support|All Bronze benefits", sortOrder: 2 },
+      { tier: 3, name: "Gold", price: 5000, icon: "🥇", color: "from-yellow-500 to-yellow-700", borderColor: "border-yellow-500", benefits: "Gold profile badge|Animated profile frame|15% bonus on coin purchases|Exclusive Gold gifts|Featured on leaderboard|All Silver benefits", sortOrder: 3 },
+      { tier: 4, name: "Platinum", price: 15000, icon: "💎", color: "from-cyan-400 to-cyan-600", borderColor: "border-cyan-400", benefits: "Platinum profile badge|VIP entrance animation|20% bonus on coin purchases|Private messaging priority|Custom chat bubbles|Monthly diamond bonus|All Gold benefits", sortOrder: 4 },
+      { tier: 5, name: "Millionaire", price: 50000, icon: "👑", color: "from-purple-500 via-pink-500 to-red-500", borderColor: "border-purple-500", benefits: "Millionaire crown badge|Legendary entrance effects|25% bonus on all purchases|Exclusive Millionaire gifts|Personal account manager|Weekly diamond bonus|VIP-only events access|Custom profile effects|All Platinum benefits", sortOrder: 5 },
+    ]);
+    console.log("✓ Seeded VIP tiers");
+  } catch (error: any) {
+    if (error?.code === '42P01') {
+      console.log("VIP tiers table not yet created, skipping seed");
+    } else {
+      console.error("Failed to seed VIP tiers:", error);
     }
   }
 }

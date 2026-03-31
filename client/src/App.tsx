@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "./lib/auth-context";
-import { ThemeProvider } from "./lib/theme-context";
+import { ThemeProvider, useTheme } from "./lib/theme-context";
 import DailyLoginModal from "@/components/daily-login-modal";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -60,6 +60,17 @@ function PushInit() {
       initPushNotifications(user.id).catch(() => {});
     }
   }, [user?.id]);
+  return null;
+}
+
+function ThemeSync() {
+  const { user } = useAuth();
+  const { syncFromUser } = useTheme();
+  useEffect(() => {
+    if (user?.themePreference) {
+      syncFromUser(user.themePreference);
+    }
+  }, [user?.themePreference, syncFromUser]);
   return null;
 }
 
@@ -133,6 +144,7 @@ function MainApp() {
             <DailyLoginModal />
             <IncomingCallBanner />
             <PushInit />
+            <ThemeSync />
             <Router />
           </TooltipProvider>
         </AuthProvider>

@@ -1372,7 +1372,7 @@ export async function registerRoutes(
     try {
       const userId = req.params.id;
       if (!(await requireOwnership(req, res, userId))) return;
-      const { username, bio, gender, birthdate, avatar, privacySettings, notificationSettings, language } = req.body;
+      const { username, bio, gender, birthdate, avatar, privacySettings, notificationSettings, language, themePreference, preferredCountry } = req.body;
       
       const existingUser = await storage.getUser(userId);
       if (!existingUser) {
@@ -1407,6 +1407,8 @@ export async function registerRoutes(
       if (privacySettings !== undefined) updates.privacySettings = privacySettings;
       if (notificationSettings !== undefined) updates.notificationSettings = notificationSettings;
       if (language !== undefined) updates.language = language;
+      if (themePreference !== undefined) updates.themePreference = themePreference;
+      if (preferredCountry !== undefined) updates.preferredCountry = preferredCountry;
       if (req.body.profileBanner !== undefined) updates.profileBanner = req.body.profileBanner;
 
       const user = await storage.updateUser(userId, updates);
@@ -4681,6 +4683,41 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to mark as reviewed" });
+    }
+  });
+
+  // ============= Agency Routes =============
+
+  // ============= VIP Tiers Routes =============
+
+  app.get("/api/vip-tiers", async (_req, res) => {
+    try {
+      const tiers = await storage.getVipTiers();
+      res.json(tiers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch VIP tiers" });
+    }
+  });
+
+  // ============= Share Tracking Routes =============
+
+  app.post("/api/shares", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const { contentType, contentId, platform } = req.body;
+      if (!contentType) return res.status(400).json({ error: "contentType is required" });
+
+      const event = await storage.trackShare({
+        userId: authUserId,
+        contentType,
+        contentId: contentId || null,
+        platform: platform || null,
+      });
+      res.json(event);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to track share" });
     }
   });
 
