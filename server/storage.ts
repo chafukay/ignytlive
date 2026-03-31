@@ -134,6 +134,12 @@ import {
   type InsertFilterWord,
   type FlaggedContent,
   type InsertFlaggedContent,
+  agencies,
+  agencyMembers,
+  type Agency,
+  type InsertAgency,
+  type AgencyMember,
+  type InsertAgencyMember,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -399,6 +405,20 @@ export interface IStorage {
   getFlaggedContent(limit?: number, offset?: number, reviewed?: boolean): Promise<FlaggedContent[]>;
   getFlaggedContentCount(reviewed?: boolean): Promise<number>;
   markFlaggedContentReviewed(id: number): Promise<FlaggedContent | undefined>;
+
+  // Agency operations
+  createAgency(agency: InsertAgency): Promise<Agency>;
+  getAgency(id: string): Promise<(Agency & { owner: User }) | undefined>;
+  getAgencies(limit?: number): Promise<(Agency & { owner: User })[]>;
+  searchAgencies(query: string): Promise<(Agency & { owner: User })[]>;
+  updateAgency(id: string, updates: Partial<Agency>): Promise<Agency | undefined>;
+  deleteAgency(id: string): Promise<boolean>;
+  addAgencyMember(member: InsertAgencyMember): Promise<AgencyMember>;
+  removeAgencyMember(agencyId: string, userId: string): Promise<boolean>;
+  getAgencyMembers(agencyId: string): Promise<(AgencyMember & { user: User })[]>;
+  getUserAgency(userId: string): Promise<(AgencyMember & { agency: Agency }) | undefined>;
+  updateAgencyMember(agencyId: string, userId: string, updates: Partial<AgencyMember>): Promise<AgencyMember | undefined>;
+  getAgencyLeaderboard(agencyId: string): Promise<(AgencyMember & { user: User })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2503,6 +2523,111 @@ export class DatabaseStorage implements IStorage {
       .where(eq(flaggedContent.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // Agency operations
+  async createAgency(agency: InsertAgency): Promise<Agency> {
+    const [newAgency] = await db.insert(agencies).values(agency).returning();
+    await db.insert(agencyMembers).values({
+      agencyId: newAgency.id,
+      userId: agency.ownerId,
+      role: "owner",
+    });
+    return newAgency;
+  }
+
+  async getAgency(id: string): Promise<(Agency & { owner: User }) | undefined> {
+    const [agency] = await db.select().from(agencies).where(eq(agencies.id, id));
+    if (!agency) return undefined;
+    const [owner] = await db.select().from(users).where(eq(users.id, agency.ownerId));
+    if (!owner) return undefined;
+    return { ...agency, owner };
+  }
+
+  async getAgencies(limit: number = 50): Promise<(Agency & { owner: User })[]> {
+    const rows = await db.select().from(agencies).orderBy(desc(agencies.totalDiamondsEarned)).limit(limit);
+    const results: (Agency & { owner: User })[] = [];
+    for (const row of rows) {
+      const [owner] = await db.select().from(users).where(eq(users.id, row.ownerId));
+      if (owner) results.push({ ...row, owner });
+    }
+    return results;
+  }
+
+  async searchAgencies(query: string): Promise<(Agency & { owner: User })[]> {
+    const rows = await db.select().from(agencies)
+      .where(ilike(agencies.name, `%${query}%`))
+      .limit(20);
+    const results: (Agency & { owner: User })[] = [];
+    for (const row of rows) {
+      const [owner] = await db.select().from(users).where(eq(users.id, row.ownerId));
+      if (owner) results.push({ ...row, owner });
+    }
+    return results;
+  }
+
+  async updateAgency(id: string, updates: Partial<Agency>): Promise<Agency | undefined> {
+    const [updated] = await db.update(agencies).set(updates).where(eq(agencies.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteAgency(id: string): Promise<boolean> {
+    await db.delete(agencyMembers).where(eq(agencyMembers.agencyId, id));
+    const result = await db.delete(agencies).where(eq(agencies.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async addAgencyMember(member: InsertAgencyMember): Promise<AgencyMember> {
+    const [newMember] = await db.insert(agencyMembers).values(member).returning();
+    await db.update(agencies)
+      .set({ memberCount: sql`${agencies.memberCount} + 1` })
+      .where(eq(agencies.id, member.agencyId));
+    return newMember;
+  }
+
+  async removeAgencyMember(agencyId: string, userId: string): Promise<boolean> {
+    const result = await db.delete(agencyMembers)
+      .where(and(eq(agencyMembers.agencyId, agencyId), eq(agencyMembers.userId, userId)))
+      .returning();
+    if (result.length > 0) {
+      await db.update(agencies)
+        .set({ memberCount: sql`GREATEST(${agencies.memberCount} - 1, 0)` })
+        .where(eq(agencies.id, agencyId));
+    }
+    return result.length > 0;
+  }
+
+  async getAgencyMembers(agencyId: string): Promise<(AgencyMember & { user: User })[]> {
+    const members = await db.select().from(agencyMembers)
+      .where(eq(agencyMembers.agencyId, agencyId))
+      .orderBy(desc(agencyMembers.diamondsEarned));
+    const results: (AgencyMember & { user: User })[] = [];
+    for (const m of members) {
+      const [user] = await db.select().from(users).where(eq(users.id, m.userId));
+      if (user) results.push({ ...m, user });
+    }
+    return results;
+  }
+
+  async getUserAgency(userId: string): Promise<(AgencyMember & { agency: Agency }) | undefined> {
+    const [membership] = await db.select().from(agencyMembers)
+      .where(eq(agencyMembers.userId, userId));
+    if (!membership) return undefined;
+    const [agency] = await db.select().from(agencies).where(eq(agencies.id, membership.agencyId));
+    if (!agency) return undefined;
+    return { ...membership, agency };
+  }
+
+  async updateAgencyMember(agencyId: string, userId: string, updates: Partial<AgencyMember>): Promise<AgencyMember | undefined> {
+    const [updated] = await db.update(agencyMembers)
+      .set(updates)
+      .where(and(eq(agencyMembers.agencyId, agencyId), eq(agencyMembers.userId, userId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async getAgencyLeaderboard(agencyId: string): Promise<(AgencyMember & { user: User })[]> {
+    return this.getAgencyMembers(agencyId);
   }
 }
 

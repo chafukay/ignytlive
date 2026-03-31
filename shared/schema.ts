@@ -1273,5 +1273,55 @@ export const insertFlaggedContentSchema = createInsertSchema(flaggedContent).omi
 export type InsertFlaggedContent = z.infer<typeof insertFlaggedContentSchema>;
 export type FlaggedContent = typeof flaggedContent.$inferSelect;
 
+// Agencies - groups where hosts earn extra diamonds
+export const agencies = pgTable("agencies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  ownerId: varchar("owner_id").notNull().references(() => users.id),
+  logo: text("logo"),
+  diamondBonusPercent: integer("diamond_bonus_percent").notNull().default(5),
+  isRecruiting: boolean("is_recruiting").notNull().default(true),
+  memberCount: integer("member_count").notNull().default(1),
+  totalDiamondsEarned: integer("total_diamonds_earned").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const agencyMembers = pgTable("agency_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agencyId: varchar("agency_id").notNull().references(() => agencies.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("member"),
+  diamondsEarned: integer("diamonds_earned").notNull().default(0),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
+export const agenciesRelations = relations(agencies, ({ one, many }) => ({
+  owner: one(users, { fields: [agencies.ownerId], references: [users.id] }),
+  members: many(agencyMembers),
+}));
+
+export const agencyMembersRelations = relations(agencyMembers, ({ one }) => ({
+  agency: one(agencies, { fields: [agencyMembers.agencyId], references: [agencies.id] }),
+  user: one(users, { fields: [agencyMembers.userId], references: [users.id] }),
+}));
+
+export const insertAgencySchema = createInsertSchema(agencies).omit({
+  id: true,
+  createdAt: true,
+  memberCount: true,
+  totalDiamondsEarned: true,
+});
+export type InsertAgency = z.infer<typeof insertAgencySchema>;
+export type Agency = typeof agencies.$inferSelect;
+
+export const insertAgencyMemberSchema = createInsertSchema(agencyMembers).omit({
+  id: true,
+  joinedAt: true,
+  diamondsEarned: true,
+});
+export type InsertAgencyMember = z.infer<typeof insertAgencyMemberSchema>;
+export type AgencyMember = typeof agencyMembers.$inferSelect;
+
 // Export Replit Auth models (sessions table is mandatory)
 export * from "./models/auth";

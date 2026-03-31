@@ -40,6 +40,7 @@ import VIPPlans from "@/pages/vip-plans";
 import Families from "@/pages/families";
 import FamilyDetail from "@/pages/family-detail";
 import Achievements from "@/pages/achievements";
+import Agency from "@/pages/agency";
 import LinkAccount from "@/pages/link-account";
 import Referrals from "@/pages/referrals";
 import ProfileVisitors from "@/pages/profile-visitors";
@@ -112,6 +113,7 @@ function Router() {
       <Route path="/families">{() => <ProtectedRoute component={Families} />}</Route>
       <Route path="/families/:id">{() => <ProtectedRoute component={FamilyDetail} />}</Route>
       <Route path="/achievements">{() => <ProtectedRoute component={Achievements} />}</Route>
+      <Route path="/agency">{() => <ProtectedRoute component={Agency} />}</Route>
       <Route path="/link-account">{() => <ProtectedRoute component={LinkAccount} />}</Route>
       <Route path="/referrals">{() => <ProtectedRoute component={Referrals} />}</Route>
       <Route path="/profile-visitors">{() => <ProtectedRoute component={ProfileVisitors} />}</Route>

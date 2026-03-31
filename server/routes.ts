@@ -33,6 +33,34 @@ function toSafeUsers(users: any[]) {
   return users.map(toSafeUser);
 }
 
+function toPublicUser(user: any) {
+  if (!user) return user;
+  return {
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
+    level: user.level,
+    isVerified: user.isVerified,
+    vipTier: user.vipTier,
+    bio: user.bio,
+  };
+}
+
+function sanitizeAgency(agency: any) {
+  if (!agency) return agency;
+  return {
+    ...agency,
+    owner: agency.owner ? toPublicUser(agency.owner) : undefined,
+  };
+}
+
+function sanitizeAgencyMembers(members: any[]) {
+  return members.map((m: any) => ({
+    ...m,
+    user: m.user ? toPublicUser(m.user) : undefined,
+  }));
+}
+
 const SENSITIVE_FIELDS = new Set(['password', 'emailVerificationToken', 'emailVerificationExpiry']);
 
 function stripPasswords(obj: any): any {
@@ -4653,6 +4681,219 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to mark as reviewed" });
+    }
+  });
+
+  // ============= Agency Routes =============
+
+  app.get("/api/agencies", async (req, res) => {
+    try {
+      const { search } = req.query;
+      if (search && typeof search === "string") {
+        const results = await storage.searchAgencies(search);
+        return res.json(results.map(sanitizeAgency));
+      }
+      const allAgencies = await storage.getAgencies();
+      res.json(allAgencies.map(sanitizeAgency));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch agencies" });
+    }
+  });
+
+  app.get("/api/agencies/my", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const membership = await storage.getUserAgency(authUserId);
+      res.json(membership || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user agency" });
+    }
+  });
+
+  app.get("/api/agencies/:id", async (req, res) => {
+    try {
+      const agency = await storage.getAgency(req.params.id);
+      if (!agency) return res.status(404).json({ error: "Agency not found" });
+      res.json(sanitizeAgency(agency));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch agency" });
+    }
+  });
+
+  app.get("/api/agencies/:id/members", async (req, res) => {
+    try {
+      const members = await storage.getAgencyMembers(req.params.id);
+      res.json(sanitizeAgencyMembers(members));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch agency members" });
+    }
+  });
+
+  app.post("/api/agencies", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const existing = await storage.getUserAgency(authUserId);
+      if (existing) {
+        return res.status(400).json({ error: "You are already in an agency. Leave your current agency first." });
+      }
+
+      const { name, description } = req.body;
+      if (!name || typeof name !== "string" || name.trim().length < 2) {
+        return res.status(400).json({ error: "Agency name must be at least 2 characters" });
+      }
+
+      const agency = await storage.createAgency({
+        name: name.trim(),
+        description: description || null,
+        ownerId: authUserId,
+        isRecruiting: true,
+        diamondBonusPercent: 5,
+      });
+
+      const fullAgency = await storage.getAgency(agency.id);
+      res.json(sanitizeAgency(fullAgency));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("unique")) {
+        return res.status(400).json({ error: "An agency with that name already exists" });
+      }
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create agency" });
+    }
+  });
+
+  app.patch("/api/agencies/:id", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const agency = await storage.getAgency(req.params.id);
+      if (!agency) return res.status(404).json({ error: "Agency not found" });
+      if (agency.ownerId !== authUserId) return res.status(403).json({ error: "Only the owner can update the agency" });
+
+      const { name, description, isRecruiting, logo } = req.body;
+      const updates: Partial<typeof agency> = {};
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description;
+      if (isRecruiting !== undefined) updates.isRecruiting = isRecruiting;
+      if (logo !== undefined) updates.logo = logo;
+
+      const updated = await storage.updateAgency(req.params.id, updates);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to update agency" });
+    }
+  });
+
+  app.delete("/api/agencies/:id", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const agency = await storage.getAgency(req.params.id);
+      if (!agency) return res.status(404).json({ error: "Agency not found" });
+      if (agency.ownerId !== authUserId) return res.status(403).json({ error: "Only the owner can delete the agency" });
+
+      await storage.deleteAgency(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete agency" });
+    }
+  });
+
+  app.post("/api/agencies/:id/join", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const existing = await storage.getUserAgency(authUserId);
+      if (existing) {
+        return res.status(400).json({ error: "You are already in an agency. Leave your current agency first." });
+      }
+
+      const agency = await storage.getAgency(req.params.id);
+      if (!agency) return res.status(404).json({ error: "Agency not found" });
+      if (!agency.isRecruiting) return res.status(400).json({ error: "This agency is not currently recruiting" });
+
+      const member = await storage.addAgencyMember({
+        agencyId: req.params.id,
+        userId: authUserId,
+        role: "member",
+      });
+
+      res.json(member);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("unique")) {
+        return res.status(400).json({ error: "You are already a member of this agency" });
+      }
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to join agency" });
+    }
+  });
+
+  app.post("/api/agencies/:id/leave", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const agency = await storage.getAgency(req.params.id);
+      if (!agency) return res.status(404).json({ error: "Agency not found" });
+      if (agency.ownerId === authUserId) {
+        return res.status(400).json({ error: "Owner cannot leave. Transfer ownership or delete the agency." });
+      }
+
+      const removed = await storage.removeAgencyMember(req.params.id, authUserId);
+      if (!removed) return res.status(400).json({ error: "You are not a member of this agency" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to leave agency" });
+    }
+  });
+
+  app.delete("/api/agencies/:id/members/:memberId", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const agency = await storage.getAgency(req.params.id);
+      if (!agency) return res.status(404).json({ error: "Agency not found" });
+
+      const membership = await storage.getUserAgency(authUserId);
+      if (!membership || membership.agencyId !== req.params.id || (membership.role !== "owner" && membership.role !== "admin")) {
+        return res.status(403).json({ error: "Only agency owners and admins can remove members" });
+      }
+
+      if (req.params.memberId === agency.ownerId) {
+        return res.status(400).json({ error: "Cannot remove the agency owner" });
+      }
+
+      const removed = await storage.removeAgencyMember(req.params.id, req.params.memberId);
+      if (!removed) return res.status(404).json({ error: "Member not found" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove member" });
+    }
+  });
+
+  app.patch("/api/agencies/:id/members/:memberId", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const agency = await storage.getAgency(req.params.id);
+      if (!agency) return res.status(404).json({ error: "Agency not found" });
+      if (agency.ownerId !== authUserId) return res.status(403).json({ error: "Only the owner can update member roles" });
+
+      const { role } = req.body;
+      if (!role || !["member", "admin"].includes(role)) {
+        return res.status(400).json({ error: "Role must be 'member' or 'admin'" });
+      }
+
+      const updated = await storage.updateAgencyMember(req.params.id, req.params.memberId, { role });
+      if (!updated) return res.status(404).json({ error: "Member not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update member" });
     }
   });
 

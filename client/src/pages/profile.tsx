@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, MailCheck, AlertCircle } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, MailCheck, AlertCircle, CalendarDays } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -405,29 +405,35 @@ export default function Profile() {
         </Link>
 
         {/* Quick Access */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-5 gap-2 mb-6">
           <Link href="/shorts">
-            <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-shorts">
-              <Clapperboard className="w-6 h-6 text-pink-400 mx-auto mb-2" />
-              <span className="text-foreground text-xs font-medium">Shorts</span>
+            <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-shorts">
+              <Clapperboard className="w-5 h-5 text-pink-400 mx-auto mb-1.5" />
+              <span className="text-foreground text-[10px] font-medium">Shorts</span>
             </div>
           </Link>
           <Link href="/leaderboard">
-            <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-leaderboard">
-              <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-              <span className="text-foreground text-xs font-medium">Leaderboard</span>
+            <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-leaderboard">
+              <Trophy className="w-5 h-5 text-yellow-400 mx-auto mb-1.5" />
+              <span className="text-foreground text-[10px] font-medium">Leaderboard</span>
             </div>
           </Link>
           <Link href="/groups">
-            <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-groups">
-              <Users className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-              <span className="text-foreground text-xs font-medium">Groups</span>
+            <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-groups">
+              <Users className="w-5 h-5 text-blue-400 mx-auto mb-1.5" />
+              <span className="text-foreground text-[10px] font-medium">Groups</span>
             </div>
           </Link>
           <Link href="/achievements">
-            <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-achievements">
-              <Medal className="w-6 h-6 text-green-400 mx-auto mb-2" />
-              <span className="text-foreground text-xs font-medium">Achievements</span>
+            <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-achievements">
+              <Medal className="w-5 h-5 text-green-400 mx-auto mb-1.5" />
+              <span className="text-foreground text-[10px] font-medium">Achievements</span>
+            </div>
+          </Link>
+          <Link href="/events">
+            <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-events">
+              <CalendarDays className="w-5 h-5 text-orange-400 mx-auto mb-1.5" />
+              <span className="text-foreground text-[10px] font-medium">Events</span>
             </div>
           </Link>
         </div>
@@ -465,7 +471,7 @@ export default function Profile() {
             { icon: Crown, label: "VIP Plans", color: "text-yellow-400", href: "/vip-plans", extra: user.vipTier === 0 ? "Upgrade Now" : "", special: true, tierName: user.vipTier === 0 ? "FREE" : user.vipTier === 1 ? "BRONZE" : user.vipTier === 2 ? "SILVER" : user.vipTier === 3 ? "GOLD" : user.vipTier === 4 ? "PLATINUM" : "MILLIONAIRE" },
             { icon: Award, label: "User Level", color: "text-purple-400", href: "/user-level" },
             { icon: Gift, label: "Top Gifters", color: "text-pink-400", href: "/top-gifters" },
-            { icon: Building2, label: "Agency - Earn Extra Diamonds", color: "text-cyan-400", href: "/leaderboard" },
+            { icon: Building2, label: "Agency", color: "text-cyan-400", href: "/agency", extra: "Earn Diamonds" },
             { icon: Package, label: "Item Bag", color: "text-orange-400", href: "/item-bag" },
             { icon: Settings, label: "Settings", color: "text-gray-400", href: "/settings" },
           ].map((item) => (
