@@ -7,6 +7,11 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
+    allowNavigation: ['ignytlive.replit.app', '*.replit.app', '*.replit.dev'],
+    ...(process.env.CAPACITOR_LIVE_RELOAD === 'true' ? {
+      url: process.env.CAPACITOR_SERVER_URL || 'http://localhost:5000',
+      cleartext: true,
+    } : {}),
   },
   plugins: {
     SplashScreen: {
