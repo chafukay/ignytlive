@@ -4240,6 +4240,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/push/native-token", async (req, res) => {
+    try {
+      const { userId, token, platform } = req.body;
+      if (!userId || !token) {
+        return res.status(400).json({ error: "userId and token are required" });
+      }
+      console.log(`[Push] Native push token registered for user ${userId} on ${platform || 'unknown'}`);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save native push token" });
+    }
+  });
+
   // ============ Scheduled Events Routes ============
   
   app.post("/api/events", async (req, res) => {
