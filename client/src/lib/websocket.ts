@@ -1,8 +1,7 @@
 import { getAuthToken } from "./auth-context";
+import { getServerUrl, getWebSocketUrl } from "./capacitor";
 
 export async function createStreamWebSocket(streamId: string, options: { isPreview?: boolean; userId?: string } = {}) {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host;
   const params = new URLSearchParams({ streamId });
   if (options.isPreview) params.set("preview", "true");
 
@@ -10,7 +9,7 @@ export async function createStreamWebSocket(streamId: string, options: { isPrevi
     const authToken = getAuthToken();
     if (authToken) {
       try {
-        const res = await fetch("/api/auth/ws-token", {
+        const res = await fetch(`${getServerUrl()}/api/auth/ws-token`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -26,7 +25,7 @@ export async function createStreamWebSocket(streamId: string, options: { isPrevi
     }
   }
 
-  const ws = new WebSocket(`${protocol}//${host}/ws?${params.toString()}`);
+  const ws = new WebSocket(getWebSocketUrl(params));
   return ws;
 }
 

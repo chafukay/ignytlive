@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthToken } from "@/lib/auth-context";
 import { useEffect, useRef } from "react";
+import { getServerUrl } from "@/lib/capacitor";
 
 interface Achievement {
   id: string;
@@ -67,7 +68,7 @@ export default function Achievements() {
   const { data: allAchievements = [], isLoading: loadingAll } = useQuery<Achievement[]>({
     queryKey: ['achievements'],
     queryFn: async () => {
-      const res = await fetch('/api/achievements');
+      const res = await fetch(`${getServerUrl()}/api/achievements`);
       if (!res.ok) throw new Error('Failed to fetch achievements');
       return res.json();
     },
@@ -76,7 +77,7 @@ export default function Achievements() {
   const { data: userAchievements = [], isLoading: loadingUser } = useQuery<UserAchievement[]>({
     queryKey: ['user-achievements', user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/users/${user!.id}/achievements`);
+      const res = await fetch(`${getServerUrl()}/api/users/${user!.id}/achievements`);
       if (!res.ok) throw new Error('Failed to fetch user achievements');
       return res.json();
     },
@@ -88,7 +89,7 @@ export default function Achievements() {
       const token = getAuthToken();
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`/api/users/${user!.id}/achievements/scan`, {
+      const res = await fetch(`${getServerUrl()}/api/users/${user!.id}/achievements/scan`, {
         method: "POST",
         headers,
       });

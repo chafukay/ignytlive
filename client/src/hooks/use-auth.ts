@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 
 async function fetchUser(): Promise<User | null> {
-  const response = await fetch("/api/auth/user", {
+  const { getServerUrl } = await import("@/lib/capacitor");
+  const response = await fetch(`${getServerUrl()}/api/auth/user`, {
     credentials: "include",
   });
 

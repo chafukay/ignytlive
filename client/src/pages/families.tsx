@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { getServerUrl } from "@/lib/capacitor";
 
 interface Family {
   id: string;
@@ -58,7 +59,7 @@ export default function Families() {
   const { data: families, isLoading } = useQuery<Family[]>({
     queryKey: ["families"],
     queryFn: async () => {
-      const res = await fetch("/api/families");
+      const res = await fetch(`${getServerUrl()}/api/families`);
       return res.json();
     },
   });
@@ -66,7 +67,7 @@ export default function Families() {
   const { data: searchResults } = useQuery<Family[]>({
     queryKey: ["families", "search", searchQuery],
     queryFn: async () => {
-      const res = await fetch(`/api/families/search?q=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`${getServerUrl()}/api/families/search?q=${encodeURIComponent(searchQuery)}`);
       return res.json();
     },
     enabled: searchQuery.length > 0,
@@ -76,7 +77,7 @@ export default function Families() {
     queryKey: ["my-family", user?.id],
     queryFn: async () => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/families/my`, {
+      const res = await fetch(`${getServerUrl()}/api/families/my`, {
         headers: token ? { "Authorization": `Bearer ${token}` } : {},
       });
       return res.json();
@@ -87,7 +88,7 @@ export default function Families() {
   const createFamilyMutation = useMutation({
     mutationFn: async (data: typeof newFamily) => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch("/api/families", {
+      const res = await fetch(`${getServerUrl()}/api/families`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
         body: JSON.stringify(data),
@@ -114,7 +115,7 @@ export default function Families() {
   const joinFamilyMutation = useMutation({
     mutationFn: async (familyId: string) => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/families/${familyId}/join`, {
+      const res = await fetch(`${getServerUrl()}/api/families/${familyId}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
         body: JSON.stringify({}),

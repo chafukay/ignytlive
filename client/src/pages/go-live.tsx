@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { isNative, getServerUrl } from "@/lib/capacitor";
 
 const COUNTRIES_MAP: Record<string, string> = {
   US: "United States 🇺🇸", GB: "United Kingdom 🇬🇧", CA: "Canada 🇨🇦", AU: "Australia 🇦🇺",
@@ -265,15 +266,25 @@ export default function GoLive() {
   const categories = ['Chat', 'Music', 'Gaming', 'Dance', 'Talent', 'Chill'];
 
   const handleShare = useCallback(async () => {
-    const url = window.location.origin;
-    const platform = navigator.share ? "native" : "clipboard";
+    const baseUrl = isNative() ? 'https://ignytlive.replit.app' : window.location.origin;
+    const url = baseUrl;
+    const platform = isNative() ? "native" : (navigator.share ? "native" : "clipboard");
     const token = localStorage.getItem("authToken");
-    fetch("/api/shares", {
+    fetch(`${getServerUrl()}/api/shares`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
       body: JSON.stringify({ contentType: "stream", contentId: null, platform }),
     }).catch(() => {});
-    if (navigator.share) {
+    if (isNative()) {
+      try {
+        const { Share } = await import('@capacitor/share');
+        await Share.share({
+          title: title || "Watch me live on IgnytLIVE!",
+          url,
+          dialogTitle: 'Share Stream',
+        });
+      } catch {}
+    } else if (navigator.share) {
       try {
         await navigator.share({ title: title || "Watch me live on IgnytLIVE!", url });
       } catch {}

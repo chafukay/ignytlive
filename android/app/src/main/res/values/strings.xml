@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">IgnytLIVE</string>
+    <string name="title_activity_main">IgnytLIVE</string>
+    <string name="package_name">com.ignytlive.app</string>
+    <string name="custom_url_scheme">com.ignytlive.app</string>
+</resources>

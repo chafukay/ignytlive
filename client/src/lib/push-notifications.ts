@@ -1,8 +1,13 @@
 import { api } from "./api";
+import { isNative } from "./capacitor";
 
 let swRegistration: ServiceWorkerRegistration | null = null;
 
 export async function initPushNotifications(userId: string): Promise<boolean> {
+  if (isNative()) {
+    return initNativePush(userId);
+  }
+
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     return false;
   }
@@ -25,6 +30,10 @@ export async function initPushNotifications(userId: string): Promise<boolean> {
 }
 
 export async function subscribeToPush(userId: string): Promise<boolean> {
+  if (isNative()) {
+    return subscribeNativePush(userId);
+  }
+
   if (!swRegistration) {
     const ok = await initPushNotifications(userId);
     if (!ok && !swRegistration) return false;
@@ -51,6 +60,16 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
 }
 
 export async function unsubscribeFromPush(): Promise<void> {
+  if (isNative()) {
+    try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      await PushNotifications.removeAllListeners();
+    } catch (e) {
+      console.error("[Push] Native unsubscribe failed:", e);
+    }
+    return;
+  }
+
   if (!swRegistration) return;
   try {
     const subscription = await swRegistration.pushManager.getSubscription();
@@ -65,6 +84,16 @@ export async function unsubscribeFromPush(): Promise<void> {
 }
 
 export async function isPushSubscribed(): Promise<boolean> {
+  if (isNative()) {
+    try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      const result = await PushNotifications.checkPermissions();
+      return result.receive === 'granted';
+    } catch {
+      return false;
+    }
+  }
+
   if (!swRegistration) return false;
   try {
     const sub = await swRegistration.pushManager.getSubscription();
@@ -72,6 +101,46 @@ export async function isPushSubscribed(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function initNativePush(userId: string): Promise<boolean> {
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+
+    const permResult = await PushNotifications.checkPermissions();
+    if (permResult.receive !== 'granted') {
+      const reqResult = await PushNotifications.requestPermissions();
+      if (reqResult.receive !== 'granted') return false;
+    }
+
+    await PushNotifications.register();
+
+    PushNotifications.addListener('registration', async (token) => {
+      console.log('[Push] Native token:', token.value);
+      await api.saveNativePushToken(userId, token.value);
+    });
+
+    PushNotifications.addListener('registrationError', (err) => {
+      console.error('[Push] Native registration error:', err);
+    });
+
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('[Push] Received:', notification);
+    });
+
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      console.log('[Push] Action:', action);
+    });
+
+    return true;
+  } catch (e) {
+    console.error("[Push] Native init failed:", e);
+    return false;
+  }
+}
+
+async function subscribeNativePush(userId: string): Promise<boolean> {
+  return initNativePush(userId);
 }
 
 async function syncSubscriptionToServer(userId: string, subscription: globalThis.PushSubscription) {

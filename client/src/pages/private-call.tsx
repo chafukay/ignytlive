@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import GiftPanel from "@/components/gift-panel";
 import { startRingtone, stopRingtone } from "@/lib/ringtone";
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
+import { getServerUrl } from "@/lib/capacitor";
 
 export default function PrivateCallPage() {
   const { id: callId } = useParams<{ id: string }>();
@@ -94,7 +95,7 @@ export default function PrivateCallPage() {
     if (!call?.agoraChannel) return;
 
     try {
-      const configRes = await fetch('/api/agora/config');
+      const configRes = await fetch(`${getServerUrl()}/api/agora/config`);
       const configData = await configRes.json();
       const appId = configData.appId;
 
@@ -130,7 +131,7 @@ export default function PrivateCallPage() {
 
       let token: string | null = null;
       try {
-        const tokenRes = await fetch('/api/agora/token', {
+        const tokenRes = await fetch(`${getServerUrl()}/api/agora/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ channelName: call.agoraChannel, uid: 0, role: 'host' }),

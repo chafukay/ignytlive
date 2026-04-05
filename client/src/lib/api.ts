@@ -1,7 +1,8 @@
 import type { User, Stream, Short, Gift, GiftTransaction, Message, Badge, UserBadge, WishlistItem, WheelPrize, WheelSpin, CallRequest, StreamGoal, JoinRequest, Group, GroupMember, GroupMessage, MediaUnlock, Notification, ScheduledEvent } from "@shared/schema";
 import { getAuthToken } from "./auth-context";
+import { getServerUrl } from "./capacitor";
 
-const API_BASE = "";
+const API_BASE = getServerUrl();
 
 function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
@@ -1227,6 +1228,16 @@ export const api = {
       method: "POST",
       headers: authJsonHeaders(),
       body: JSON.stringify({ endpoint, p256dh, auth }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async saveNativePushToken(userId: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/push/native-token`, {
+      method: "POST",
+      headers: authJsonHeaders(),
+      body: JSON.stringify({ userId, token }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

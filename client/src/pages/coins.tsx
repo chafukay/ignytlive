@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getServerUrl } from "@/lib/capacitor";
 
 interface CoinPackageAPI {
   id: number;
@@ -44,7 +45,7 @@ export default function Coins() {
   const { data: packages = [], isLoading: packagesLoading } = useQuery<CoinPackageAPI[]>({
     queryKey: ['coin-packages'],
     queryFn: async () => {
-      const res = await fetch('/api/coin-packages');
+      const res = await fetch(`${getServerUrl()}/api/coin-packages`);
       if (!res.ok) throw new Error("Failed to fetch packages");
       return res.json();
     },
@@ -53,7 +54,7 @@ export default function Coins() {
   const { data: firstPurchaseData } = useQuery({
     queryKey: ['firstPurchase', user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/coins/first-purchase/${user!.id}`);
+      const res = await fetch(`${getServerUrl()}/api/coins/first-purchase/${user!.id}`);
       if (!res.ok) throw new Error("Failed to check");
       return res.json() as Promise<{ isFirstPurchase: boolean }>;
     },
@@ -65,7 +66,7 @@ export default function Coins() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && user?.id) {
-        fetch(`/api/users/${user.id}`)
+        fetch(`${getServerUrl()}/api/users/${user.id}`)
           .then((res) => res.ok ? res.json() : null)
           .then((data) => {
             if (data && data.coins !== user.coins) {
@@ -87,7 +88,7 @@ export default function Coins() {
       setVerifyingSession(true);
       window.history.replaceState({}, "", "/coins");
 
-      fetch(`/api/coins/verify-session/${sessionId}`, {
+      fetch(`${getServerUrl()}/api/coins/verify-session/${sessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user!.id }),
@@ -121,7 +122,7 @@ export default function Coins() {
       const token = localStorage.getItem('authToken');
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch('/api/coins/checkout', {
+      const res = await fetch(`${getServerUrl()}/api/coins/checkout`, {
         method: 'POST',
         headers,
         body: JSON.stringify({

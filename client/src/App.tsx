@@ -52,6 +52,52 @@ import VerifyEmail from "@/pages/verify-email";
 import IncomingCallBanner from "@/components/incoming-call-banner";
 import { useEffect } from "react";
 import { initPushNotifications } from "@/lib/push-notifications";
+import { isNative, isAndroid } from "@/lib/capacitor";
+
+function CapacitorInit() {
+  useEffect(() => {
+    if (!isNative()) return;
+
+    const initNative = async () => {
+      try {
+        const { SplashScreen } = await import('@capacitor/splash-screen');
+        await SplashScreen.hide();
+      } catch {}
+
+      try {
+        const { StatusBar, Style } = await import('@capacitor/status-bar');
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#000000' });
+      } catch {}
+
+      if (isAndroid()) {
+        try {
+          const { App } = await import('@capacitor/app');
+          App.addListener('backButton', ({ canGoBack }) => {
+            if (canGoBack) {
+              window.history.back();
+            } else {
+              App.exitApp();
+            }
+          });
+        } catch {}
+      }
+
+      try {
+        const { Keyboard } = await import('@capacitor/keyboard');
+        Keyboard.addListener('keyboardWillShow', () => {
+          document.body.classList.add('keyboard-visible');
+        });
+        Keyboard.addListener('keyboardWillHide', () => {
+          document.body.classList.remove('keyboard-visible');
+        });
+      } catch {}
+    };
+
+    initNative();
+  }, []);
+  return null;
+}
 
 function PushInit() {
   const { user } = useAuth();
@@ -141,6 +187,7 @@ function MainApp() {
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
+            <CapacitorInit />
             <DailyLoginModal />
             <IncomingCallBanner />
             <PushInit />

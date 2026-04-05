@@ -15,7 +15,8 @@ async function loadAgoraConfig(): Promise<void> {
   if (configLoaded) return;
   
   try {
-    const response = await fetch("/api/agora/config");
+    const { getServerUrl } = await import("./capacitor");
+    const response = await fetch(`${getServerUrl()}/api/agora/config`);
     const data = await response.json();
     if (data.configured && data.appId) {
       APP_ID = data.appId;
@@ -72,7 +73,8 @@ function createFreshClient(): IAgoraRTCClient {
 }
 
 async function getToken(channelName: string, role: "host" | "audience"): Promise<string> {
-  const response = await fetch("/api/agora/token", {
+  const { getServerUrl } = await import("./capacitor");
+  const response = await fetch(`${getServerUrl()}/api/agora/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ channelName, uid: 0, role }),

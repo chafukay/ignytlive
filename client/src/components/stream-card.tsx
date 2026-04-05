@@ -3,6 +3,7 @@ import type { Stream, User } from "@shared/schema";
 import { Eye, Swords, Video, Volume2, VolumeX } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import AgoraRTC, { IAgoraRTCRemoteUser, IRemoteVideoTrack, IRemoteAudioTrack } from "agora-rtc-sdk-ng";
+import { getServerUrl } from "@/lib/capacitor";
 
 interface StreamCardProps {
   stream: Stream & { user: User };
@@ -45,7 +46,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
     setIsPreviewLoading(true);
     
     try {
-      const configRes = await fetch('/api/agora/config');
+      const configRes = await fetch(`${getServerUrl()}/api/agora/config`);
       const config = await configRes.json();
       
       if (!config.configured || !config.appId) {
@@ -59,7 +60,7 @@ export default function StreamCard({ stream, rank }: StreamCardProps) {
       
       await client.setClientRole("audience");
       
-      const tokenRes = await fetch('/api/agora/token', {
+      const tokenRes = await fetch(`${getServerUrl()}/api/agora/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

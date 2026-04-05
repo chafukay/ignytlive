@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { getServerUrl } from "@/lib/capacitor";
 
 function validatePassword(pw: string): string | null {
   if (pw.length < 8) return "Password must be at least 8 characters";
@@ -50,7 +51,7 @@ export default function LinkAccount() {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/users/${user.id}/link-email`, {
+      const res = await fetch(`${getServerUrl()}/api/users/${user.id}/link-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -79,7 +80,7 @@ export default function LinkAccount() {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/users/${user.id}/link-phone/send-code`, {
+      const res = await fetch(`${getServerUrl()}/api/users/${user.id}/link-phone/send-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phoneNumber }),
@@ -104,7 +105,7 @@ export default function LinkAccount() {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/users/${user.id}/link-phone/verify`, {
+      const res = await fetch(`${getServerUrl()}/api/users/${user.id}/link-phone/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phoneNumber, code: verificationCode }),
@@ -128,7 +129,7 @@ export default function LinkAccount() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/users/${user.id}/unlink-phone`, {
+      const res = await fetch(`${getServerUrl()}/api/users/${user.id}/unlink-phone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

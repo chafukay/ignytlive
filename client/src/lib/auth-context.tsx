@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import type { User } from "@shared/schema";
+import { getServerUrl } from "./capacitor";
 
 interface AuthContextType {
   user: User | null;
@@ -26,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const parsedUser = JSON.parse(stored);
-        fetch(`/api/users/${parsedUser.id}`)
+        fetch(`${getServerUrl()}/api/users/${parsedUser.id}`)
           .then(res => {
             if (res.ok) {
               return res.json();
@@ -76,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     if (!user?.id) return;
     try {
-      const res = await fetch(`/api/users/${user.id}`);
+      const res = await fetch(`${getServerUrl()}/api/users/${user.id}`);
       if (res.ok) {
         const freshUser = await res.json();
         setUser(freshUser);

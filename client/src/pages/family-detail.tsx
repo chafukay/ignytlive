@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getServerUrl } from "@/lib/capacitor";
 
 interface Family {
   id: string;
@@ -72,7 +73,7 @@ export default function FamilyDetail() {
   const { data: family, isLoading } = useQuery<Family>({
     queryKey: ["family", id],
     queryFn: async () => {
-      const res = await fetch(`/api/families/${id}`);
+      const res = await fetch(`${getServerUrl()}/api/families/${id}`);
       if (!res.ok) throw new Error("Family not found");
       return res.json();
     },
@@ -81,7 +82,7 @@ export default function FamilyDetail() {
   const { data: members } = useQuery<FamilyMember[]>({
     queryKey: ["family-members", id],
     queryFn: async () => {
-      const res = await fetch(`/api/families/${id}/members`);
+      const res = await fetch(`${getServerUrl()}/api/families/${id}/members`);
       return res.json();
     },
     enabled: !!id,
@@ -90,7 +91,7 @@ export default function FamilyDetail() {
   const { data: messages, refetch: refetchMessages } = useQuery<FamilyMessage[]>({
     queryKey: ["family-messages", id],
     queryFn: async () => {
-      const res = await fetch(`/api/families/${id}/messages`);
+      const res = await fetch(`${getServerUrl()}/api/families/${id}/messages`);
       return res.json();
     },
     enabled: !!id && activeTab === "chat",
@@ -122,7 +123,7 @@ export default function FamilyDetail() {
   const leaveMutation = useMutation({
     mutationFn: async () => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/families/${id}/leave`, {
+      const res = await fetch(`${getServerUrl()}/api/families/${id}/leave`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
         body: JSON.stringify({}),
@@ -146,7 +147,7 @@ export default function FamilyDetail() {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/families/${id}`, {
+      const res = await fetch(`${getServerUrl()}/api/families/${id}`, {
         method: "DELETE",
         headers: token ? { "Authorization": `Bearer ${token}` } : {},
       });
@@ -170,7 +171,7 @@ export default function FamilyDetail() {
   const updateMutation = useMutation({
     mutationFn: async (data: typeof editData) => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/families/${id}`, {
+      const res = await fetch(`${getServerUrl()}/api/families/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
         body: JSON.stringify(data),
@@ -194,7 +195,7 @@ export default function FamilyDetail() {
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/families/${id}/messages`, {
+      const res = await fetch(`${getServerUrl()}/api/families/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
         body: JSON.stringify({ content }),
@@ -217,7 +218,7 @@ export default function FamilyDetail() {
   const kickMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/families/${id}/members/${memberId}`, {
+      const res = await fetch(`${getServerUrl()}/api/families/${id}/members/${memberId}`, {
         method: "DELETE",
         headers: token ? { "Authorization": `Bearer ${token}` } : {},
       });
@@ -239,7 +240,7 @@ export default function FamilyDetail() {
 
   const promoteMemberMutation = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: string }) => {
-      const res = await fetch(`/api/families/${id}/members/${memberId}`, {
+      const res = await fetch(`${getServerUrl()}/api/families/${id}/members/${memberId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user?.id, role }),

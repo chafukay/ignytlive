@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
 - **Animations**: Framer Motion
 - **Build Tool**: Vite
 - **Design**: Mobile-first with responsive desktop support, featuring a TikTok-inspired interface with bottom/side navigation.
+- **Native Mobile**: Capacitor integration for Android and iOS builds. Platform detection via `client/src/lib/capacitor.ts`. Native plugins: Push Notifications, Share, Camera, StatusBar, SplashScreen, Keyboard, Haptics, App (back button).
 
 ### Backend
 - **Runtime**: Node.js with Express
@@ -80,6 +81,24 @@ Preferred communication style: Simple, everyday language.
 ### Fonts
 - **DM Sans**
 - **Outfit**
+
+### Native Mobile (Capacitor)
+- **@capacitor/core, @capacitor/cli**: Core framework for wrapping web app in native shell.
+- **@capacitor/android, @capacitor/ios**: Native platform projects (`android/`, `ios/` directories).
+- **@capacitor/app**: Android back button handling, app lifecycle.
+- **@capacitor/push-notifications**: Native push notifications (replaces web push on native).
+- **@capacitor/share**: Native share sheet (replaces `navigator.share` on native).
+- **@capacitor/camera**: Camera access on native devices.
+- **@capacitor/status-bar**: Native status bar styling (dark style, black background).
+- **@capacitor/splash-screen**: Native splash screen with auto-hide.
+- **@capacitor/keyboard**: Keyboard management and resize behavior.
+- **@capacitor/haptics**: Haptic feedback on native devices.
+- **Bundle ID**: `com.ignytlive.app`
+- **Web Dir**: `dist/public`
+- **Config**: `capacitor.config.ts`
+- **Platform Detection**: `client/src/lib/capacitor.ts` — `isNative()`, `getPlatform()`, `getServerUrl()`, `getWebSocketUrl()`.
+- **API URL**: On native, all API calls use `getServerUrl()` which returns `VITE_SERVER_URL` env var or falls back to `https://ignytlive.replit.app`. On web, returns empty string (relative paths).
+- **Build**: Run `./scripts/cap-build.sh` or `npm run build && npx cap sync` to build web and sync native projects.
 
 ### Services
 - **Agora**: For private video/audio calls.

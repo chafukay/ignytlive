@@ -28,7 +28,8 @@ export default function VIPPlans() {
   const { data: tiers = [], isLoading } = useQuery<VipTierData[]>({
     queryKey: ["vip-tiers"],
     queryFn: async () => {
-      const res = await fetch("/api/vip-tiers");
+      const { getServerUrl } = await import("@/lib/capacitor");
+      const res = await fetch(`${getServerUrl()}/api/vip-tiers`);
       if (!res.ok) throw new Error("Failed to fetch VIP tiers");
       return res.json();
     },

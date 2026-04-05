@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getAuthToken } from "@/lib/auth-context";
 import { useLocation } from "wouter";
+import { getServerUrl } from "@/lib/capacitor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import UserAvatar from "@/components/user-avatar";
@@ -67,7 +68,7 @@ export default function AgencyPage() {
   const { data: myMembership, isLoading: loadingMy } = useQuery<AgencyMembership | null>({
     queryKey: ["my-agency"],
     queryFn: async () => {
-      const res = await fetch("/api/agencies/my", { headers: authHeaders() });
+      const res = await fetch(`${getServerUrl()}/api/agencies/my`, { headers: authHeaders() });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -87,7 +88,7 @@ export default function AgencyPage() {
   const { data: viewingAgency } = useQuery<Agency>({
     queryKey: ["agency", viewingAgencyId],
     queryFn: async () => {
-      const res = await fetch(`/api/agencies/${viewingAgencyId}`);
+      const res = await fetch(`${getServerUrl()}/api/agencies/${viewingAgencyId}`);
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -98,7 +99,7 @@ export default function AgencyPage() {
     queryKey: ["agency-members", viewingAgencyId || myMembership?.agencyId],
     queryFn: async () => {
       const id = viewingAgencyId || myMembership?.agencyId;
-      const res = await fetch(`/api/agencies/${id}/members`);
+      const res = await fetch(`${getServerUrl()}/api/agencies/${id}/members`);
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -107,7 +108,7 @@ export default function AgencyPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/agencies", {
+      const res = await fetch(`${getServerUrl()}/api/agencies`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ name: agencyName, description: agencyDescription }),
@@ -133,7 +134,7 @@ export default function AgencyPage() {
 
   const joinMutation = useMutation({
     mutationFn: async (agencyId: string) => {
-      const res = await fetch(`/api/agencies/${agencyId}/join`, {
+      const res = await fetch(`${getServerUrl()}/api/agencies/${agencyId}/join`, {
         method: "POST",
         headers: authHeaders(),
       });
@@ -156,7 +157,7 @@ export default function AgencyPage() {
 
   const leaveMutation = useMutation({
     mutationFn: async (agencyId: string) => {
-      const res = await fetch(`/api/agencies/${agencyId}/leave`, {
+      const res = await fetch(`${getServerUrl()}/api/agencies/${agencyId}/leave`, {
         method: "POST",
         headers: authHeaders(),
       });
@@ -178,7 +179,7 @@ export default function AgencyPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (agencyId: string) => {
-      const res = await fetch(`/api/agencies/${agencyId}`, {
+      const res = await fetch(`${getServerUrl()}/api/agencies/${agencyId}`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -200,7 +201,7 @@ export default function AgencyPage() {
 
   const removeMemberMutation = useMutation({
     mutationFn: async ({ agencyId, memberId }: { agencyId: string; memberId: string }) => {
-      const res = await fetch(`/api/agencies/${agencyId}/members/${memberId}`, {
+      const res = await fetch(`${getServerUrl()}/api/agencies/${agencyId}/members/${memberId}`, {
         method: "DELETE",
         headers: authHeaders(),
       });

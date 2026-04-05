@@ -12,6 +12,7 @@ import UserAvatar from "@/components/user-avatar";
 import { frameRingColors, defaultFrameRing, badgeColors } from "@/components/item-preview";
 import { useState, useRef } from "react";
 import { getWealthLevel } from "@shared/wealth-utils";
+import { isNative, getServerUrl } from "@/lib/capacitor";
 import type { UserItem, StoreItem } from "@shared/schema";
 
 type UserItemWithItem = UserItem & { item: StoreItem };
@@ -170,14 +171,25 @@ export default function Profile() {
           </button>
           <button 
             onClick={async () => {
-              const url = `${window.location.origin}/profile/${user.id}`;
-              const platform = navigator.share ? "native" : "clipboard";
-              fetch("/api/shares", {
+              const baseUrl = isNative() ? 'https://ignytlive.replit.app' : window.location.origin;
+              const url = `${baseUrl}/profile/${user.id}`;
+              const platform = isNative() ? "native" : (navigator.share ? "native" : "clipboard");
+              fetch(`${getServerUrl()}/api/shares`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("authToken")}` },
                 body: JSON.stringify({ contentType: "profile", contentId: user.id, platform }),
               }).catch(() => {});
-              if (navigator.share) {
+              if (isNative()) {
+                try {
+                  const { Share } = await import('@capacitor/share');
+                  await Share.share({
+                    title: `${user.username} on IgnytLIVE`,
+                    text: `Check out ${user.username}'s profile on IgnytLIVE!`,
+                    url,
+                    dialogTitle: 'Share Profile',
+                  });
+                } catch {}
+              } else if (navigator.share) {
                 navigator.share({
                   title: `${user.username} on IgnytLIVE`,
                   text: `Check out ${user.username}'s profile on IgnytLIVE!`,
