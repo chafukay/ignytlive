@@ -4242,11 +4242,13 @@ export async function registerRoutes(
 
   app.post("/api/push/native-token", async (req, res) => {
     try {
-      const { userId, token, platform } = req.body;
-      if (!userId || !token) {
-        return res.status(400).json({ error: "userId and token are required" });
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { token, platform } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: "token is required" });
       }
-      console.log(`[Push] Native push token registered for user ${userId} on ${platform || 'unknown'}`);
+      await storage.saveNativePushToken(authUserId, token, platform || 'unknown');
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to save native push token" });

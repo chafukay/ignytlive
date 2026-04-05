@@ -266,7 +266,7 @@ export default function GoLive() {
   const categories = ['Chat', 'Music', 'Gaming', 'Dance', 'Talent', 'Chill'];
 
   const handleShare = useCallback(async () => {
-    const baseUrl = isNative() ? 'https://ignytlive.replit.app' : window.location.origin;
+    const baseUrl = isNative() ? (getServerUrl() || 'https://ignytlive.replit.app') : window.location.origin;
     const url = baseUrl;
     const platform = isNative() ? "native" : (navigator.share ? "native" : "clipboard");
     const token = localStorage.getItem("authToken");

@@ -1233,11 +1233,11 @@ export const api = {
     return res.json();
   },
 
-  async saveNativePushToken(userId: string, token: string) {
+  async saveNativePushToken(userId: string, token: string, platform?: string) {
     const res = await fetch(`${API_BASE}/api/push/native-token`, {
       method: "POST",
       headers: authJsonHeaders(),
-      body: JSON.stringify({ userId, token }),
+      body: JSON.stringify({ token, platform: platform || 'unknown' }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

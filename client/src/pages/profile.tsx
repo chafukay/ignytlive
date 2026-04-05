@@ -171,7 +171,7 @@ export default function Profile() {
           </button>
           <button 
             onClick={async () => {
-              const baseUrl = isNative() ? 'https://ignytlive.replit.app' : window.location.origin;
+              const baseUrl = isNative() ? (getServerUrl() || 'https://ignytlive.replit.app') : window.location.origin;
               const url = `${baseUrl}/profile/${user.id}`;
               const platform = isNative() ? "native" : (navigator.share ? "native" : "clipboard");
               fetch(`${getServerUrl()}/api/shares`, {
