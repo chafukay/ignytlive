@@ -1,5 +1,6 @@
 import { Swords, Trophy, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
 
 interface PKUser {
   username: string;
@@ -13,7 +14,43 @@ interface PKOpponent {
   winStreak: number;
 }
 
-export default function PKBattleView({ streamer, currentScore, opponent }: { streamer: PKUser, currentScore: number, opponent?: PKOpponent | null }) {
+export default function PKBattleView({ streamer, currentScore, opponent, duration = 180, onBattleEnd }: { 
+  streamer: PKUser; 
+  currentScore: number; 
+  opponent?: PKOpponent | null;
+  duration?: number;
+  onBattleEnd?: (winner: 'streamer' | 'opponent' | 'draw') => void;
+}) {
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const startTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+    setTimeLeft(duration);
+  }, [duration]);
+
+  useEffect(() => {
+    if (!opponent) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const remaining = Math.max(0, duration - elapsed);
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+        if (onBattleEnd) {
+          if (currentScore > (opponent?.score || 0)) onBattleEnd('streamer');
+          else if (currentScore < (opponent?.score || 0)) onBattleEnd('opponent');
+          else onBattleEnd('draw');
+        }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [opponent, duration, onBattleEnd, currentScore]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  const timerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
   if (!opponent) {
     return (
       <div className="absolute inset-0 flex flex-col items-center justify-center z-0 bg-black/60">
@@ -26,6 +63,7 @@ export default function PKBattleView({ streamer, currentScore, opponent }: { str
 
   const totalScore = currentScore + opponent.score;
   const myPercentage = totalScore > 0 ? (currentScore / totalScore) * 100 : 50;
+  const isEnded = timeLeft <= 0;
 
   return (
     <div className="absolute inset-0 flex flex-col z-0 pt-20">
@@ -57,9 +95,19 @@ export default function PKBattleView({ streamer, currentScore, opponent }: { str
         <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-white transform -skew-x-12 z-10" />
       </div>
 
-      <div className="absolute top-28 left-1/2 -translate-x-1/2 z-10 bg-black/60 px-3 py-1 rounded-full border border-white/10">
-        <span className="font-mono font-bold text-white text-sm">02:45</span>
+      <div className={`absolute top-28 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full border border-white/10 ${isEnded ? 'bg-red-600/80' : timeLeft <= 30 ? 'bg-red-600/60 animate-pulse' : 'bg-black/60'}`}>
+        <span className="font-mono font-bold text-white text-sm" data-testid="text-pk-timer">
+          {isEnded ? "FINISHED" : timerText}
+        </span>
       </div>
+
+      {isEnded && (
+        <div className="absolute top-36 left-1/2 -translate-x-1/2 z-20 bg-black/80 px-4 py-2 rounded-lg border border-yellow-500/50">
+          <span className="text-yellow-400 font-bold text-lg" data-testid="text-pk-result">
+            {currentScore > opponent.score ? `${streamer.username} Wins!` : currentScore < opponent.score ? `${opponent.username} Wins!` : "It's a Draw!"}
+          </span>
+        </div>
+      )}
 
       <div className="flex-1 flex relative">
         <div className="flex-1 relative border-r-2 border-white/10">
@@ -84,12 +132,6 @@ export default function PKBattleView({ streamer, currentScore, opponent }: { str
                 <span className="text-red-400 font-bold">{opponent.username}</span>
              </div>
         </div>
-      </div>
-      
-      <div className="absolute bottom-1/2 translate-y-20 left-0 right-0 text-center z-10">
-         <span className="text-white/60 text-xs uppercase tracking-widest font-bold bg-black/20 px-4 py-1 rounded-full backdrop-blur-sm">
-            Loser Punishment: 50 Squats
-         </span>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, achievements, userAchievements, giftTransactions, streams } from "@shared/schema";
+import { users, achievements, userAchievements, giftTransactions, streams, notifications } from "@shared/schema";
 import { eq, and, count, sql } from "drizzle-orm";
 
 interface AchievementUnlock {
@@ -31,6 +31,14 @@ async function unlockAndReward(userId: string, achievement: { id: string; name: 
     .returning({ id: userAchievements.id });
 
   if (!inserted) return null;
+
+  db.insert(notifications).values({
+    userId,
+    type: "system",
+    title: `Achievement Unlocked! ${achievement.emoji}`,
+    message: `You earned "${achievement.name}" — ${achievement.description}`,
+    isRead: false,
+  }).catch(() => {});
 
   if (achievement.rewardXp > 0 || achievement.rewardCoins > 0) {
     await db

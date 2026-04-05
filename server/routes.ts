@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { WebSocketServer, WebSocket } from "ws";
 import { cache, CACHE_KEYS, TTL } from "./cache";
 import agoraToken from "agora-token";
@@ -16,8 +17,11 @@ import {
   insertMessageSchema,
   insertStreamCommentSchema,
   insertStreamGoalSchema,
-  insertJoinRequestSchema
+  insertJoinRequestSchema,
+  shorts,
+  userReports,
 } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { filterContent, logFlaggedContent, forceRefreshFilterWords } from "./content-filter";
@@ -1813,6 +1817,16 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/shorts/:id/share", async (req, res) => {
+    try {
+      const shortId = req.params.id;
+      await db.update(shorts).set({ sharesCount: sql`${shorts.sharesCount} + 1` }).where(eq(shorts.id, shortId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to record share" });
+    }
+  });
+
   // Follow routes
   app.post("/api/follows", async (req, res) => {
     try {
@@ -2343,6 +2357,7 @@ export async function registerRoutes(
     coins: z.number().min(0).optional(),
     diamonds: z.number().min(0).optional(),
     level: z.number().min(1).max(100).optional(),
+    isVerified: z.boolean().optional(),
   });
 
   app.get("/api/admin/users", async (req, res) => {
@@ -4498,11 +4513,10 @@ export async function registerRoutes(
   app.get("/api/admin/reports", async (req, res) => {
     if (!await requireAdmin(req, res)) return;
     try {
-      const { db } = await import("./db");
-      const { userReports, users } = await import("@shared/schema");
-      const { desc, eq } = await import("drizzle-orm");
+      const { users: usersTable } = await import("@shared/schema");
+      const { desc, eq: eqOp } = await import("drizzle-orm");
       const reports = await db.select().from(userReports)
-        .innerJoin(users, eq(userReports.reportedUserId, users.id))
+        .innerJoin(usersTable, eqOp(userReports.reportedId, usersTable.id))
         .orderBy(desc(userReports.createdAt))
         .limit(100);
       const formatted = reports.map(r => ({
@@ -4512,6 +4526,53 @@ export async function registerRoutes(
       res.json(formatted);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  app.patch("/api/admin/reports/:id", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const { status } = req.body;
+      if (!status || !["resolved", "dismissed", "pending"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      const [updated] = await db.update(userReports).set({ status }).where(eq(userReports.id, req.params.id)).returning();
+      if (!updated) return res.status(404).json({ error: "Report not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update report" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/deactivate", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const userId = req.params.id;
+      const updated = await storage.updateUser(userId, {
+        isDeleted: true,
+        deletedAt: new Date(),
+        username: `deleted_${userId.slice(0, 8)}`,
+        email: `deleted_${userId}@deleted.ignyt.live`,
+        avatar: null,
+        bio: null,
+        phone: null,
+      });
+      if (!updated) return res.status(404).json({ error: "User not found" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to deactivate user" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/reactivate", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      const userId = req.params.id;
+      const updated = await storage.updateUser(userId, { isDeleted: false, deletedAt: null });
+      if (!updated) return res.status(404).json({ error: "User not found" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reactivate user" });
     }
   });
 

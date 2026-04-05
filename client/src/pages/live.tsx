@@ -51,7 +51,7 @@ export default function LiveRoom() {
   const chatSwipeRef = useRef<{ startX: number; startY: number; swiping: boolean }>({ startX: 0, startY: 0, swiping: false });
   const [isMuted, setIsMuted] = useState(false);
   const [isPKMode, setIsPKMode] = useState(false);
-  const [pkScore, setPkScore] = useState(15000);
+  const [pkScore, setPkScore] = useState(0);
   const [viewerCount, setViewerCount] = useState(0);
   const [isSendingGift, setIsSendingGift] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -305,9 +305,7 @@ export default function LiveRoom() {
       ws = await createStreamWebSocket(streamId, { userId: user?.id });
       wsRef.current = ws;
       
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-      };
+      ws.onopen = () => {};
       
       ws.onmessage = (event) => {
         try {
@@ -333,11 +331,16 @@ export default function LiveRoom() {
               isGift: true,
               gift: message.data.giftEmoji,
             }]);
+            if (message.data.receiverId === stream?.userId) {
+              setPkScore(prev => prev + (message.data.totalCoins || 0));
+            }
           } else if (message.type === 'viewer_count') {
             setViewerCount(message.data.viewerCount);
           } else if (message.type === 'stream_ended') {
             toast({ title: "Stream Ended", description: "The host has ended the stream" });
             setTimeout(() => setLocation("/"), 2000);
+          } else if (message.type === 'error') {
+            toast({ title: "Notice", description: message.data?.message || message.message || "An error occurred", variant: "destructive" });
           } else if (message.type === 'join_request') {
             refetchJoinRequests();
           } else if (message.type === 'join_accepted') {
@@ -396,9 +399,6 @@ export default function LiveRoom() {
     if (!streamId || !stream) return;
     
     const channelName = `stream_${streamId}`;
-    console.log("[Live Page] Stream ID:", streamId);
-    console.log("[Live Page] Channel name for Agora:", channelName);
-    console.log("[Live Page] Is broadcaster:", isBroadcaster);
     let mounted = true;
     
     // Wait for Agora config to load, then initialize
@@ -407,7 +407,6 @@ export default function LiveRoom() {
       if (!mounted) return;
       
       if (!configured) {
-        console.log("[Agora] Not configured, using fallback");
         if (isBroadcaster) {
           startFallbackCamera();
         }
@@ -422,12 +421,10 @@ export default function LiveRoom() {
         
         try {
           const container = localVideoRef.current;
-          console.log("Starting Agora broadcast, container:", container);
           await joinAsHost(channelName, container);
           if (mounted) {
             setAgoraConnected(true);
             setAgoraError(null);
-            console.log("Broadcasting via Agora");
           }
         } catch (error: any) {
           console.error("Agora broadcast error:", error);
@@ -446,7 +443,6 @@ export default function LiveRoom() {
           await joinAsAudience(
             channelName,
             (user: IAgoraRTCRemoteUser, mediaType) => {
-              console.log("Remote user published:", user.uid, mediaType);
               if (mediaType === "video" && remoteVideoRef.current) {
                 user.videoTrack?.play(remoteVideoRef.current);
                 setHasRemoteVideo(true);
@@ -456,7 +452,6 @@ export default function LiveRoom() {
               }
             },
             (user: IAgoraRTCRemoteUser, mediaType) => {
-              console.log("Remote user unpublished:", user.uid, mediaType);
               if (mediaType === "video") {
                 setHasRemoteVideo(false);
               }
@@ -465,7 +460,6 @@ export default function LiveRoom() {
           if (mounted) {
             setAgoraConnected(true);
             setAgoraError(null);
-            console.log("Viewing via Agora");
           }
         } catch (error: any) {
           console.error("Agora view error:", error);

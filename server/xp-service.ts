@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users } from "@shared/schema";
+import { users, notifications } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { XP_REWARDS, XPAction, getLevelFromXP } from "@shared/level-utils";
 import { checkAchievements } from "./achievement-service";
@@ -38,6 +38,13 @@ export async function awardXP(userId: string, action: XPAction, multiplier: numb
     .where(eq(users.id, userId));
   
   if (leveledUp) {
+    db.insert(notifications).values({
+      userId,
+      type: "system",
+      title: "Level Up! 🎉",
+      message: `Congratulations! You've reached Level ${newLevel}!`,
+      isRead: false,
+    }).catch(() => {});
     checkAchievements(userId, "level").catch(() => {});
   }
 

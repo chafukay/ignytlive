@@ -276,9 +276,20 @@ export default function Shorts() {
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
-                  <div className="p-3 rounded-full bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors cursor-pointer">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        if (navigator.share) {
+                          await navigator.share({ title: short.description || 'Check out this short!', url: window.location.href });
+                        }
+                        await fetch(`${(await import('@/lib/capacitor')).getServerUrl()}/api/shorts/${short.id}/share`, { method: 'POST' });
+                      } catch {}
+                    }}
+                    className="p-3 rounded-full bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors cursor-pointer"
+                    data-testid={`button-share-${short.id}`}
+                  >
                     <Share2 className="w-7 h-7 text-foreground" />
-                  </div>
+                  </button>
                   <span className="text-foreground text-xs font-bold">{formatCount(short.sharesCount)}</span>
                 </div>
 

@@ -8,6 +8,7 @@ import { Search, Bell, Calendar, Globe, Video, Sparkles, Users, Swords, Gamepad2
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
 import { useState, useEffect, useRef, useMemo } from "react";
+
 import { useToast } from "@/hooks/use-toast";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -97,6 +98,13 @@ export default function Home() {
   const countrySearchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const previousLiveStreamersRef = useRef<Set<string>>(new Set());
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['unreadNotificationCount', user?.id],
+    queryFn: () => api.getUnreadNotificationCount(user!.id),
+    enabled: !!user?.id,
+    refetchInterval: 30000,
+  });
 
   const filteredCountries = useMemo(() => {
     return COUNTRIES.filter(c => {
@@ -334,8 +342,13 @@ export default function Home() {
               <Search className="w-5 h-5 text-foreground" />
             </button>
             <Link href="/notifications">
-              <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 relative">
+              <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 relative" data-testid="button-notifications">
                 <Bell className="w-5 h-5 text-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </button>
             </Link>
           </div>

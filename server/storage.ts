@@ -965,16 +965,54 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(users.id, transaction.senderId));
     
-    // Add diamonds to receiver
     const [gift] = await db.select().from(gifts).where(eq(gifts.id, transaction.giftId));
+    const quantity = transaction.quantity || 1;
+    const diamondValue = gift ? gift.diamondValue * quantity : 0;
+
     if (gift) {
-      const quantity = transaction.quantity || 1;
       await db
         .update(users)
-        .set({ diamonds: sql`${users.diamonds} + ${gift.diamondValue * quantity}` })
+        .set({ diamonds: sql`${users.diamonds} + ${diamondValue}` })
         .where(eq(users.id, transaction.receiverId));
     }
-    
+
+    const giftCoins = transaction.totalCoins;
+
+    const [senderFamilyMember] = await db
+      .select({ familyId: familyMembers.familyId })
+      .from(familyMembers)
+      .where(eq(familyMembers.userId, transaction.senderId))
+      .limit(1);
+
+    if (senderFamilyMember) {
+      await db.update(families)
+        .set({
+          totalGifts: sql`${families.totalGifts} + ${giftCoins}`,
+          weeklyGifts: sql`${families.weeklyGifts} + ${giftCoins}`,
+        })
+        .where(eq(families.id, senderFamilyMember.familyId));
+      await db.update(familyMembers)
+        .set({ contributedGifts: sql`${familyMembers.contributedGifts} + ${giftCoins}` })
+        .where(and(eq(familyMembers.familyId, senderFamilyMember.familyId), eq(familyMembers.userId, transaction.senderId)));
+    }
+
+    if (diamondValue > 0) {
+      const [receiverAgencyMember] = await db
+        .select({ agencyId: agencyMembers.agencyId })
+        .from(agencyMembers)
+        .where(eq(agencyMembers.userId, transaction.receiverId))
+        .limit(1);
+
+      if (receiverAgencyMember) {
+        await db.update(agencies)
+          .set({ totalDiamondsEarned: sql`${agencies.totalDiamondsEarned} + ${diamondValue}` })
+          .where(eq(agencies.id, receiverAgencyMember.agencyId));
+        await db.update(agencyMembers)
+          .set({ diamondsEarned: sql`${agencyMembers.diamondsEarned} + ${diamondValue}` })
+          .where(and(eq(agencyMembers.agencyId, receiverAgencyMember.agencyId), eq(agencyMembers.userId, transaction.receiverId)));
+      }
+    }
+
     await cache.delete(CACHE_KEYS.userProfile(transaction.senderId));
     await cache.delete(CACHE_KEYS.userProfile(transaction.receiverId));
     await cache.deletePattern("lb:*");

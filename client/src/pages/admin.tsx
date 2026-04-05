@@ -136,6 +136,55 @@ export default function AdminDashboard() {
     },
   });
 
+  const deactivateUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await adminFetch(`/api/admin/users/${userId}/deactivate`, token!, { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] });
+      toast({ title: "User deactivated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to deactivate user", variant: "destructive" });
+    },
+  });
+
+  const reactivateUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await adminFetch(`/api/admin/users/${userId}/reactivate`, token!, { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] });
+      toast({ title: "User reactivated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to reactivate user", variant: "destructive" });
+    },
+  });
+
+  const resolveReportMutation = useMutation({
+    mutationFn: async ({ reportId, status }: { reportId: string; status: string }) => {
+      const res = await adminFetch(`/api/admin/reports/${reportId}`, token!, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] });
+      toast({ title: "Report updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update report", variant: "destructive" });
+    },
+  });
+
   const createPackageMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await adminFetch(`/api/admin/coin-packages`, token!, {
@@ -452,7 +501,7 @@ export default function AdminDashboard() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-zinc-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 flex gap-1">
                           <button
                             onClick={() => setEditingUser({ ...u })}
                             className="p-1.5 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700"
@@ -460,6 +509,25 @@ export default function AdminDashboard() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
+                          {u.isDeleted ? (
+                            <button
+                              onClick={() => reactivateUserMutation.mutate(u.id)}
+                              className="p-1.5 rounded-lg bg-green-900/50 text-green-400 hover:bg-green-800/50 text-xs"
+                              data-testid={`reactivate-user-${u.id}`}
+                              title="Reactivate user"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => { if (confirm(`Deactivate ${u.username}? This will anonymize their data.`)) deactivateUserMutation.mutate(u.id); }}
+                              className="p-1.5 rounded-lg bg-red-900/50 text-red-400 hover:bg-red-800/50 text-xs"
+                              data-testid={`deactivate-user-${u.id}`}
+                              title="Deactivate user"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -491,9 +559,26 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-white font-medium">{report.reportedUser?.username}</span>
                           <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs">{report.reason}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs ${report.status === 'resolved' ? 'bg-green-500/20 text-green-400' : report.status === 'dismissed' ? 'bg-zinc-500/20 text-zinc-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{report.status}</span>
                         </div>
                         {report.description && <p className="text-zinc-400 text-sm mb-2">{report.description}</p>}
-                        <p className="text-zinc-600 text-xs">Reported by: {report.reporterUserId} • {new Date(report.createdAt).toLocaleString()}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-zinc-600 text-xs">Reported by: {report.reporterId} • {new Date(report.createdAt).toLocaleString()}</p>
+                          {report.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => resolveReportMutation.mutate({ reportId: report.id, status: 'resolved' })}
+                                className="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700"
+                                data-testid={`resolve-report-${report.id}`}
+                              >Resolve</button>
+                              <button
+                                onClick={() => resolveReportMutation.mutate({ reportId: report.id, status: 'dismissed' })}
+                                className="px-3 py-1 rounded bg-zinc-700 text-zinc-300 text-xs hover:bg-zinc-600"
+                                data-testid={`dismiss-report-${report.id}`}
+                              >Dismiss</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
