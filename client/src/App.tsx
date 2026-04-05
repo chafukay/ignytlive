@@ -58,43 +58,51 @@ function CapacitorInit() {
   useEffect(() => {
     if (!isNative()) return;
 
+    const cleanupFns: Array<() => void> = [];
+
     const initNative = async () => {
       try {
         const { SplashScreen } = await import('@capacitor/splash-screen');
         await SplashScreen.hide();
-      } catch {}
+      } catch (e) { console.warn('[Capacitor] SplashScreen init failed:', e); }
 
       try {
         const { StatusBar, Style } = await import('@capacitor/status-bar');
         await StatusBar.setStyle({ style: Style.Dark });
         await StatusBar.setBackgroundColor({ color: '#000000' });
-      } catch {}
+      } catch (e) { console.warn('[Capacitor] StatusBar init failed:', e); }
 
       if (isAndroid()) {
         try {
           const { App } = await import('@capacitor/app');
-          App.addListener('backButton', ({ canGoBack }) => {
+          const handle = await App.addListener('backButton', ({ canGoBack }) => {
             if (canGoBack) {
               window.history.back();
             } else {
               App.exitApp();
             }
           });
-        } catch {}
+          cleanupFns.push(() => handle.remove());
+        } catch (e) { console.warn('[Capacitor] App back button init failed:', e); }
       }
 
       try {
         const { Keyboard } = await import('@capacitor/keyboard');
-        Keyboard.addListener('keyboardWillShow', () => {
+        const showHandle = await Keyboard.addListener('keyboardWillShow', () => {
           document.body.classList.add('keyboard-visible');
         });
-        Keyboard.addListener('keyboardWillHide', () => {
+        const hideHandle = await Keyboard.addListener('keyboardWillHide', () => {
           document.body.classList.remove('keyboard-visible');
         });
-      } catch {}
+        cleanupFns.push(() => { showHandle.remove(); hideHandle.remove(); });
+      } catch (e) { console.warn('[Capacitor] Keyboard init failed:', e); }
     };
 
     initNative();
+
+    return () => {
+      cleanupFns.forEach(fn => fn());
+    };
   }, []);
   return null;
 }
