@@ -1,4 +1,4 @@
-import { isNative, getServerUrl } from "./capacitor";
+import { isNative } from "./capacitor";
 
 export function isUnauthorizedError(error: Error): boolean {
   return /^401: .*Unauthorized/.test(error.message);
