@@ -5,6 +5,7 @@ import { Eye, EyeOff, Flame, Phone, ArrowLeft, User, AlertTriangle } from "lucid
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { isNative } from "@/lib/capacitor";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -109,6 +110,7 @@ export default function Login() {
   };
 
   const handleSocialLogin = () => {
+    if (isNative()) return;
     window.location.href = "/api/login";
   };
 

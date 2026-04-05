@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { getServerUrl } from "@/lib/capacitor";
+import { getServerUrl, isNative } from "@/lib/capacitor";
 
 function validatePassword(pw: string): string | null {
   if (pw.length < 8) return "Password must be at least 8 characters";
@@ -368,7 +368,7 @@ export default function LinkAccount() {
                 )}
               </div>
             </div>
-            {!user.socialProvider && (
+            {!user.socialProvider && !isNative() && (
               <a
                 href="/api/login"
                 className="bg-primary text-white text-sm px-4 py-2 rounded-full font-medium"

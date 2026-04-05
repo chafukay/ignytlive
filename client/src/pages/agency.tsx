@@ -78,7 +78,7 @@ export default function AgencyPage() {
   const { data: allAgencies = [], isLoading: loadingAll } = useQuery<Agency[]>({
     queryKey: ["agencies", searchQuery],
     queryFn: async () => {
-      const url = searchQuery ? `/api/agencies?search=${encodeURIComponent(searchQuery)}` : "/api/agencies";
+      const url = searchQuery ? `${getServerUrl()}/api/agencies?search=${encodeURIComponent(searchQuery)}` : `${getServerUrl()}/api/agencies`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed");
       return res.json();
