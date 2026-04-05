@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createStreamWebSocket } from "@/lib/websocket";
 import { isAgoraConfigured, ensureAgoraConfigured, joinAsHost, joinAsAudience, leaveChannel, switchCamera, toggleMute, promoteToHost, demoteToAudience } from "@/lib/agora";
+import { getServerUrl } from "@/lib/capacitor";
 import type { IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import PKBattleView from "@/components/pk-battle-view";
 import SpinWheel from "@/components/spin-wheel";
@@ -694,7 +695,7 @@ export default function LiveRoom() {
     const handleBeforeUnload = () => {
       if (isBroadcaster && streamId && user) {
         const blob = new Blob([JSON.stringify({ userId: user.id })], { type: 'application/json' });
-        navigator.sendBeacon(`/api/streams/${streamId}/end`, blob);
+        navigator.sendBeacon(`${getServerUrl()}/api/streams/${streamId}/end`, blob);
       }
     };
 
