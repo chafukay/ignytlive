@@ -1160,6 +1160,19 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 
+export const nativePushTokens = pgTable("native_push_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  token: text("token").notNull(),
+  platform: text("platform").notNull().default("unknown"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdIdx: index("native_push_user_id_idx").on(table.userId),
+}));
+
+export type NativePushToken = typeof nativePushTokens.$inferSelect;
+
 // Scheduled Events table
 export const scheduledEvents = pgTable("scheduled_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

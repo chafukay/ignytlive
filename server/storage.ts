@@ -145,6 +145,7 @@ import {
   shareEvents,
   type ShareEvent,
   type InsertShareEvent,
+  nativePushTokens,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
@@ -2329,11 +2330,17 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
   }
 
-  private nativePushTokens: Map<string, { token: string; platform: string }> = new Map();
-
   async saveNativePushToken(userId: string, token: string, platform: string): Promise<void> {
-    this.nativePushTokens.set(userId, { token, platform });
-    console.log(`[Push] Native token saved for user ${userId} on ${platform}: ${token.substring(0, 20)}...`);
+    const existing = await db.select().from(nativePushTokens)
+      .where(and(eq(nativePushTokens.userId, userId), eq(nativePushTokens.token, token)))
+      .limit(1);
+    if (existing.length > 0) {
+      await db.update(nativePushTokens)
+        .set({ platform, updatedAt: new Date() })
+        .where(eq(nativePushTokens.id, existing[0].id));
+    } else {
+      await db.insert(nativePushTokens).values({ userId, token, platform });
+    }
   }
 
   async createScheduledEvent(event: InsertScheduledEvent): Promise<ScheduledEvent> {
