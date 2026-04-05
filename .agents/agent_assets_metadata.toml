@@ -6,3 +6,9 @@ id = "mTrpudoNVEwF9hxN1yBVj"
 uri = "file://QA_Test_Cases_IgnytLive.csv"
 type = "table"
 title = "QA Test Cases - IgnytLive Platform"
+
+[[outputs]]
+id = "DTOtZ_aoCGJm6vVsYEU8C"
+uri = "file://IgnytLIVE_Pending_Items.xlsx"
+type = "table"
+title = "IgnytLIVE — Pending Items"
