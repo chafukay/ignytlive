@@ -3,21 +3,30 @@ import { storage } from "./storage";
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+const FCM_SERVER_KEY = process.env.FCM_SERVER_KEY || "";
 
-let configured = false;
+let webPushConfigured = false;
+let fcmConfigured = false;
 
 export function initPushService() {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    console.log("[Push] VAPID keys not configured — push notifications disabled");
-    return;
+  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      "mailto:admin@ignytlive.com",
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+    webPushConfigured = true;
+    console.log("[Push] Web Push service initialized");
+  } else {
+    console.log("[Push] VAPID keys not configured — web push notifications disabled");
   }
-  webpush.setVapidDetails(
-    "mailto:admin@ignytlive.com",
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  );
-  configured = true;
-  console.log("[Push] Web Push service initialized");
+
+  if (FCM_SERVER_KEY) {
+    fcmConfigured = true;
+    console.log("[Push] FCM configured for native push delivery");
+  } else {
+    console.log("[Push] FCM_SERVER_KEY not set — native push delivery disabled. Set FCM_SERVER_KEY to enable.");
+  }
 }
 
 export function getVapidPublicKey(): string {
@@ -33,9 +42,41 @@ interface PushPayload {
   data?: Record<string, unknown>;
 }
 
-export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
-  if (!configured) return;
+async function sendFcmNotification(token: string, tokenId: string, payload: PushPayload): Promise<void> {
+  if (!fcmConfigured) return;
 
+  try {
+    const response = await fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `key=${FCM_SERVER_KEY}`,
+      },
+      body: JSON.stringify({
+        to: token,
+        notification: {
+          title: payload.title,
+          body: payload.body,
+          icon: payload.icon,
+          badge: payload.badge,
+          tag: payload.tag,
+        },
+        data: payload.data || {},
+      }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.failure > 0 && result.results?.[0]?.error === 'NotRegistered') {
+        await storage.removeNativePushToken(tokenId);
+      }
+    }
+  } catch (err) {
+    console.error(`[Push] FCM send failed for token ${token.substring(0, 20)}...`, err);
+  }
+}
+
+export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
   const user = await storage.getUser(userId);
   if (!user) return;
 
@@ -48,24 +89,31 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
     } catch {}
   }
 
-  const subscriptions = await storage.getUserPushSubscriptions(userId);
-  if (subscriptions.length === 0) return;
+  if (webPushConfigured) {
+    const subscriptions = await storage.getUserPushSubscriptions(userId);
+    const payloadStr = JSON.stringify(payload);
 
-  const payloadStr = JSON.stringify(payload);
-
-  for (const sub of subscriptions) {
-    try {
-      await webpush.sendNotification(
-        {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh, auth: sub.auth },
-        },
-        payloadStr
-      );
-    } catch (err: any) {
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        await storage.removePushSubscription(sub.endpoint);
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          payloadStr
+        );
+      } catch (err: any) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await storage.removePushSubscription(sub.endpoint);
+        }
       }
+    }
+  }
+
+  if (fcmConfigured) {
+    const nativeTokens = await storage.getNativeTokensByUserId(userId);
+    for (const nt of nativeTokens) {
+      await sendFcmNotification(nt.token, nt.id, payload);
     }
   }
 }

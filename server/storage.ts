@@ -381,6 +381,8 @@ export interface IStorage {
   removeAllPushSubscriptions(userId: string): Promise<void>;
   getUserPushSubscriptions(userId: string): Promise<PushSub[]>;
   saveNativePushToken(userId: string, token: string, platform: string): Promise<void>;
+  getNativeTokensByUserId(userId: string): Promise<Array<{ id: string; token: string; platform: string }>>;
+  removeNativePushToken(tokenId: string): Promise<void>;
 
   // Scheduled Event operations
   createScheduledEvent(event: InsertScheduledEvent): Promise<ScheduledEvent>;
@@ -2341,6 +2343,19 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.insert(nativePushTokens).values({ userId, token, platform });
     }
+  }
+
+  async getNativeTokensByUserId(userId: string): Promise<Array<{ id: string; token: string; platform: string }>> {
+    const rows = await db.select({
+      id: nativePushTokens.id,
+      token: nativePushTokens.token,
+      platform: nativePushTokens.platform,
+    }).from(nativePushTokens).where(eq(nativePushTokens.userId, userId));
+    return rows;
+  }
+
+  async removeNativePushToken(tokenId: string): Promise<void> {
+    await db.delete(nativePushTokens).where(eq(nativePushTokens.id, tokenId));
   }
 
   async createScheduledEvent(event: InsertScheduledEvent): Promise<ScheduledEvent> {
