@@ -12,3 +12,9 @@ id = "DTOtZ_aoCGJm6vVsYEU8C"
 uri = "file://IgnytLIVE_Pending_Items.xlsx"
 type = "table"
 title = "IgnytLIVE — Pending Items"
+
+[[outputs]]
+id = "8_9wYGGksEKMo0WgiZA4K"
+uri = "file://README.md"
+type = "text"
+title = "IgnytLIVE - README"
