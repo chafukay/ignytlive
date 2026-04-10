@@ -21,11 +21,12 @@ const allowedOrigins = [
   'http://localhost',
   'https://localhost',
   'http://localhost:5173',
+  'http://localhost:5000',
 ];
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.replit.app') || origin.endsWith('.replit.dev'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
