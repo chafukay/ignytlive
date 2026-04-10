@@ -8,12 +8,15 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     iosScheme: 'https',
     allowNavigation: ['ignytlive.replit.app', '*.replit.app', '*.replit.dev', '*'],
+    cleartext: true,
     ...(process.env.CAPACITOR_LIVE_RELOAD === 'true' ? {
       url: process.env.CAPACITOR_SERVER_URL || 'http://localhost:5000',
-      cleartext: true,
     } : {}),
   },
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
