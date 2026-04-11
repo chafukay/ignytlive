@@ -266,7 +266,7 @@ export default function GoLive() {
   const categories = ['Chat', 'Music', 'Gaming', 'Dance', 'Talent', 'Chill'];
 
   const handleShare = useCallback(async () => {
-    const baseUrl = isNative() ? (getServerUrl() || 'https://ignytlive.replit.app') : window.location.origin;
+    const baseUrl = isNative() ? (getServerUrl() || 'https://ignyt.replit.app') : window.location.origin;
     const url = baseUrl;
     const platform = isNative() ? "native" : (navigator.share ? "native" : "clipboard");
     const token = localStorage.getItem("authToken");
@@ -976,7 +976,7 @@ export default function GoLive() {
         <div className="h-[40%] min-h-[200px] shrink-0 md:h-full md:w-[40%] md:p-3 md:pr-1.5">
           {videoPreview}
         </div>
-        <div className="flex-1 overflow-y-auto p-4 pt-3 bg-gray-950 md:bg-transparent md:w-[60%] md:p-3 md:pl-1.5 md:flex-none md:h-full">
+        <div className="flex-1 overflow-y-auto p-4 pt-3 pb-20 bg-gray-950 md:bg-transparent md:w-[60%] md:p-3 md:pl-1.5 md:flex-none md:h-full md:pb-3">
           <div className="md:bg-gray-950/80 md:backdrop-blur-xl md:rounded-2xl md:p-5 md:border md:border-white/10 md:h-full md:overflow-y-auto scrollbar-hide">
             {controlsContent}
           </div>

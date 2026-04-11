@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
-    allowNavigation: ['ignytlive.replit.app', '*.replit.app', '*.replit.dev', '*'],
+    allowNavigation: ['ignyt.replit.app', '*.replit.app', '*.replit.dev', '*'],
     cleartext: true,
     ...(process.env.CAPACITOR_LIVE_RELOAD === 'true' ? {
       url: process.env.CAPACITOR_SERVER_URL || 'http://localhost:5000',
