@@ -31,14 +31,19 @@ export default function Login() {
     setIsLoading(true);
     try {
       const result = await api.login(username, password);
+      console.log("[Login] API result:", JSON.stringify(result));
+      if (!result.user) {
+        throw new Error("No user in response");
+      }
       login(result.user, result.token);
       if (result.verifyToken) {
         localStorage.setItem("verifyToken", result.verifyToken);
       }
       toast({ title: `Welcome back, ${result.user.username}!` });
       setLocation("/");
-    } catch (error) {
-      toast({ title: "Invalid credentials", description: "Please check your username and password", variant: "destructive" });
+    } catch (error: any) {
+      console.error("[Login] Error:", error?.message || error);
+      toast({ title: "Login failed", description: error?.message || "Please check your username and password", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
