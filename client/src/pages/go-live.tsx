@@ -4,7 +4,7 @@ import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoO
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { isNative, getServerUrl } from "@/lib/capacitor";
@@ -269,10 +269,10 @@ export default function GoLive() {
     const baseUrl = isNative() ? (getServerUrl() || 'https://ignyt.replit.app') : window.location.origin;
     const url = baseUrl;
     const platform = isNative() ? "native" : (navigator.share ? "native" : "clipboard");
-    const token = localStorage.getItem("authToken");
+    const authToken = getAuthToken();
     fetch(`${getServerUrl()}/api/shares`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: { "Content-Type": "application/json", ...(authToken ? { "Authorization": `Bearer ${authToken}` } : {}) },
       body: JSON.stringify({ contentType: "stream", contentId: null, platform }),
     }).catch(() => {});
     if (isNative()) {

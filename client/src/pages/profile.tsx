@@ -1,7 +1,7 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
 import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, MailCheck, AlertCircle, CalendarDays } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -176,7 +176,7 @@ export default function Profile() {
               const platform = isNative() ? "native" : (navigator.share ? "native" : "clipboard");
               fetch(`${getServerUrl()}/api/shares`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("authToken")}` },
+                headers: { "Content-Type": "application/json", ...(getAuthToken() ? { "Authorization": `Bearer ${getAuthToken()}` } : {}) },
                 body: JSON.stringify({ contentType: "profile", contentId: user.id, platform }),
               }).catch(() => {});
               if (isNative()) {

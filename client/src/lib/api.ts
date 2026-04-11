@@ -100,10 +100,9 @@ export const api = {
 
   // Location
   async updateUserLocation(userId: string, location: { latitude: number; longitude: number; city?: string; state?: string; country?: string }) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/location`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authJsonHeaders(),
       body: JSON.stringify(location),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -118,13 +117,13 @@ export const api = {
 
   // Users
   async getUser(id: string) {
-    const res = await fetch(`${API_BASE}/api/users/${id}`);
+    const res = await fetch(`${API_BASE}/api/users/${id}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User>;
   },
 
   async searchUsers(query: string) {
-    const res = await fetch(`${API_BASE}/api/users/search?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`${API_BASE}/api/users/search?q=${encodeURIComponent(query)}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User[]>;
   },
@@ -191,13 +190,13 @@ export const api = {
   },
 
   async getFollowers(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/followers`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/followers`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User[]>;
   },
 
   async getFollowing(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/following`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/following`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User[]>;
   },
@@ -223,7 +222,7 @@ export const api = {
   },
 
   async isFollowing(followerId: string, followingId: string) {
-    const res = await fetch(`${API_BASE}/api/follows/check?followerId=${followerId}&followingId=${followingId}`);
+    const res = await fetch(`${API_BASE}/api/follows/check?followerId=${followerId}&followingId=${followingId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ isFollowing: boolean }>;
   },
@@ -238,7 +237,7 @@ export const api = {
   },
 
   async getStream(id: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${id}`);
+    const res = await fetch(`${API_BASE}/api/streams/${id}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Stream>;
   },
@@ -302,13 +301,13 @@ export const api = {
   },
 
   async getShort(id: string) {
-    const res = await fetch(`${API_BASE}/api/shorts/${id}`);
+    const res = await fetch(`${API_BASE}/api/shorts/${id}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Short>;
   },
 
   async getUserShorts(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/shorts`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/shorts`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Short[]>;
   },
@@ -334,14 +333,14 @@ export const api = {
   },
 
   async isShortLiked(shortId: string, userId: string): Promise<boolean> {
-    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/liked/${userId}`);
+    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/liked/${userId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     return data.liked;
   },
 
   async getShortComments(shortId: string) {
-    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/comments`);
+    const res = await fetch(`${API_BASE}/api/shorts/${shortId}/comments`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -387,13 +386,13 @@ export const api = {
   },
 
   async getCommentReactions(commentId: string) {
-    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/reactions`);
+    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/reactions`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getUserCommentReaction(commentId: string, userId: string) {
-    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/reactions/${userId}`);
+    const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/reactions/${userId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     return data.reaction;
@@ -461,25 +460,24 @@ export const api = {
   },
 
   async getConversation(userId1: string, userId2: string) {
-    const res = await fetch(`${API_BASE}/api/messages/conversation?userId1=${userId1}&userId2=${userId2}`);
+    const res = await fetch(`${API_BASE}/api/messages/conversation?userId1=${userId1}&userId2=${userId2}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Message[]>;
   },
 
   async getRecentChats(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/chats`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/chats`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Array<{ user: User; lastMessage: Message }>>;
   },
 
   async getUnreadMessageCount(userId: string) {
-    const res = await fetch(`${API_BASE}/api/messages/unread-count/${userId}`);
+    const res = await fetch(`${API_BASE}/api/messages/unread-count/${userId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ total: number; perSender: Array<{ senderId: string; count: number }> }>;
   },
 
   async markMessagesAsRead(userId: string, otherUserId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/mark-read`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -490,7 +488,6 @@ export const api = {
   },
 
   async deleteConversation(userId1: string, userId2: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/conversation/${userId1}/${userId2}`, {
       method: "DELETE",
       headers: token ? { "Authorization": `Bearer ${token}` } : {},
@@ -500,7 +497,6 @@ export const api = {
   },
 
   async deleteMessage(messageId: string, userId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
       method: "DELETE",
       headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -510,7 +506,6 @@ export const api = {
   },
 
   async editMessage(messageId: string, userId: string, content: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -559,7 +554,7 @@ export const api = {
   },
 
   async isUserBlocked(userId: string, otherUserId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/blocked/${otherUserId}`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/blocked/${otherUserId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ blocked: boolean }>;
   },
@@ -593,14 +588,14 @@ export const api = {
   },
 
   async isCallMuted(userId: string, mutedUserId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/mute-calls/${mutedUserId}`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/mute-calls/${mutedUserId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ muted: boolean }>;
   },
 
   // Leaderboard
   async getLeaderboard(period: "daily" | "weekly" | "alltime") {
-    const res = await fetch(`${API_BASE}/api/leaderboard/${period}`);
+    const res = await fetch(`${API_BASE}/api/leaderboard/${period}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<User[]>;
   },
@@ -613,7 +608,7 @@ export const api = {
   },
 
   async getUserBadges(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/badges`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/badges`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<(UserBadge & { badge: Badge })[]>;
   },
@@ -630,7 +625,7 @@ export const api = {
 
   // Wishlist
   async getWishlist(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/wishlist`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/wishlist`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<WishlistItem[]>;
   },
@@ -674,7 +669,6 @@ export const api = {
 
   // DND
   async toggleDND(userId: string, enabled: boolean) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/dnd`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -706,14 +700,14 @@ export const api = {
   },
 
   async getUserCalls(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/calls`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/calls`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<CallRequest[]>;
   },
 
   // Stream Goals
   async getStreamGoals(streamId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/goals`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/goals`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<StreamGoal[]>;
   },
@@ -740,7 +734,7 @@ export const api = {
 
   // Join Video Requests
   async getJoinRequests(streamId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/join-requests`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/join-requests`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Array<JoinRequest & { user: User }>>;
   },
@@ -788,13 +782,13 @@ export const api = {
   },
 
   async getGroup(id: string) {
-    const res = await fetch(`${API_BASE}/api/groups/${id}`);
+    const res = await fetch(`${API_BASE}/api/groups/${id}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Group>;
   },
 
   async getUserGroups(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/groups`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/groups`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Array<Group & { memberCount: number }>>;
   },
@@ -817,7 +811,7 @@ export const api = {
 
   // Group Members
   async getGroupMembers(groupId: string) {
-    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members`);
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Array<GroupMember & { user: User }>>;
   },
@@ -839,14 +833,14 @@ export const api = {
   },
 
   async checkGroupMembership(groupId: string, userId: string) {
-    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members/${userId}/check`);
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/members/${userId}/check`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ isMember: boolean }>;
   },
 
   // Group Messages
   async getGroupMessages(groupId: string) {
-    const res = await fetch(`${API_BASE}/api/groups/${groupId}/messages`);
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/messages`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Array<GroupMessage & { sender: User }>>;
   },
@@ -873,7 +867,7 @@ export const api = {
   },
 
   async checkMediaUnlock(userId: string, messageId: string, messageType: string) {
-    const res = await fetch(`${API_BASE}/api/media/unlock/check?userId=${userId}&messageId=${messageId}&messageType=${messageType}`);
+    const res = await fetch(`${API_BASE}/api/media/unlock/check?userId=${userId}&messageId=${messageId}&messageType=${messageType}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ unlocked: boolean }>;
   },
@@ -938,25 +932,25 @@ export const api = {
   },
 
   async getPendingPrivateCalls(hostId: string) {
-    const res = await fetch(`${API_BASE}/api/private-calls/pending/${hostId}`);
+    const res = await fetch(`${API_BASE}/api/private-calls/pending/${hostId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getPrivateCallHistory(userId: string) {
-    const res = await fetch(`${API_BASE}/api/private-calls/history/${userId}`);
+    const res = await fetch(`${API_BASE}/api/private-calls/history/${userId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getActivePrivateCall(userId: string) {
-    const res = await fetch(`${API_BASE}/api/private-calls/active/${userId}`);
+    const res = await fetch(`${API_BASE}/api/private-calls/active/${userId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getPrivateCall(callId: string) {
-    const res = await fetch(`${API_BASE}/api/private-calls/${callId}`);
+    const res = await fetch(`${API_BASE}/api/private-calls/${callId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -989,7 +983,6 @@ export const api = {
   },
 
   async removeRoomModerator(streamId: string, userId: string, requesterId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators/${userId}`, {
       method: "DELETE",
       headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -999,7 +992,7 @@ export const api = {
   },
 
   async getRoomModerators(streamId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -1015,7 +1008,6 @@ export const api = {
   },
 
   async unbanUser(streamId: string, userId: string, requesterId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans/${userId}`, {
       method: "DELETE",
       headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -1025,13 +1017,13 @@ export const api = {
   },
 
   async getRoomBans(streamId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async checkUserBanned(streamId: string, userId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans/${userId}/check`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans/${userId}/check`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -1047,7 +1039,6 @@ export const api = {
   },
 
   async unmuteUser(streamId: string, userId: string, requesterId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes/${userId}`, {
       method: "DELETE",
       headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -1057,13 +1048,13 @@ export const api = {
   },
 
   async getRoomMutes(streamId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async checkUserMuted(streamId: string, userId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes/${userId}/check`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes/${userId}/check`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -1079,7 +1070,7 @@ export const api = {
   },
 
   async getModerationInfo(streamId: string, userId: string) {
-    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderation/${userId}`);
+    const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderation/${userId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -1093,13 +1084,12 @@ export const api = {
   },
 
   async getStoreItem(id: string) {
-    const res = await fetch(`${API_BASE}/api/store/items/${id}`);
+    const res = await fetch(`${API_BASE}/api/store/items/${id}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async purchaseItem(userId: string, itemId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/store/purchase`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -1110,13 +1100,13 @@ export const api = {
   },
 
   async getUserItems(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/items`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/items`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getEquippedItems(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/equipped-items`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/equipped-items`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -1138,13 +1128,12 @@ export const api = {
   },
 
   async getTopGifters(userId: string, limit: number = 20) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/top-gifters?limit=${limit}`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/top-gifters?limit=${limit}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<TopGifter[]>;
   },
 
   async generateReferralCode(userId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/referral-code`, {
       method: "POST",
       headers: token ? { "Authorization": `Bearer ${token}` } : {},
@@ -1154,7 +1143,6 @@ export const api = {
   },
 
   async applyReferralCode(userId: string, referralCode: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/apply-referral`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -1165,19 +1153,18 @@ export const api = {
   },
 
   async getSuggestedUsers(userId: string, limit: number = 15) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/suggested?limit=${limit}`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/suggested?limit=${limit}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<SuggestedUser[]>;
   },
 
   async getProfileVisitors(userId: string, limit: number = 20) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/visitors?limit=${limit}`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/visitors?limit=${limit}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<ProfileVisitor[]>;
   },
 
   async claimDailyLogin(userId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/users/${userId}/daily-login`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
@@ -1187,13 +1174,13 @@ export const api = {
   },
 
   async getNotifications(userId: string, limit = 50, offset = 0) {
-    const res = await fetch(`${API_BASE}/api/notifications/${userId}?limit=${limit}&offset=${offset}`);
+    const res = await fetch(`${API_BASE}/api/notifications/${userId}?limit=${limit}&offset=${offset}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<Notification[]>;
   },
 
   async getUnreadNotificationCount(userId: string) {
-    const res = await fetch(`${API_BASE}/api/notifications/${userId}/unread-count`);
+    const res = await fetch(`${API_BASE}/api/notifications/${userId}/unread-count`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ count: number }>;
   },
@@ -1264,7 +1251,7 @@ export const api = {
   },
 
   async getEvent(id: string) {
-    const res = await fetch(`${API_BASE}/api/events/${id}`);
+    const res = await fetch(`${API_BASE}/api/events/${id}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<ScheduledEventWithHost>;
   },
@@ -1314,7 +1301,6 @@ export const api = {
   },
 
   async checkRsvp(eventId: string, userId: string) {
-    const token = localStorage.getItem("authToken");
     const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp/check`, {
       headers: token ? { "Authorization": `Bearer ${token}` } : {},
     });
@@ -1323,19 +1309,19 @@ export const api = {
   },
 
   async getEventRsvps(eventId: string) {
-    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvps`);
+    const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvps`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getUserRsvps(userId: string) {
-    const res = await fetch(`${API_BASE}/api/users/${userId}/rsvps`);
+    const res = await fetch(`${API_BASE}/api/users/${userId}/rsvps`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getUserEvents(userId: string) {
-    const res = await fetch(`${API_BASE}/api/events/user/${userId}`);
+    const res = await fetch(`${API_BASE}/api/events/user/${userId}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },

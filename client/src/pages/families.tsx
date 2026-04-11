@@ -3,7 +3,7 @@ import { GuestGate } from "@/components/guest-gate";
 import { Users, ChevronLeft, Plus, Search, Crown, Shield, User, Trophy, LogOut, Settings, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { Link, useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -76,9 +76,8 @@ export default function Families() {
   const { data: myFamily } = useQuery<FamilyMember | null>({
     queryKey: ["my-family", user?.id],
     queryFn: async () => {
-      const token = localStorage.getItem("authToken");
       const res = await fetch(`${getServerUrl()}/api/families/my`, {
-        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        headers: authHeaders(),
       });
       return res.json();
     },
@@ -87,10 +86,9 @@ export default function Families() {
 
   const createFamilyMutation = useMutation({
     mutationFn: async (data: typeof newFamily) => {
-      const token = localStorage.getItem("authToken");
       const res = await fetch(`${getServerUrl()}/api/families`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        headers: authJsonHeaders(),
         body: JSON.stringify(data),
       });
       if (!res.ok) {
@@ -114,10 +112,9 @@ export default function Families() {
 
   const joinFamilyMutation = useMutation({
     mutationFn: async (familyId: string) => {
-      const token = localStorage.getItem("authToken");
       const res = await fetch(`${getServerUrl()}/api/families/${familyId}/join`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        headers: authJsonHeaders(),
         body: JSON.stringify({}),
       });
       if (!res.ok) {

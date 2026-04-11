@@ -3,7 +3,7 @@ import { GuestGate } from "@/components/guest-gate";
 import { Users, ChevronLeft, Crown, Shield, User, Settings, LogOut, Send, MessageCircle, Trophy, UserMinus, UserPlus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { useParams, useLocation, Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -122,10 +122,10 @@ export default function FamilyDetail() {
 
   const leaveMutation = useMutation({
     mutationFn: async () => {
-      const token = localStorage.getItem("authToken");
+      
       const res = await fetch(`${getServerUrl()}/api/families/${id}/leave`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        headers: { "Content-Type": "application/json", ...(getAuthToken() ? { "Authorization": `Bearer ${getAuthToken()}` } : {}) },
         body: JSON.stringify({}),
       });
       if (!res.ok) {
@@ -146,10 +146,10 @@ export default function FamilyDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const token = localStorage.getItem("authToken");
+      
       const res = await fetch(`${getServerUrl()}/api/families/${id}`, {
         method: "DELETE",
-        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        headers: { ...(getAuthToken() ? { "Authorization": `Bearer ${getAuthToken()}` } : {}) },
       });
       if (!res.ok) {
         const error = await res.json();
@@ -170,10 +170,10 @@ export default function FamilyDetail() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof editData) => {
-      const token = localStorage.getItem("authToken");
+      
       const res = await fetch(`${getServerUrl()}/api/families/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        headers: { "Content-Type": "application/json", ...(getAuthToken() ? { "Authorization": `Bearer ${getAuthToken()}` } : {}) },
         body: JSON.stringify(data),
       });
       if (!res.ok) {
@@ -194,10 +194,10 @@ export default function FamilyDetail() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      const token = localStorage.getItem("authToken");
+      
       const res = await fetch(`${getServerUrl()}/api/families/${id}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        headers: { "Content-Type": "application/json", ...(getAuthToken() ? { "Authorization": `Bearer ${getAuthToken()}` } : {}) },
         body: JSON.stringify({ content }),
       });
       if (!res.ok) {
@@ -217,10 +217,10 @@ export default function FamilyDetail() {
 
   const kickMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      const token = localStorage.getItem("authToken");
+      
       const res = await fetch(`${getServerUrl()}/api/families/${id}/members/${memberId}`, {
         method: "DELETE",
-        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        headers: { ...(getAuthToken() ? { "Authorization": `Bearer ${getAuthToken()}` } : {}) },
       });
       if (!res.ok) {
         const error = await res.json();
