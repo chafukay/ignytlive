@@ -368,15 +368,29 @@ export async function cleanupGuestUsers() {
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const familyOwners = db.select({ id: sql`owner_id` }).from(sql`families`);
-    const result = await db.delete(users)
+    const guestIds = await db.select({ id: users.id })
+      .from(users)
       .where(and(
         eq(users.isGuest, true),
         lt(users.createdAt, sevenDaysAgo),
         sql`${users.id} NOT IN (${familyOwners})`
       ));
+    
+    if (guestIds.length === 0) return;
+    
+    const ids = guestIds.map(g => g.id);
+    await db.execute(sql`DELETE FROM coin_purchases WHERE user_id = ANY(${ids})`);
+    await db.execute(sql`DELETE FROM gift_transactions WHERE sender_id = ANY(${ids}) OR receiver_id = ANY(${ids})`);
+    await db.execute(sql`DELETE FROM follows WHERE follower_id = ANY(${ids}) OR following_id = ANY(${ids})`);
+    await db.execute(sql`DELETE FROM notifications WHERE user_id = ANY(${ids})`);
+    await db.execute(sql`DELETE FROM messages WHERE sender_id = ANY(${ids}) OR receiver_id = ANY(${ids})`);
+    await db.execute(sql`DELETE FROM user_blocks WHERE blocker_id = ANY(${ids}) OR blocked_id = ANY(${ids})`);
+    await db.execute(sql`DELETE FROM user_reports WHERE reporter_id = ANY(${ids}) OR reported_id = ANY(${ids})`);
+    
+    const result = await db.delete(users).where(sql`${users.id} = ANY(${ids})`);
     const cleaned = result.rowCount ?? 0;
     if (cleaned > 0) {
-      console.log(`🧹 Cleaned up ${cleaned} guest accounts older than 7 days`);
+      console.log(`Cleaned up ${cleaned} guest accounts older than 7 days`);
     }
   } catch (error) {
     console.error("Failed to clean up guest users:", error);
