@@ -308,12 +308,18 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  // Setup Replit Auth (MUST be before other routes)
+  // Setup Replit Auth (optional — app uses its own JWT auth)
   try {
-    await setupAuth(app);
-    registerAuthRoutes(app);
-  } catch (e) {
-    console.error("[Startup] Replit Auth setup failed (non-fatal):", e);
+    await Promise.race([
+      (async () => {
+        await setupAuth(app);
+        registerAuthRoutes(app);
+        console.log("[Startup] Replit Auth configured");
+      })(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Replit Auth setup timed out after 5s")), 5000))
+    ]);
+  } catch (e: any) {
+    console.error("[Startup] Replit Auth setup failed (non-fatal):", e?.message || e);
   }
   
   // Initialize Web Push service
