@@ -309,8 +309,12 @@ export async function registerRoutes(
 ): Promise<Server> {
   
   // Setup Replit Auth (MUST be before other routes)
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  try {
+    await setupAuth(app);
+    registerAuthRoutes(app);
+  } catch (e) {
+    console.error("[Startup] Replit Auth setup failed (non-fatal):", e);
+  }
   
   // Initialize Web Push service
   initPushService();
