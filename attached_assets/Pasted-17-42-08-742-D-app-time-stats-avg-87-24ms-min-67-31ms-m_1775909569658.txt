@@ -1,0 +1,24 @@
+17:42:08.742  D  app_time_stats: avg=87.24ms min=67.31ms max=99.07ms count=12
+17:42:08.992  W  [WARNING:jni_string.cc(31)] ConvertJavaStringToUTF8 called with null string.
+17:42:09.793  D  app_time_stats: avg=87.50ms min=79.64ms max=99.22ms count=12
+17:42:10.859  D  app_time_stats: avg=88.80ms min=80.76ms max=101.21ms count=12
+17:42:11.351  V  To native (Capacitor plugin): callbackId: 36683301, pluginId: CapacitorHttp, methodName: request
+17:42:11.351  V  callback: 36683301, pluginId: CapacitorHttp, methodName: request, methodData: {"url":"https:\/\/ignyt.replit.app\/api\/streams","method":"POST","data":"{\"userId\":\"6aa28cf2-4def-4977-b9aa-5d6ab24b4f35\",\"title\":\"testt\",\"category\":\"Chat\",\"isPrivate\":false,\"accessType\":\"public\",\"minVipTier\":0,\"allowGuests\":false,\"showCountry\":true,\"blockLinks\":false}","dataType":"json","headers":{"content-type":"application\/json"}}
+17:42:11.354  I  Getting cookies at: 'https://ignyt.replit.app/api/streams'
+17:42:11.706  D  File:  - Line 558 - Msg: CapacitorHttp fetch 1775909531344 https://ignyt.replit.app/api/streams: 357.37109375 ms
+17:42:11.861  D  app_time_stats: avg=30.58ms min=4.75ms max=103.98ms count=29
+17:42:12.909  D  app_time_stats: avg=62.77ms min=6.16ms max=103.53ms count=16
+17:42:13.960  D  app_time_stats: avg=87.52ms min=74.32ms max=110.37ms count=12
+17:42:14.001  D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fprivate-calls%2Fpending%2F6aa28cf2-4def-4977-b9aa-5d6ab24b4f35
+17:42:14.005  I  Getting cookies at: 'https://ignyt.replit.app/api/private-calls/pending/6aa28cf2-4def-4977-b9aa-5d6ab24b4f35'
+17:42:14.390  W  [WARNING:jni_string.cc(31)] ConvertJavaStringToUTF8 called with null string.
+17:42:15.025  D  app_time_stats: avg=88.71ms min=80.51ms max=101.87ms count=12
+17:42:16.095  D  app_time_stats: avg=89.07ms min=79.99ms max=103.20ms count=12
+17:42:17.159  D  app_time_stats: avg=64.27ms min=6.70ms max=113.21ms count=16
+17:42:18.224  D  app_time_stats: avg=88.68ms min=78.75ms max=103.08ms count=12
+17:42:19.292  D  app_time_stats: avg=88.88ms min=79.17ms max=100.49ms count=12
+17:42:19.399  D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fprivate-calls%2Fpending%2F6aa28cf2-4def-4977-b9aa-5d6ab24b4f35
+17:42:19.403  I  Getting cookies at: 'https://ignyt.replit.app/api/private-calls/pending/6aa28cf2-4def-4977-b9aa-5d6ab24b4f35'
+17:42:19.788  W  [WARNING:jni_string.cc(31)] ConvertJavaStringToUTF8 called with null string.
+17:42:20.360  D  app_time_stats: avg=88.92ms min=80.33ms max=101.89ms count=12
+17:42:21.430  D  app_time_stats: avg=89.09ms min=80.25ms max=100.51ms count=12

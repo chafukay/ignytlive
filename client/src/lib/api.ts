@@ -205,7 +205,7 @@ export const api = {
   async followUser(followerId: string, followingId: string) {
     const res = await fetch(`${API_BASE}/api/follows`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ followerId, followingId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -215,7 +215,7 @@ export const api = {
   async unfollowUser(followerId: string, followingId: string) {
     const res = await fetch(`${API_BASE}/api/follows`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ followerId, followingId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -257,7 +257,7 @@ export const api = {
   }) {
     const res = await fetch(`${API_BASE}/api/streams`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -267,7 +267,7 @@ export const api = {
   async updateStream(id: string, updates: Partial<Stream>) {
     const res = await fetch(`${API_BASE}/api/streams/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -277,7 +277,7 @@ export const api = {
   async postStreamComment(streamId: string, data: { userId: string; text: string }) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/comments`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -287,7 +287,7 @@ export const api = {
   async endStream(streamId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/end`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -316,7 +316,7 @@ export const api = {
   async createShort(data: { userId: string; videoUrl: string; description?: string; duration?: number; song?: string; thumbnail?: string }) {
     const res = await fetch(`${API_BASE}/api/shorts`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -326,7 +326,7 @@ export const api = {
   async likeShort(shortId: string, userId: string): Promise<{ success: boolean; liked: boolean }> {
     const res = await fetch(`${API_BASE}/api/shorts/${shortId}/like`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -349,7 +349,7 @@ export const api = {
   async createShortComment(shortId: string, userId: string, content: string, parentId?: string) {
     const res = await fetch(`${API_BASE}/api/shorts/${shortId}/comments`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, content, parentId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -359,7 +359,7 @@ export const api = {
   async deleteShortComment(commentId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -369,7 +369,7 @@ export const api = {
   async reactToComment(commentId: string, userId: string, reaction: string) {
     const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/react`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, reaction }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -379,7 +379,7 @@ export const api = {
   async removeCommentReaction(commentId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/shorts/comments/${commentId}/react`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -403,7 +403,7 @@ export const api = {
   async follow(followerId: string, followingId: string) {
     const res = await fetch(`${API_BASE}/api/follows`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ followerId, followingId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -413,7 +413,7 @@ export const api = {
   async unfollow(followerId: string, followingId: string) {
     const res = await fetch(`${API_BASE}/api/follows`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ followerId, followingId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -437,7 +437,7 @@ export const api = {
   }) {
     const res = await fetch(`${API_BASE}/api/gifts/send`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -523,7 +523,7 @@ export const api = {
   async translateText(text: string, targetLang: string = "en") {
     const res = await fetch(`${API_BASE}/api/translate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ text, targetLang }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -621,7 +621,7 @@ export const api = {
   async awardBadge(userId: string, badgeId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/badges`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ badgeId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -638,7 +638,7 @@ export const api = {
   async createWishlistItem(data: { userId: string; name: string; description?: string; targetAmount: number; imageUrl?: string }) {
     const res = await fetch(`${API_BASE}/api/wishlist`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -648,7 +648,7 @@ export const api = {
   async contributeToWishlist(itemId: string, amount: number) {
     const res = await fetch(`${API_BASE}/api/wishlist/${itemId}/contribute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ amount }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -665,7 +665,7 @@ export const api = {
   async spinWheel(userId: string, streamId?: string) {
     const res = await fetch(`${API_BASE}/api/wheel/spin`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, streamId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -688,7 +688,7 @@ export const api = {
   async requestCall(data: { callerId: string; receiverId: string; coinCost: number }) {
     const res = await fetch(`${API_BASE}/api/calls`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -698,7 +698,7 @@ export const api = {
   async updateCall(callId: string, updates: Partial<CallRequest>) {
     const res = await fetch(`${API_BASE}/api/calls/${callId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -721,7 +721,7 @@ export const api = {
   async createStreamGoal(streamId: string, data: { title: string; targetCoins: number; rewardDescription?: string }) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/goals`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -731,7 +731,7 @@ export const api = {
   async contributeToGoal(goalId: string, amount: number) {
     const res = await fetch(`${API_BASE}/api/goals/${goalId}/contribute`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ amount }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -748,7 +748,7 @@ export const api = {
   async requestJoinVideo(streamId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/join-requests`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -758,7 +758,7 @@ export const api = {
   async updateJoinRequest(requestId: string, status: string) {
     const res = await fetch(`${API_BASE}/api/join-requests/${requestId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ status }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -769,7 +769,7 @@ export const api = {
   async togglePKBattle(streamId: string, isPKBattle: boolean, userId: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/pk-battle`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ isPKBattle, userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -780,7 +780,7 @@ export const api = {
   async createGroup(name: string, ownerId: string, description?: string, isPrivate = true) {
     const res = await fetch(`${API_BASE}/api/groups`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ name, ownerId, description, isPrivate }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -802,7 +802,7 @@ export const api = {
   async updateGroup(id: string, updates: Partial<Group>) {
     const res = await fetch(`${API_BASE}/api/groups/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -825,7 +825,7 @@ export const api = {
   async addGroupMember(groupId: string, userId: string, role = "member") {
     const res = await fetch(`${API_BASE}/api/groups/${groupId}/members`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, role }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -854,7 +854,7 @@ export const api = {
   async sendGroupMessage(groupId: string, senderId: string, content?: string, mediaUrl?: string, mediaType?: string, isPrivateMedia = false, unlockCost = 0) {
     const res = await fetch(`${API_BASE}/api/groups/${groupId}/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ senderId, content, mediaUrl, mediaType, isPrivateMedia, unlockCost }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -865,7 +865,7 @@ export const api = {
   async unlockMedia(userId: string, messageId: string, messageType: string, coinsPaid: number) {
     const res = await fetch(`${API_BASE}/api/media/unlock`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, messageId, messageType, coinsPaid }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -882,7 +882,7 @@ export const api = {
   async requestPrivateCall(viewerId: string, hostId: string) {
     const res = await fetch(`${API_BASE}/api/private-calls/request`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ viewerId, hostId }),
     });
     if (!res.ok) {
@@ -897,7 +897,7 @@ export const api = {
   async acceptPrivateCall(callId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/private-calls/${callId}/accept`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -907,7 +907,7 @@ export const api = {
   async declinePrivateCall(callId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/private-calls/${callId}/decline`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -917,7 +917,7 @@ export const api = {
   async endPrivateCall(callId: string, userId: string, endReason?: string) {
     const res = await fetch(`${API_BASE}/api/private-calls/${callId}/end`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ endReason, userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -927,7 +927,7 @@ export const api = {
   async billPrivateCallMinute(callId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/private-calls/${callId}/bill-minute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) {
@@ -969,7 +969,7 @@ export const api = {
   }) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/private-call-settings`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ ...settings, userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -981,7 +981,7 @@ export const api = {
   async addRoomModerator(streamId: string, userId: string, assignedBy: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, assignedBy }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1007,7 +1007,7 @@ export const api = {
   async banUser(streamId: string, userId: string, bannedBy: string, reason?: string, isPermanent = false, durationSeconds = 3600) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, bannedBy, reason, isPermanent, durationSeconds }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1039,7 +1039,7 @@ export const api = {
   async muteUser(streamId: string, userId: string, mutedBy: string, reason?: string, durationSeconds = 300) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ userId, mutedBy, reason, durationSeconds }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1071,7 +1071,7 @@ export const api = {
   async updateStreamSettings(streamId: string, userId: string, settings: { slowModeSeconds?: number; pinnedMessageId?: string | null }) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/settings`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ ...settings, userId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1246,7 +1246,7 @@ export const api = {
   async removePushSubscription(endpoint: string) {
     const res = await fetch(`${API_BASE}/api/push/unsubscribe`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ endpoint }),
     });
     if (!res.ok) throw new Error(await res.text());
