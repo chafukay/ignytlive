@@ -1,0 +1,11 @@
+2026-04-11 16:38:46.383 12534-13101 Capacitor/Plugin        com.ignytlive.app                    V  To native (Capacitor plugin): callbackId: 42762336, pluginId: CapacitorHttp, methodName: request
+2026-04-11 16:38:46.383 12534-13101 Capacitor               com.ignytlive.app                    V  callback: 42762336, pluginId: CapacitorHttp, methodName: request, methodData: {"url":"https:\/\/ignytlive.replit.app\/api\/auth\/login","method":"POST","data":"{\"username\":\"sanketch\",\"password\":\"sanketch\"}","dataType":"json","headers":{"content-type":"application\/json"}}
+2026-04-11 16:38:46.387 12534-13489 CapacitorCookies        com.ignytlive.app                    I  Getting cookies at: 'https://ignytlive.replit.app/api/auth/login'
+2026-04-11 16:38:46.407 12534-12677 EGL_emulation           com.ignytlive.app                    D  app_time_stats: avg=4377.20ms min=14.80ms max=43606.63ms count=10
+2026-04-11 16:38:46.531 12534-12534 Capacitor/Console       com.ignytlive.app                    D  File:  - Line 558 - Msg: CapacitorHttp fetch 1775905726379 https://ignytlive.replit.app/api/auth/login: 148.97802734375 ms
+2026-04-11 16:38:47.582 12534-12677 EGL_emulation           com.ignytlive.app                    D  app_time_stats: avg=56.82ms min=8.02ms max=832.66ms count=20
+2026-04-11 16:38:51.415 12534-12842 cr_media                com.ignytlive.app                    W  Requires MODIFY_AUDIO_SETTINGS and RECORD_AUDIO. No audio device will be available for recording
+2026-04-11 16:38:51.445 12534-12842 cr_media                com.ignytlive.app                    W  Requires MODIFY_AUDIO_SETTINGS and RECORD_AUDIO. No audio device will be available for recording
+2026-04-11 16:38:51.566 12534-12677 EGL_emulation           com.ignytlive.app                    D  app_time_stats: avg=3983.90ms min=3983.90ms max=3983.90ms count=1
+2026-04-11 16:39:01.413 12534-12842 cr_media                com.ignytlive.app                    W  Requires MODIFY_AUDIO_SETTINGS and RECORD_AUDIO. No audio device will be available for recording
+2026-04-11 16:39:01.450 12534-12842 cr_media                com.ignytlive.app                    W  Requires MODIFY_AUDIO_SETTINGS and RECORD_AUDIO. No audio device will be available for recording
