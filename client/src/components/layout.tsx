@@ -73,8 +73,8 @@ export default function Layout({ children, hideNav = false }: { children: React.
   const totalUnreadNotifs = unreadNotifications?.count || 0;
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 md:pb-0 md:pl-20 overflow-hidden">
-      <main className="h-screen w-full overflow-y-auto no-scrollbar">
+    <div className="min-h-screen bg-background text-foreground md:pl-20 overflow-hidden">
+      <main className="h-screen w-full overflow-y-auto no-scrollbar pb-20 md:pb-0">
         <EmailVerificationBanner />
         <PullToRefresh>{children}</PullToRefresh>
       </main>

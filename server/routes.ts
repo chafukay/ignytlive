@@ -397,6 +397,26 @@ export async function registerRoutes(
       ws.on("close", async () => {
         streamConnections.get(streamId)?.delete(ws);
         
+        // Auto-end stream if broadcaster disconnects
+        const wsUserId = (ws as any)._validatedUserId;
+        if (wsUserId && streamId) {
+          try {
+            const stream = await storage.getStream(streamId);
+            if (stream && stream.isLive && stream.userId === wsUserId) {
+              await storage.updateStream(streamId, { isLive: false, endedAt: new Date() });
+              await storage.updateUser(wsUserId, { isLive: false });
+              const clients = streamConnections.get(streamId);
+              if (clients) {
+                const msg = JSON.stringify({ type: 'stream_ended', data: { streamId } });
+                clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(msg); });
+                clients.clear();
+                streamConnections.delete(streamId);
+                realViewers.delete(streamId);
+              }
+            }
+          } catch (e) {}
+        }
+        
         // Only update viewer count if this was a real viewer (not preview, not broadcaster)
         if (shouldCountAsViewer && realViewers.has(streamId)) {
           realViewers.get(streamId)?.delete(ws);
@@ -1539,8 +1559,16 @@ export async function registerRoutes(
   // End stream (properly mark as not live)
   app.post("/api/streams/:id/end", async (req, res) => {
     try {
-      const authUserId = await requireAuth(req, res);
-      if (!authUserId) return;
+      let authUserId = extractAuthUserId(req);
+      if (!authUserId && req.body?.userId) {
+        const stream = await storage.getStream(req.params.id);
+        if (stream && stream.userId === req.body.userId && stream.isLive) {
+          authUserId = req.body.userId;
+        }
+      }
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
       const stream = await storage.getStream(req.params.id);
       
       if (!stream) {
