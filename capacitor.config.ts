@@ -13,6 +13,9 @@ const config: CapacitorConfig = {
       url: process.env.CAPACITOR_SERVER_URL || 'http://localhost:5000',
     } : {}),
   },
+  android: {
+    windowSoftInputMode: 'adjustResize',
+  },
   plugins: {
     CapacitorHttp: {
       enabled: true,
@@ -29,6 +32,7 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#000000',
+      overlaysWebView: false,
     },
     Keyboard: {
       resize: 'body',

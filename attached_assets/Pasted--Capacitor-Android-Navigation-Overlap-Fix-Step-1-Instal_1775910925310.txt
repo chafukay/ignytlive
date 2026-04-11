@@ -1,0 +1,97 @@
+# Capacitor Android Navigation Overlap Fix
+
+## Step 1 — Install plugin
+
+```bash
+npm install @capacitor/status-bar
+npx cap sync
+```
+
+---
+
+## Step 2 — app.component.ts
+
+```ts
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
+
+async function setupStatusBar() {
+  if (Capacitor.getPlatform() === 'android') {
+    await StatusBar.setOverlaysWebView({ overlay: false });
+    await StatusBar.setStyle({ style: Style.Default });
+  }
+}
+```
+
+---
+
+## Step 3 — index.html (inside `<head>`)
+
+```html
+<meta name="viewport" content="viewport-fit=cover, width=device-width,
+      initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+```
+
+---
+
+## Step 4 — global.css
+
+```css
+ion-tab-bar,
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+  margin-bottom: env(safe-area-inset-bottom);
+}
+```
+
+---
+
+## Step 5 — capacitor.config.ts
+
+```ts
+import { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.capacitr.app',
+  appName: 'Capacitr',
+  webDir: 'dist',
+  android: {
+    windowSoftInputMode: 'adjustResize',
+  },
+  plugins: {
+    StatusBar: {
+      overlaysWebView: false,
+      backgroundColor: '#ffffff',
+    },
+  },
+};
+
+export default config;
+```
+
+---
+
+## Step 6 — MainActivity.kt
+
+```kotlin
+import com.getcapacitor.BridgeActivity
+import androidx.core.view.WindowCompat
+
+class MainActivity : BridgeActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    WindowCompat.setDecorFitsSystemWindows(window, false)
+  }
+}
+```
+
+---
+
+## Quick checklist
+
+- [ ] Plugin installed and synced
+- [ ] `overlaysWebView: false` in StatusBar setup
+- [ ] `viewport-fit=cover` in index.html meta tag
+- [ ] `env(safe-area-inset-bottom)` on bottom nav in CSS
+- [ ] `WindowCompat.setDecorFitsSystemWindows(window, false)` in MainActivity.kt
+- [ ] Run `npx cap sync android` after all changes

@@ -68,6 +68,7 @@ function CapacitorInit() {
 
       try {
         const { StatusBar, Style } = await import('@capacitor/status-bar');
+        await StatusBar.setOverlaysWebView({ overlay: false });
         await StatusBar.setStyle({ style: Style.Dark });
         await StatusBar.setBackgroundColor({ color: '#000000' });
       } catch (e) { console.warn('[Capacitor] StatusBar init failed:', e); }

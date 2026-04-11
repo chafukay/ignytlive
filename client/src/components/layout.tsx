@@ -90,7 +90,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
         </Link>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:right-auto md:w-20 md:h-screen bg-card/95 backdrop-blur-lg border-t md:border-t-0 md:border-r border-border z-50">
+      <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:right-auto md:w-20 md:h-screen bg-card/95 backdrop-blur-lg border-t md:border-t-0 md:border-r border-border z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex md:flex-col justify-around md:justify-center md:gap-6 items-center h-16 md:h-full px-1">
           {navItems.map((item) => {
             const isActive = location === item.path;
