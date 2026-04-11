@@ -20,7 +20,7 @@ export function getServerUrl(): string {
   if (isNative()) {
     const url = import.meta.env.VITE_SERVER_URL;
     if (url) return url;
-    return 'https://ignytlive.replit.app';
+    return 'https://ignyt.replit.app';
   }
   return '';
 }
