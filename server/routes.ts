@@ -4516,6 +4516,21 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/push/test", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      await sendPushToUser(authUserId, {
+        title: "IgnytLIVE Test",
+        body: "Push notifications are working! 🔥",
+        data: { type: "test" },
+      });
+      res.json({ success: true, message: "Test notification sent" });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to send test notification", details: error?.message });
+    }
+  });
+
   app.post("/api/push/fcm-token", async (req, res) => {
     try {
       const authUserId = await requireAuth(req, res);
