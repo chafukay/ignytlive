@@ -846,6 +846,14 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/auth/google-client-id", (_req, res) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(404).json({ error: "Google Sign-In is not configured" });
+    }
+    res.json({ clientId });
+  });
+
   app.post("/api/auth/google", async (req, res) => {
     const googleKey = `google:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
     const rateCheck = checkLoginRateLimit(googleKey);

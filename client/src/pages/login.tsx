@@ -27,7 +27,19 @@ export default function Login() {
     setIsLoading(true);
     try {
       const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://ignyt.replit.app';
-      const googleClientIdVal = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      let googleClientIdVal = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      if (!googleClientIdVal) {
+        try {
+          const resp = await fetch(`${serverUrl}/api/auth/google-client-id`);
+          const data = await resp.json();
+          googleClientIdVal = data.clientId;
+        } catch {}
+      }
+      if (!googleClientIdVal) {
+        toast({ title: "Google sign in not available", variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
       const redirectUri = `${serverUrl}/api/auth/google/callback`;
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientIdVal}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('openid email profile')}&prompt=select_account`;
 
@@ -409,7 +421,7 @@ export default function Login() {
           </div>
         )}
 
-        {googleClientId && isNative() && (
+        {isNative() && (
           <button
             onClick={handleNativeGoogleSignIn}
             className="w-full bg-white/10 text-white font-semibold py-3.5 rounded-xl hover:bg-white/15 transition-colors flex items-center justify-center gap-3 border border-white/10"
