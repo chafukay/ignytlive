@@ -1,5 +1,34 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "t6eH_79HOWD3ephNNbYcu"
+uri = "file://client/public/logo-ignyt.png"
+type = "image"
+title = "ignyt-flame-play-no-waves"
+
+[[generated]]
+id = "DLK4wjSh4GCjiFl6nwypi"
+uri = "file://client/public/logo-ignyt-alt.png"
+type = "image"
+title = "ignyt-live-logo-alt"
+
+[[generated]]
+id = "pLu7Cj4qC5JkflOGkk9NZ"
+uri = "file://client/public/logo-ignyt-v2.png"
+type = "image"
+title = "ignyt-clean-flame-v2"
+
+[[generated]]
+id = "Xpyr76kbGxMJdeK3xKcNa"
+uri = "file://client/public/logo-ignyt-v3.png"
+type = "image"
+title = "ignyt-clean-flame-v3"
+
+[[generated]]
+id = "p9kafaVqDOop_5CYMEcAo"
+uri = "file://client/public/splash.png"
+type = "image"
+title = "ignyt-splash-screen"
 
 [[outputs]]
 id = "mTrpudoNVEwF9hxN1yBVj"
