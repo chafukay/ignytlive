@@ -44,6 +44,7 @@ export default function Login() {
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientIdVal}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('openid email profile')}&prompt=select_account`;
 
       const { App } = await import('@capacitor/app');
+      const { Browser } = await import('@capacitor/browser');
 
       App.addListener('appUrlOpen', async (event: { url: string }) => {
         try {
@@ -65,10 +66,11 @@ export default function Login() {
         } catch (err) {
           toast({ title: "Google sign in failed", description: "Could not parse response", variant: "destructive" });
         }
+        try { await Browser.close(); } catch {}
         setIsLoading(false);
       });
 
-      window.open(authUrl, '_system');
+      await Browser.open({ url: authUrl });
     } catch (error: any) {
       toast({ title: "Google sign in failed", description: error?.message || "Please try again", variant: "destructive" });
       setIsLoading(false);
