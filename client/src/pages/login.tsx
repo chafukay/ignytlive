@@ -31,39 +31,32 @@ export default function Login() {
       const redirectUri = `${serverUrl}/api/auth/google/callback`;
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientIdVal}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('openid email profile')}&prompt=select_account`;
 
-      try {
-        const capApp = await import(/* @vite-ignore */ '@capacitor/app');
-        const capBrowser = await import(/* @vite-ignore */ '@capacitor/browser');
+      const { App } = await import('@capacitor/app');
 
-        capApp.App.addListener('appUrlOpen', async (event: { url: string }) => {
+      App.addListener('appUrlOpen', async (event: { url: string }) => {
+        try {
           const url = new URL(event.url);
           const token = url.searchParams.get('token');
           const userJson = url.searchParams.get('user');
           const needsAge = url.searchParams.get('needsAge') === 'true';
 
           if (token && userJson) {
-            try {
-              const user = JSON.parse(decodeURIComponent(userJson));
-              login(user, token);
-              if (needsAge) {
-                toast({ title: `Welcome, ${user.username}!`, description: "Please verify your age in settings" });
-              } else {
-                toast({ title: `Welcome, ${user.username}!` });
-              }
-              setLocation("/");
-            } catch (err) {
-              toast({ title: "Google sign in failed", description: "Could not parse response", variant: "destructive" });
+            const user = JSON.parse(decodeURIComponent(userJson));
+            login(user, token);
+            if (needsAge) {
+              toast({ title: `Welcome, ${user.username}!`, description: "Please verify your age in settings" });
+            } else {
+              toast({ title: `Welcome, ${user.username}!` });
             }
+            setLocation("/");
           }
-          await capBrowser.Browser.close();
-          setIsLoading(false);
-        });
-
-        await capBrowser.Browser.open({ url: authUrl });
-      } catch {
-        window.open(authUrl, '_blank');
+        } catch (err) {
+          toast({ title: "Google sign in failed", description: "Could not parse response", variant: "destructive" });
+        }
         setIsLoading(false);
-      }
+      });
+
+      window.open(authUrl, '_system');
     } catch (error: any) {
       toast({ title: "Google sign in failed", description: error?.message || "Please try again", variant: "destructive" });
       setIsLoading(false);
