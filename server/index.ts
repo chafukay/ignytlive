@@ -27,12 +27,12 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://www.gstatic.com", "https://accounts.google.com", "https://apis.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
-      connectSrc: ["'self'", "wss:", "ws:", "https://api.stripe.com", "https://api.dicebear.com", "https://*.agora.io"],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://checkout.stripe.com"],
+      connectSrc: ["'self'", "wss:", "ws:", "https://api.stripe.com", "https://api.dicebear.com", "https://*.agora.io", "https://fcm.googleapis.com", "https://firebaseinstallations.googleapis.com", "https://firebaselogging-pa.googleapis.com", "https://accounts.google.com", "https://oauth2.googleapis.com"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://checkout.stripe.com", "https://accounts.google.com"],
       mediaSrc: ["'self'", "blob:", "https:"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: null,

@@ -200,7 +200,8 @@ export default function Shorts() {
         </div>
       ) : (
         <div 
-          className="h-[calc(100vh-5rem)] md:h-screen w-full snap-y snap-mandatory overflow-y-scroll no-scrollbar bg-background"
+          className="md:h-screen w-full snap-y snap-mandatory overflow-y-scroll no-scrollbar bg-background"
+          style={{ height: 'calc(100vh - var(--nav-offset, 4rem))' }}
           onScroll={handleScroll}
         >
           {shorts.map((short, i) => {
@@ -234,7 +235,7 @@ export default function Shorts() {
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/90" />
 
-              <div className="absolute right-4 bottom-20 flex flex-col items-center gap-6 z-20">
+              <div className="absolute right-4 flex flex-col items-center gap-6 z-20" style={{ bottom: 'calc(var(--nav-offset, 4rem) + 1rem)' }}>
                 <Link href={`/profile/${short.user.id}`}>
                   <div className="relative">
                     <div className="w-12 h-12 rounded-full border-2 border-foreground overflow-hidden p-0.5">
@@ -306,7 +307,7 @@ export default function Shorts() {
                 </div>
               </div>
 
-              <div className="absolute bottom-6 left-4 right-16 z-20 text-foreground">
+              <div className="absolute left-4 right-16 z-20 text-foreground" style={{ bottom: 'calc(1.5rem + var(--safe-bottom, 0px))' }}>
                 <Link href={`/profile/${short.user.id}`}>
                   <h3 className="font-bold text-lg mb-2 hover:underline" data-testid={`text-username-${short.id}`}>
                     @{short.user.username}
@@ -330,9 +331,10 @@ export default function Shorts() {
       )}
 
       {showComments && (
-        <div className="fixed inset-0 bg-background/80 z-50 flex items-end justify-center" onClick={() => setShowComments(null)}>
+        <div className="fixed inset-0 bg-background/80 z-[60] flex items-end justify-center" onClick={() => setShowComments(null)}>
           <div 
             className="bg-card w-full max-w-lg rounded-t-3xl max-h-[70vh] flex flex-col"
+            style={{ paddingBottom: 'var(--safe-bottom, 0px)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-border">

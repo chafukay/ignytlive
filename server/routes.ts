@@ -7,6 +7,7 @@ import { db } from "./db";
 import { WebSocketServer, WebSocket } from "ws";
 import { cache, CACHE_KEYS, TTL } from "./cache";
 import agoraToken from "agora-token";
+import { OAuth2Client } from "google-auth-library";
 const { RtcRole, RtcTokenBuilder } = agoraToken;
 import { 
   insertUserSchema, 
@@ -814,22 +815,24 @@ export async function registerRoutes(
     }
   });
 
-  // Age verification for social login users
   app.post("/api/auth/verify-age", async (req, res) => {
     try {
+      const authUserId = extractAuthUserId(req);
       const { userId, birthdate } = req.body;
       
       if (!userId || !birthdate) {
         return res.status(400).json({ error: "User ID and birthdate are required" });
       }
 
-      // Verify age
+      if (authUserId && authUserId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const ageCheck = verifyAge(birthdate);
       if (!ageCheck.valid) {
         return res.status(400).json({ error: ageCheck.error });
       }
 
-      // Update user with verified birthdate
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -840,6 +843,99 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Age verification error:", error);
       res.status(500).json({ error: "Failed to verify age" });
+    }
+  });
+
+  app.post("/api/auth/google", async (req, res) => {
+    const googleKey = `google:${(req.ip || req.headers["x-forwarded-for"] || "unknown")}`;
+    const rateCheck = checkLoginRateLimit(googleKey);
+    if (!rateCheck.allowed) {
+      const retryMinutes = Math.ceil((rateCheck.retryAfterMs || 0) / 60000);
+      return res.status(429).json({ error: `Too many attempts. Please try again in ${retryMinutes} minute(s).` });
+    }
+
+    try {
+      const { credential } = req.body;
+      if (!credential) {
+        return res.status(400).json({ error: "Google credential is required" });
+      }
+
+      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      if (!googleClientId) {
+        return res.status(500).json({ error: "Google Sign-In is not configured" });
+      }
+
+      const client = new OAuth2Client(googleClientId);
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: googleClientId,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload || !payload.sub) {
+        recordLoginFailure(googleKey);
+        return res.status(401).json({ error: "Invalid Google token" });
+      }
+
+      const googleId = payload.sub;
+      const email = payload.email || "";
+      const name = payload.name || "";
+      const avatar = payload.picture || null;
+
+      if (!email || !payload.email_verified) {
+        recordLoginFailure(googleKey);
+        return res.status(401).json({ error: "Google account email must be verified" });
+      }
+
+      let user = await storage.getUserByEmail(email);
+
+      if (user && user.isDeleted) {
+        return res.status(403).json({ error: "This account has been deleted" });
+      }
+
+      if (user) {
+        if (user.socialProvider === "google" && user.socialProviderId && user.socialProviderId !== googleId) {
+          recordLoginFailure(googleKey);
+          return res.status(401).json({ error: "Account mismatch. Please use the original Google account." });
+        }
+        if (!user.socialProvider) {
+          await storage.updateUser(user.id, {
+            socialProvider: "google",
+            socialProviderId: googleId,
+            emailVerified: true,
+            avatar: user.avatar || avatar,
+          });
+          user = (await storage.getUser(user.id))!;
+        }
+      } else {
+        const baseUsername = (name.replace(/[^a-zA-Z0-9_]/g, "_") || "user").toLowerCase().slice(0, 15);
+        let finalUsername = baseUsername;
+        let counter = 1;
+        while (await storage.getUserByUsername(finalUsername)) {
+          finalUsername = `${baseUsername}${counter}`;
+          counter++;
+        }
+
+        user = await storage.createUser({
+          username: finalUsername,
+          email,
+          password: crypto.randomBytes(32).toString("hex"),
+          socialProvider: "google",
+          socialProviderId: googleId,
+          avatar,
+          emailVerified: true,
+        } as any);
+
+        checkAchievements(user.id, "account_created").catch(() => {});
+      }
+
+      const token = generateUserToken(user.id);
+      const needsAge = !user.birthdate;
+      res.json({ user: toSafeUser(user), token, needsAge });
+    } catch (error: any) {
+      console.error("Google auth error:", error);
+      recordLoginFailure(googleKey);
+      res.status(401).json({ error: "Google authentication failed" });
     }
   });
 
@@ -4304,6 +4400,21 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to save native push token" });
+    }
+  });
+
+  app.post("/api/push/fcm-token", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+      const { token, platform } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: "token is required" });
+      }
+      await storage.saveNativePushToken(authUserId, token, platform || "web");
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save FCM token" });
     }
   });
 

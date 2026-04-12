@@ -108,9 +108,8 @@ export default function Register() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Flame className="w-10 h-10 text-primary" />
-            <h1 className="text-4xl font-bold font-display"><span className="text-white">Ignyt</span><span className="text-pink-500">LIVE</span></h1>
+          <div className="flex flex-col items-center justify-center mb-2">
+            <img src="/logo-ignyt.png" alt="IgnytLIVE" className="w-24 h-24 rounded-2xl" />
           </div>
           <p className="text-white/50">Create your account</p>
         </motion.div>

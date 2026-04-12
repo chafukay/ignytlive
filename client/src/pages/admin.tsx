@@ -345,9 +345,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-zinc-950 flex">
       <aside className="w-64 bg-zinc-900 border-r border-zinc-800 p-4 flex flex-col fixed h-full">
         <div className="flex items-center gap-3 mb-8 px-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-white" />
-          </div>
+          <img src="/logo-ignyt.png" alt="IgnytLIVE" className="w-10 h-10 rounded-xl" />
           <div>
             <h1 className="text-white font-bold text-lg">Admin Panel</h1>
             <p className="text-zinc-500 text-xs">Ignyt Live</p>

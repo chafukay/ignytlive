@@ -645,13 +645,6 @@ export default function Home() {
                   </div>
                   <p className="text-foreground font-medium">No live streams right now</p>
                   <p className="text-muted-foreground text-sm mt-1">Be the first to go live, or check back soon!</p>
-                  {user && (
-                    <Link href="/go-live">
-                      <button className="mt-4 px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-full text-sm hover:opacity-90 transition-opacity" data-testid="button-go-live-empty">
-                        Go Live
-                      </button>
-                    </Link>
-                  )}
                 </div>
               )}
             </div>

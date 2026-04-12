@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import DailyLoginModal from "@/components/daily-login-modal";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -50,9 +51,10 @@ import PrivacyPolicy from "@/pages/privacy-policy";
 import CommunityGuidelines from "@/pages/community-guidelines";
 import VerifyEmail from "@/pages/verify-email";
 import IncomingCallBanner from "@/components/incoming-call-banner";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { initPushNotifications } from "@/lib/push-notifications";
 import { isNative, isAndroid } from "@/lib/capacitor";
+import SplashScreen from "@/components/splash-screen";
 
 function CapacitorInit() {
   useEffect(() => {
@@ -190,7 +192,9 @@ function Router() {
 }
 
 function MainApp() {
-  return (
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+  const content = (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
@@ -207,14 +211,40 @@ function MainApp() {
       </ThemeProvider>
     </QueryClientProvider>
   );
+
+  if (googleClientId) {
+    return (
+      <GoogleOAuthProvider clientId={googleClientId}>
+        {content}
+      </GoogleOAuthProvider>
+    );
+  }
+
+  return content;
 }
 
 function App() {
   const [location] = useLocation();
+  const [showSplash, setShowSplash] = useState(() => {
+    const seen = sessionStorage.getItem("splashShown");
+    return !seen;
+  });
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+    sessionStorage.setItem("splashShown", "1");
+  }, []);
+
   if (location.startsWith("/admin")) {
     return <AdminApp />;
   }
-  return <MainApp />;
+
+  return (
+    <>
+      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+      <MainApp />
+    </>
+  );
 }
 
 export default App;

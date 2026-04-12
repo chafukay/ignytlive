@@ -1531,7 +1531,7 @@ export default function LiveRoom() {
               </div>
 
               {/* Bottom Interface */}
-              <div className="p-4 pt-0 pb-6">
+              <div className="p-4 pt-0" style={{ paddingBottom: 'calc(1.5rem + var(--safe-bottom, 0px))' }}>
                 {/* Actions Bar */}
                 <div className="flex items-center gap-3">
                   <form onSubmit={handleSend} className="flex-1 relative">
@@ -1598,7 +1598,8 @@ export default function LiveRoom() {
       {/* Swipe hint when chat is hidden */}
       {chatHidden && (
         <div 
-          className="absolute bottom-24 left-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 backdrop-blur-sm text-white/60 text-xs animate-pulse cursor-pointer"
+          className="absolute left-2 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 backdrop-blur-sm text-white/60 text-xs animate-pulse cursor-pointer"
+          style={{ bottom: 'calc(6rem + var(--safe-bottom, 0px))' }}
           onClick={() => setChatHidden(false)}
           onTouchStart={(e) => {
             chatSwipeRef.current.startX = e.touches[0].clientX;
@@ -1629,6 +1630,7 @@ export default function LiveRoom() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             className="absolute bottom-0 left-0 right-0 bg-[#1a1a1a] rounded-t-3xl p-4 z-50 border-t border-white/10"
+            style={{ paddingBottom: 'calc(1rem + var(--safe-bottom, 0px))' }}
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-white">Send Gift</h3>

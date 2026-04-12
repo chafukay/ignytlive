@@ -74,7 +74,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
 
   return (
     <div className="min-h-screen bg-background text-foreground md:pl-20 overflow-hidden">
-      <main className="h-screen w-full overflow-y-auto no-scrollbar pb-20 md:pb-0">
+      <main className="h-screen w-full overflow-y-auto no-scrollbar mobile-nav-padding">
         <EmailVerificationBanner />
         <PullToRefresh>{children}</PullToRefresh>
       </main>
@@ -82,7 +82,8 @@ export default function Layout({ children, hideNav = false }: { children: React.
       {(location === "/" || location === "/shorts") && (
         <Link href="/go-live">
           <button 
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 md:bottom-8 md:left-auto md:right-8 md:translate-x-0 w-14 h-14 bg-gradient-to-r from-pink-500 to-primary rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 z-50 hover:scale-110 active:scale-95 transition-transform"
+            className="fixed left-1/2 -translate-x-1/2 md:left-auto md:right-8 md:translate-x-0 w-14 h-14 bg-gradient-to-r from-pink-500 to-primary rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 z-50 hover:scale-110 active:scale-95 transition-transform"
+            style={{ bottom: 'calc(var(--nav-offset, 4rem) + 0.5rem)' }}
             data-testid="button-floating-go-live"
           >
             <Video className="w-6 h-6 text-white" />
@@ -90,7 +91,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
         </Link>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:right-auto md:w-20 md:h-screen bg-card/95 backdrop-blur-lg border-t md:border-t-0 md:border-r border-border z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:right-auto md:w-20 md:h-screen bg-card/95 backdrop-blur-lg border-t md:border-t-0 md:border-r border-border z-50" style={{ paddingBottom: 'var(--safe-bottom, 0px)' }}>
         <div className="flex md:flex-col justify-around md:justify-center md:gap-6 items-center h-16 md:h-full px-1">
           {navItems.map((item) => {
             const isActive = location === item.path;

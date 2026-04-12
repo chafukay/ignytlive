@@ -34,7 +34,8 @@ Preferred communication style: Simple, everyday language.
 - **Models**: Users, Streams, Shorts, Follows, Gifts, Gift Transactions, Messages, Stream Comments, User Blocks, User Reports, User Muted Calls, Notifications, Scheduled Events, Event RSVPs.
 
 ### Authentication
-- **Methods**: Email/username + password (bcrypt hashed), phone with SMS, Replit Auth (social logins), Guest browsing.
+- **Methods**: Email/username + password (bcrypt hashed), phone with SMS, Google Sign-In (OAuth 2.0 via `@react-oauth/google` + `google-auth-library`), Replit Auth (social logins), Guest browsing.
+- **Google Sign-In**: Frontend uses `@react-oauth/google` `GoogleLogin` component wrapped in `GoogleOAuthProvider`. Backend verifies Google ID token via `google-auth-library` `OAuth2Client.verifyIdToken()` at `POST /api/auth/google`. Auto-creates user account from Google profile (name, email, avatar) or links to existing account by email. Env vars: `GOOGLE_CLIENT_ID` (server), `VITE_GOOGLE_CLIENT_ID` (client). Users table `socialProvider`/`socialProviderId` columns store Google linkage. New Google users prompted to verify age (18+) via `needsAge` response flag.
 - **Password Security**: All user passwords hashed with bcrypt (cost factor 10). Migration runs on startup to hash any remaining plain text passwords.
 - **Email Verification**: 6-digit code generated with `crypto.randomInt()` on registration, stored in DB with 24h expiry. Email sent via nodemailer when SMTP configured (env vars: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`). Endpoints: `POST /api/auth/send-email-verification`, `POST /api/auth/verify-email`. Both endpoints have dual rate limiting (IP + userId, 5 per 15min with lockout). Profile shows persistent email verification status badge (green verified / amber unverified) plus dismissible banner. Admin panel shows verification status per user. All API responses sanitized via `toSafeUser()` and `stripPasswords()` to strip `password`, `emailVerificationToken`, `emailVerificationExpiry`.
 - **Account Deletion**: Soft-delete via `DELETE /api/auth/delete-account` with password re-entry. Sets `isDeleted=true`, `deletedAt` timestamp, anonymizes username/email, clears PII (avatar, bio, phone, location, social links), removes follows. Deleted accounts blocked from login (both password and phone). Settings page has "Delete Account" with confirmation dialog requiring password + typing "DELETE". Admin panel shows Active/Deleted status column.
@@ -101,6 +102,7 @@ Preferred communication style: Simple, everyday language.
 - **Build**: Run `./scripts/cap-build.sh` or `npm run build && npx cap sync` to build web and sync native projects.
 
 ### Services
+- **Firebase Cloud Messaging (FCM)**: Push notifications for web and native. Client SDK (`firebase`) for token acquisition, Firebase Admin SDK (`firebase-admin`) for server-side delivery. Service worker: `client/public/firebase-messaging-sw.js`. Client config: `client/src/lib/firebase.ts`. Server: `server/push-service.ts`. FCM tokens stored in `native_push_tokens` table. Env vars: `VITE_FIREBASE_*` (client config), `FIREBASE_SERVICE_ACCOUNT_KEY` (server, JSON string of service account). Also retains Web Push (VAPID) as fallback.
 - **Agora**: For private video/audio calls.
 - **Stripe**: For processing coin purchases.
 - **Twilio**: For SMS verification (phone number login).

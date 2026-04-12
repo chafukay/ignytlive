@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import type { User } from "@shared/schema";
 import { getServerUrl } from "./capacitor";
 
@@ -21,12 +21,14 @@ export function getAuthToken(): string | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
     if (stored) {
       try {
         const parsedUser = JSON.parse(stored);
+        setUser(parsedUser);
         fetch(`${getServerUrl()}/api/users/${parsedUser.id}`)
           .then(res => {
             if (res.ok) {
@@ -87,6 +89,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Failed to refresh user:", error);
     }
   };
+
+  useEffect(() => {
+    if (!user?.id) {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+      return;
+    }
+    refreshIntervalRef.current = setInterval(() => {
+      fetch(`${getServerUrl()}/api/users/${user.id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(freshUser => {
+          if (freshUser) {
+            setUser(freshUser);
+            localStorage.setItem("user", JSON.stringify(freshUser));
+          }
+        })
+        .catch(() => {});
+    }, 60000);
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [user?.id]);
 
   if (isLoading) {
     return null;

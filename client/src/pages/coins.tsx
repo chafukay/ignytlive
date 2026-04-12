@@ -173,33 +173,28 @@ export default function Coins() {
     return (
       <div
         onClick={() => handleBuy(pkg)}
-        className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl p-4 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer active:scale-95"
+        className="bg-gradient-to-b from-pink-100 to-white dark:from-pink-900/20 dark:to-gray-800 rounded-2xl pt-5 pb-3 px-2 text-center relative border border-pink-200 dark:border-pink-800 hover:scale-105 transition-transform cursor-pointer active:scale-95 flex flex-col items-center justify-between"
         data-testid={`package-${pkg.coins}`}
       >
-        {pkg.label && (
-          <span className={`absolute -top-2 right-2 ${tagColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-full`}>
-            {pkg.label}
+        <div className="absolute -top-2 left-0 right-0 flex justify-between px-1">
+          <span className={`${pkg.discountPercent > 0 ? 'bg-green-500' : isFirstPurchase ? 'bg-green-500' : 'invisible'} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap`}>
+            {pkg.discountPercent > 0 ? `${pkg.discountPercent}% OFF` : '+50%'}
           </span>
-        )}
-        {pkg.discountPercent > 0 && (
-          <span className="absolute -top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-            {pkg.discountPercent}% OFF
+          <span className={`${pkg.label ? tagColor : 'invisible'} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap`}>
+            {pkg.label || '-'}
           </span>
-        )}
-        {isFirstPurchase && pkg.discountPercent === 0 && (
-          <span className="absolute -top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-            +50%
-          </span>
-        )}
-        <div className="flex items-center justify-center gap-1 mb-2">
-          <span className="text-yellow-500">{"\u{1F4B0}"}</span>
-          <span className="font-bold text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
         </div>
-        <div className="text-4xl mb-2">{getPackageEmoji(pkg.coins)}</div>
-        <div className="font-bold text-gray-900 dark:text-white">${price}</div>
-        {showStrikethrough && (
-          <div className="text-sm text-gray-400 line-through">${strikethroughPrice}</div>
-        )}
+        <div className="flex items-center justify-center gap-1 mb-1">
+          <span className="text-yellow-500">{"\u{1F4B0}"}</span>
+          <span className="font-bold text-sm text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
+        </div>
+        <div className="text-3xl mb-1 h-10 flex items-center justify-center">{getPackageEmoji(pkg.coins)}</div>
+        <div className="font-bold text-gray-900 dark:text-white text-sm">${price}</div>
+        <div className="h-4">
+          {showStrikethrough ? (
+            <span className="text-xs text-gray-400 line-through">${strikethroughPrice}</span>
+          ) : null}
+        </div>
       </div>
     );
   };
@@ -251,8 +246,8 @@ export default function Coins() {
 
           {bestOffers.length > 0 && (
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offers</h2>
-              <div className="grid grid-cols-3 gap-3">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-5">Best Offers</h2>
+              <div className="grid grid-cols-3 gap-3 auto-rows-fr">
                 {bestOffers.map((pkg) => (
                   <div key={pkg.id}>{renderPackageCard(pkg)}</div>
                 ))}
@@ -262,7 +257,7 @@ export default function Coins() {
 
           {mainPackages.length > 0 && (
             <section>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3 auto-rows-fr">
                 {mainPackages.map((pkg) => (
                   <div key={pkg.id}>{renderPackageCard(pkg, "bg-orange-500")}</div>
                 ))}
@@ -272,8 +267,8 @@ export default function Coins() {
 
           {morePackages.length > 0 && (
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Best Offer For You</h2>
-              <div className="grid grid-cols-3 gap-3">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-5">Best Offer For You</h2>
+              <div className="grid grid-cols-3 gap-3 auto-rows-fr">
                 {morePackages.map((pkg) => (
                   <div key={pkg.id}>{renderPackageCard(pkg, pkg.label === 'Popular' ? 'bg-pink-500' : pkg.label === 'Hot' ? 'bg-orange-500' : 'bg-blue-500')}</div>
                 ))}

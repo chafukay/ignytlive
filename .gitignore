@@ -5,9 +5,35 @@ server/public
 vite.config.ts.*
 *.tar.gz
 
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+.env*.local
+
 # Capacitor native build artifacts
 android/app/build/
 android/.gradle/
 android/capacitor-cordova-android-plugins/build/
 ios/App/Pods/
 ios/DerivedData/
+
+# Firebase service account key (secret)
+google-services.json
+GoogleService-Info.plist
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Replit internals
+.local/
+.cache/
+.config/
+replit_zip_error_log.txt

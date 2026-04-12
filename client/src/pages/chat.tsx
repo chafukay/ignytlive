@@ -599,7 +599,7 @@ export default function Chat() {
   return (
     <GuestGate>
     <Layout>
-      <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+      <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 64px - var(--nav-offset, 4rem))' }}>
         {/* Left Panel - Chat List */}
         <div className={`w-full md:w-[30%] md:min-w-[280px] md:max-w-[360px] border-r border-border flex flex-col bg-background ${
           mobileShowConversation ? 'hidden md:flex' : 'flex'

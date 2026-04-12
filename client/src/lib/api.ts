@@ -39,6 +39,19 @@ export const api = {
     return res.json() as Promise<{ user: User; token?: string; verifyToken?: string }>;
   },
 
+  async googleLogin(credential: string) {
+    const res = await fetch(`${API_BASE}/api/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Google login failed" }));
+      throw new Error(data.error || "Google login failed");
+    }
+    return res.json() as Promise<{ user: User; token?: string; needsAge?: boolean }>;
+  },
+
   async sendPhoneCode(phone: string) {
     const res = await fetch(`${API_BASE}/api/auth/phone/send-code`, {
       method: "POST",
@@ -1225,6 +1238,16 @@ export const api = {
       method: "POST",
       headers: authJsonHeaders(),
       body: JSON.stringify({ token, platform: platform || 'unknown' }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async saveFCMToken(userId: string, token: string, platform: string = "web") {
+    const res = await fetch(`${API_BASE}/api/push/fcm-token`, {
+      method: "POST",
+      headers: authJsonHeaders(),
+      body: JSON.stringify({ token, platform }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
