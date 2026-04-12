@@ -22,6 +22,8 @@ ios/DerivedData/
 # Firebase service account key (secret)
 google-services.json
 GoogleService-Info.plist
+*firebase-adminsdk*
+*service-account*.json
 
 # IDE
 .idea/
