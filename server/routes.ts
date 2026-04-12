@@ -939,6 +939,111 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code } = req.query;
+      if (!code || typeof code !== "string") {
+        return res.status(400).send("Missing authorization code");
+      }
+
+      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      if (!googleClientId || !googleClientSecret) {
+        return res.status(500).send("Google Sign-In is not configured");
+      }
+
+      const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/google/callback`;
+
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: googleClientId,
+          client_secret: googleClientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      const tokenData = await tokenResponse.json() as any;
+      if (!tokenData.id_token) {
+        return res.status(401).send("Failed to get Google token");
+      }
+
+      const client = new OAuth2Client(googleClientId);
+      const ticket = await client.verifyIdToken({
+        idToken: tokenData.id_token,
+        audience: googleClientId,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload || !payload.sub) {
+        return res.status(401).send("Invalid Google token");
+      }
+
+      const googleId = payload.sub;
+      const email = payload.email || "";
+      const name = payload.name || "";
+      const avatar = payload.picture || null;
+
+      if (!email || !payload.email_verified) {
+        return res.status(401).send("Google account email must be verified");
+      }
+
+      let user = await storage.getUserByEmail(email);
+
+      if (user && user.isDeleted) {
+        return res.status(403).send("This account has been deleted");
+      }
+
+      if (user) {
+        if (user.socialProvider === "google" && user.socialProviderId && user.socialProviderId !== googleId) {
+          return res.status(401).send("Account mismatch");
+        }
+        if (!user.socialProvider) {
+          await storage.updateUser(user.id, {
+            socialProvider: "google",
+            socialProviderId: googleId,
+            emailVerified: true,
+            avatar: user.avatar || avatar,
+          });
+          user = (await storage.getUser(user.id))!;
+        }
+      } else {
+        const baseUsername = (name.replace(/[^a-zA-Z0-9_]/g, "_") || "user").toLowerCase().slice(0, 15);
+        let finalUsername = baseUsername;
+        let counter = 1;
+        while (await storage.getUserByUsername(finalUsername)) {
+          finalUsername = `${baseUsername}${counter}`;
+          counter++;
+        }
+
+        user = await storage.createUser({
+          username: finalUsername,
+          email,
+          password: crypto.randomBytes(32).toString("hex"),
+          socialProvider: "google",
+          socialProviderId: googleId,
+          avatar,
+          emailVerified: true,
+        } as any);
+
+        checkAchievements(user.id, "account_created").catch(() => {});
+      }
+
+      const token = generateUserToken(user.id);
+      const needsAge = !user.birthdate;
+      const safeUser = toSafeUser(user);
+
+      const deepLink = `com.ignytlive.app://auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(safeUser))}&needsAge=${needsAge}`;
+      res.redirect(deepLink);
+    } catch (error: any) {
+      console.error("Google OAuth callback error:", error);
+      res.status(500).send("Google authentication failed");
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
