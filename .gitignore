@@ -33,6 +33,7 @@ GoogleService-Info.plist
 Thumbs.db
 
 # Replit internals
+.replit
 .local/
 .cache/
 .config/
