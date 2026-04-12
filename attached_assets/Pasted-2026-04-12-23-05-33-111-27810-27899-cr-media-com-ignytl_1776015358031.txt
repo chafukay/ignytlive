@@ -1,0 +1,24 @@
+2026-04-12 23:05:33.111 27810-27899 cr_media                com.ignytlive.app                    W  Requires MODIFY_AUDIO_SETTINGS and RECORD_AUDIO. No audio device will be available for recording
+2026-04-12 23:05:33.357 27810-27810 Capacitor/Console       com.ignytlive.app                    D  File:  - Line 558 - Msg: CapacitorHttp fetch 1776015332538 https://ignyt.replit.app/api/auth/login: 817.22509765625 ms
+2026-04-12 23:05:33.417 27810-27881 Capacitor               com.ignytlive.app                    D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fprivate-calls%2Fpending%2F6aa28cf2-4def-4977-b9aa-5d6ab24b4f35
+2026-04-12 23:05:33.420 27810-27882 Capacitor               com.ignytlive.app                    D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fmessages%2Funread-count%2F6aa28cf2-4def-4977-b9aa-5d6ab24b4f35
+2026-04-12 23:05:33.422 27810-27887 Capacitor               com.ignytlive.app                    D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fnotifications%2F6aa28cf2-4def-4977-b9aa-5d6ab24b4f35%2Funread-count
+2026-04-12 23:05:33.424 27810-27882 CapacitorCookies        com.ignytlive.app                    I  Getting cookies at: 'https://ignyt.replit.app/api/messages/unread-count/6aa28cf2-4def-4977-b9aa-5d6ab24b4f35'
+2026-04-12 23:05:33.426 27810-27887 CapacitorCookies        com.ignytlive.app                    I  Getting cookies at: 'https://ignyt.replit.app/api/notifications/6aa28cf2-4def-4977-b9aa-5d6ab24b4f35/unread-count'
+2026-04-12 23:05:33.428 27810-27881 CapacitorCookies        com.ignytlive.app                    I  Getting cookies at: 'https://ignyt.replit.app/api/private-calls/pending/6aa28cf2-4def-4977-b9aa-5d6ab24b4f35'
+2026-04-12 23:05:33.438 27810-27889 Capacitor               com.ignytlive.app                    D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fstreams%2Flive%3Flimit%3D20%26sort%3Dpopular
+2026-04-12 23:05:33.439 27810-27902 Capacitor               com.ignytlive.app                    D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fusers%2F6aa28cf2-4def-4977-b9aa-5d6ab24b4f35%2Ffollowing
+2026-04-12 23:05:33.441 27810-27901 Capacitor               com.ignytlive.app                    D  Handling CapacitorHttp request: https://localhost/_capacitor_http_interceptor_?u=https%3A%2F%2Fignyt.replit.app%2Fapi%2Fstreamers
+2026-04-12 23:05:33.442 27810-27889 CapacitorCookies        com.ignytlive.app                    I  Getting cookies at: 'https://ignyt.replit.app/api/streams/live?limit=20&sort=popular'
+2026-04-12 23:05:33.452 27810-27901 CapacitorCookies        com.ignytlive.app                    I  Getting cookies at: 'https://ignyt.replit.app/api/streamers'
+2026-04-12 23:05:33.460 27810-27902 CapacitorCookies        com.ignytlive.app                    I  Getting cookies at: 'https://ignyt.replit.app/api/users/6aa28cf2-4def-4977-b9aa-5d6ab24b4f35/following'
+2026-04-12 23:05:33.607 27810-27862 EGL_emulation           com.ignytlive.app                    D  app_time_stats: avg=66.58ms min=3.06ms max=686.92ms count=21
+2026-04-12 23:05:33.793 27810-27881 TrafficStats            com.ignytlive.app                    D  tagSocket(215) with statsTag=0xffffffff, statsUid=-1
+2026-04-12 23:05:33.794 27810-27902 TrafficStats            com.ignytlive.app                    D  tagSocket(234) with statsTag=0xffffffff, statsUid=-1
+2026-04-12 23:05:33.794 27810-27887 TrafficStats            com.ignytlive.app                    D  tagSocket(224) with statsTag=0xffffffff, statsUid=-1
+2026-04-12 23:05:33.796 27810-27901 TrafficStats            com.ignytlive.app                    D  tagSocket(225) with statsTag=0xffffffff, statsUid=-1
+2026-04-12 23:05:33.797 27810-27889 TrafficStats            com.ignytlive.app                    D  tagSocket(242) with statsTag=0xffffffff, statsUid=-1
+2026-04-12 23:05:33.798 27810-27882 Capacitor               com.ignytlive.app                    D  Handling local request: https://localhost/assets/index-CE-rMDP1.js
+2026-04-12 23:05:33.802 27810-27882 Capacitor               com.ignytlive.app                    D  Handling local request: https://localhost/favicon.png
+2026-04-12 23:05:33.803 27810-27888 chromium                com.ignytlive.app                    W  [WARNING:jni_string.cc(31)] ConvertJavaStringToUTF8 called with null string.
+2026-04-12 23:05:33.843 27810-27944 Capacitor/Plugin        com.
