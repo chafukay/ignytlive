@@ -205,32 +205,36 @@ export default function Shorts() {
           onScroll={handleScroll}
         >
           {shorts.map((short, i) => {
-            const isVideo = short.videoUrl && (
-              short.videoUrl.startsWith('data:video/') || 
-              short.videoUrl.endsWith('.mp4') ||
-              short.videoUrl.endsWith('.webm') ||
-              short.videoUrl.endsWith('.mov')
-            );
+            const hasVideo = !!short.videoUrl;
+            const hasThumbnail = !!short.thumbnail;
             const isLiked = likedShorts[short.id];
 
             return (
-            <div key={short.id} className="h-full w-full snap-start relative flex items-center justify-center bg-card">
-              {isVideo ? (
+            <div key={short.id} className="h-full w-full snap-start relative flex items-center justify-center bg-black">
+              {hasVideo ? (
                 <video 
                   src={short.videoUrl}
-                  className="w-full h-full object-cover"
+                  poster={short.thumbnail || undefined}
+                  className="w-full h-full object-contain"
                   autoPlay={i === activeShort}
                   loop
                   muted
                   playsInline
                   data-testid={`video-short-${short.id}`}
                 />
+              ) : hasThumbnail ? (
+                <img 
+                  src={short.thumbnail!} 
+                  alt="Short" 
+                  className="max-w-full max-h-full object-contain"
+                  data-testid={`img-short-${short.id}`}
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-black">
                   <img 
-                    src={short.thumbnail || short.videoUrl || "https://api.dicebear.com/7.x/shapes/svg?seed=" + short.id} 
+                    src={"https://api.dicebear.com/7.x/shapes/svg?seed=" + short.id} 
                     alt="Short" 
-                    className="max-w-full max-h-full object-contain"
+                    className="w-48 h-48 object-contain opacity-50"
                     data-testid={`img-short-${short.id}`}
                   />
                 </div>
