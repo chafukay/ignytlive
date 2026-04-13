@@ -79,7 +79,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
         <PullToRefresh>{children}</PullToRefresh>
       </main>
 
-      {(location === "/" || location === "/shorts") && (
+      {location === "/" && (
         <Link href="/go-live">
           <button 
             className="fixed left-1/2 -translate-x-1/2 md:left-auto md:right-8 md:translate-x-0 w-14 h-14 bg-gradient-to-r from-pink-500 to-primary rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 z-50 hover:scale-110 active:scale-95 transition-transform"
