@@ -226,12 +226,14 @@ export default function Shorts() {
                   data-testid={`video-short-${short.id}`}
                 />
               ) : (
-                <img 
-                  src={short.thumbnail || short.videoUrl || "https://api.dicebear.com/7.x/shapes/svg?seed=" + short.id} 
-                  alt="Short" 
-                  className="w-full h-full object-cover opacity-90"
-                  data-testid={`img-short-${short.id}`}
-                />
+                <div className="w-full h-full flex items-center justify-center bg-black">
+                  <img 
+                    src={short.thumbnail || short.videoUrl || "https://api.dicebear.com/7.x/shapes/svg?seed=" + short.id} 
+                    alt="Short" 
+                    className="max-w-full max-h-full object-contain"
+                    data-testid={`img-short-${short.id}`}
+                  />
+                </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/90" />
 
