@@ -62,7 +62,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
   if (hideNav || !user) {
     return (
       <div className="min-h-screen bg-background text-foreground overflow-hidden">
-        <main className="h-screen w-full overflow-y-auto no-scrollbar" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <main className="h-screen w-full overflow-y-auto no-scrollbar">
           <PullToRefresh>{children}</PullToRefresh>
         </main>
       </div>
@@ -74,7 +74,7 @@ export default function Layout({ children, hideNav = false }: { children: React.
 
   return (
     <div className="min-h-screen bg-background text-foreground md:pl-20 overflow-hidden">
-      <main className="h-screen w-full overflow-y-auto no-scrollbar mobile-nav-padding" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <main className="h-screen w-full overflow-y-auto no-scrollbar mobile-nav-padding">
         <EmailVerificationBanner />
         <PullToRefresh>{children}</PullToRefresh>
       </main>
