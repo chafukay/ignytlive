@@ -1,32 +1,36 @@
 import nodemailer from "nodemailer";
 
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
-const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@ignytlive.com";
-
 let transporter: nodemailer.Transporter | null = null;
+let lastConfig = "";
 
 function getTransporter(): nodemailer.Transporter | null {
-  if (transporter) return transporter;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || "587");
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !user || !pass) {
     return null;
   }
+
+  const configKey = `${host}:${port}:${user}:${pass}`;
+  if (transporter && lastConfig === configKey) {
+    return transporter;
+  }
+
   transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
   });
+  lastConfig = configKey;
+  console.log(`[EMAIL] SMTP configured: ${host}:${port} (user: ${user})`);
   return transporter;
 }
 
 export function isEmailServiceConfigured(): boolean {
-  return !!(SMTP_HOST && SMTP_USER && SMTP_PASS);
+  return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
 export async function sendVerificationEmail(toEmail: string, code: string, username: string): Promise<boolean> {
@@ -36,31 +40,64 @@ export async function sendVerificationEmail(toEmail: string, code: string, usern
     return false;
   }
 
+  const fromEmail = process.env.FROM_EMAIL || "noreply@ignytlive.com";
+
   try {
     await transport.sendMail({
-      from: `"Ignyt Live" <${FROM_EMAIL}>`,
+      from: `"IgnytLIVE" <${fromEmail}>`,
       to: toEmail,
-      subject: "Verify Your Email - Ignyt Live",
+      subject: "Verify Your Email - IgnytLIVE",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #0d0618; color: #ffffff;">
           <div style="text-align: center; margin-bottom: 24px;">
-            <h1 style="color: #7c3aed; margin: 0;">Ignyt Live</h1>
+            <h1 style="color: #a855f7; margin: 0;">IgnytLIVE</h1>
           </div>
-          <h2 style="color: #1f2937;">Verify Your Email</h2>
-          <p style="color: #4b5563;">Hi ${username},</p>
-          <p style="color: #4b5563;">Your verification code is:</p>
-          <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
-            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #7c3aed;">${code}</span>
+          <h2 style="color: #ffffff;">Verify Your Email</h2>
+          <p style="color: #d1d5db;">Hi ${username},</p>
+          <p style="color: #d1d5db;">Your verification code is:</p>
+          <div style="background: #1a0a2e; border: 1px solid #a855f7; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #a855f7;">${code}</span>
           </div>
-          <p style="color: #4b5563;">Enter this code in the app to verify your email address. This code expires in 24 hours.</p>
-          <p style="color: #9ca3af; font-size: 12px; margin-top: 32px;">If you didn't create an account on Ignyt Live, you can safely ignore this email.</p>
+          <p style="color: #d1d5db;">Enter this code in the app to verify your email address. This code expires in 24 hours.</p>
+          <hr style="border: none; border-top: 1px solid #374151; margin: 32px 0;" />
+          <p style="color: #6b7280; font-size: 12px;">If you didn't create an account on IgnytLIVE, you can safely ignore this email.</p>
+          <p style="color: #6b7280; font-size: 12px;">Need help? Contact us at support@ignytlive.com</p>
         </div>
       `,
-      text: `Hi ${username}, your Ignyt Live verification code is: ${code}. This code expires in 24 hours.`,
+      text: `Hi ${username}, your IgnytLIVE verification code is: ${code}. This code expires in 24 hours.`,
     });
+    console.log(`[EMAIL] Verification email sent to ${toEmail}`);
     return true;
   } catch (error) {
     console.error("[EMAIL] Failed to send verification email:", error instanceof Error ? error.message : "Unknown error");
+    transporter = null;
+    lastConfig = "";
+    return false;
+  }
+}
+
+export async function sendGenericEmail(toEmail: string, subject: string, html: string, text: string): Promise<boolean> {
+  const transport = getTransporter();
+  if (!transport) {
+    console.warn("[EMAIL] SMTP not configured - email not sent.");
+    return false;
+  }
+
+  const fromEmail = process.env.FROM_EMAIL || "noreply@ignytlive.com";
+
+  try {
+    await transport.sendMail({
+      from: `"IgnytLIVE" <${fromEmail}>`,
+      to: toEmail,
+      subject,
+      html,
+      text,
+    });
+    return true;
+  } catch (error) {
+    console.error("[EMAIL] Failed to send email:", error instanceof Error ? error.message : "Unknown error");
+    transporter = null;
+    lastConfig = "";
     return false;
   }
 }
