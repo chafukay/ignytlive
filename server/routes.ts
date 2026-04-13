@@ -2606,6 +2606,7 @@ export async function registerRoutes(
     diamonds: z.number().min(0).optional(),
     level: z.number().min(1).max(100).optional(),
     isVerified: z.boolean().optional(),
+    emailVerified: z.boolean().optional(),
   });
 
   app.get("/api/admin/users", async (req, res) => {
