@@ -50,6 +50,7 @@ export async function sendVerificationEmail(toEmail: string, code: string, usern
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #0d0618; color: #ffffff;">
           <div style="text-align: center; margin-bottom: 24px;">
+            <img src="https://ignyt.replit.app/logo-ignyt.png" alt="IgnytLIVE" style="width: 80px; height: 80px; margin: 0 auto 12px auto; display: block; border-radius: 16px;" />
             <h1 style="color: #a855f7; margin: 0;">IgnytLIVE</h1>
           </div>
           <h2 style="color: #ffffff;">Verify Your Email</h2>
