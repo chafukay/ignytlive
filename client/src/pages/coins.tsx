@@ -135,7 +135,17 @@ export default function Coins() {
     },
     onSuccess: async (data) => {
       if (data.url) {
-        window.open(data.url, "_blank");
+        try {
+          const { isNative } = await import("@/lib/capacitor");
+          if (isNative()) {
+            const { Browser } = await import("@capacitor/browser");
+            await Browser.open({ url: data.url, presentationStyle: 'popover' });
+          } else {
+            window.open(data.url, "_blank");
+          }
+        } catch {
+          window.open(data.url, "_blank");
+        }
         setSelectedPackage(null);
         toast({ title: "Payment opened", description: "Complete your payment in the new tab. Your coins will appear once payment is confirmed." });
       }

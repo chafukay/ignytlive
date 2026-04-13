@@ -19,11 +19,7 @@ function authJsonHeaders(): Record<string, string> {
 
 function handleAuthError(res: Response): void {
   if (res.status === 401 && getAuthToken()) {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("verifyToken");
-    window.location.href = "/login";
+    console.warn("[Auth] Token rejected (401). User may need to re-login.");
   }
 }
 
