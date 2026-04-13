@@ -960,7 +960,8 @@ export async function registerRoutes(
         return res.status(500).send("Google Sign-In is not configured");
       }
 
-      const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/google/callback`;
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      const redirectUri = `${protocol}://${req.get("host")}/api/auth/google/callback`;
 
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -976,6 +977,7 @@ export async function registerRoutes(
 
       const tokenData = await tokenResponse.json() as any;
       if (!tokenData.id_token) {
+        console.error("[Google Auth] Token exchange failed:", JSON.stringify(tokenData));
         return res.status(401).send("Failed to get Google token");
       }
 
