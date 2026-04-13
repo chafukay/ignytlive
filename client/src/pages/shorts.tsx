@@ -174,7 +174,8 @@ export default function Shorts() {
       {user && (
         <Link href="/post-short">
           <button
-            className="fixed top-3 right-3 z-[55] flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold rounded-full shadow-lg hover:opacity-90 transition-opacity"
+            className="fixed right-3 z-[55] flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold rounded-full shadow-lg hover:opacity-90 transition-opacity"
+            style={{ top: 'calc(var(--safe-top) + 0.5rem)' }}
             data-testid="button-post-short"
           >
             <Video className="w-4 h-4" />

@@ -277,7 +277,12 @@
 :root {
   --nav-height: 4rem;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --nav-offset: calc(var(--nav-height) + var(--safe-bottom));
+}
+
+.safe-area-top {
+  padding-top: var(--safe-top);
 }
 @media (min-width: 768px) {
   :root {
