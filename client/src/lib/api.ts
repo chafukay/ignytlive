@@ -17,6 +17,16 @@ function authJsonHeaders(): Record<string, string> {
   return authHeaders({ "Content-Type": "application/json" });
 }
 
+function handleAuthError(res: Response): void {
+  if (res.status === 401 && getAuthToken()) {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("verifyToken");
+    window.location.href = "/login";
+  }
+}
+
 export const api = {
   // Auth
   async register(username: string, email: string, password: string, birthdate?: string) {
@@ -370,7 +380,7 @@ export const api = {
       headers: authJsonHeaders(),
       body: JSON.stringify({ userId, content, parentId }),
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) { handleAuthError(res); throw new Error(await res.text()); }
     return res.json();
   },
 
@@ -380,7 +390,7 @@ export const api = {
       headers: authJsonHeaders(),
       body: JSON.stringify({ userId }),
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) { handleAuthError(res); throw new Error(await res.text()); }
     return res.json();
   },
 
@@ -390,8 +400,7 @@ export const api = {
       headers: authJsonHeaders(),
       body: JSON.stringify({ userId, reaction }),
     });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
+    if (!res.ok) { handleAuthError(res); throw new Error(await res.text()); }
   },
 
   async removeCommentReaction(commentId: string, userId: string) {
