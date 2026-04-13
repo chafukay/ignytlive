@@ -174,10 +174,11 @@ export default function Shorts() {
       {user && (
         <Link href="/post-short">
           <button
-            className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold rounded-full shadow-lg hover:opacity-90 transition-opacity"
+            className="absolute top-2 right-3 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold rounded-full shadow-lg hover:opacity-90 transition-opacity"
+            style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
             data-testid="button-post-short"
           >
-            <Video className="w-5 h-5" />
+            <Video className="w-4 h-4" />
             <span>Post Short</span>
           </button>
         </Link>
