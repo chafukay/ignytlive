@@ -666,10 +666,16 @@ export async function registerRoutes(
   app.post("/api/auth/send-email-verification", async (req, res) => {
     try {
       const { userId, verifyToken } = req.body;
-      if (!userId || !verifyToken) return res.status(400).json({ error: "User ID and verification token required" });
-      
-      const tokenData = validateVerifyToken(verifyToken);
-      if (!tokenData || tokenData.userId !== userId) {
+      if (!userId) return res.status(400).json({ error: "User ID required" });
+
+      const authUserId = extractAuthUserId(req);
+      let verified = false;
+      if (verifyToken) {
+        const tokenData = validateVerifyToken(verifyToken);
+        if (tokenData && tokenData.userId === userId) verified = true;
+      }
+      if (!verified && authUserId === userId) verified = true;
+      if (!verified) {
         return res.status(403).json({ error: "Invalid or expired verification session" });
       }
       
@@ -712,10 +718,16 @@ export async function registerRoutes(
   app.post("/api/auth/verify-email", async (req, res) => {
     try {
       const { userId, code, verifyToken } = req.body;
-      if (!userId || !code || !verifyToken) return res.status(400).json({ error: "User ID, code, and verification token required" });
-      
-      const tokenData = validateVerifyToken(verifyToken);
-      if (!tokenData || tokenData.userId !== userId) {
+      if (!userId || !code) return res.status(400).json({ error: "User ID and code required" });
+
+      const authUserId = extractAuthUserId(req);
+      let authVerified = false;
+      if (verifyToken) {
+        const tokenData = validateVerifyToken(verifyToken);
+        if (tokenData && tokenData.userId === userId) authVerified = true;
+      }
+      if (!authVerified && authUserId === userId) authVerified = true;
+      if (!authVerified) {
         return res.status(403).json({ error: "Invalid or expired verification session" });
       }
       

@@ -73,9 +73,12 @@ export const api = {
   },
 
   async sendEmailVerification(userId: string, verifyToken: string) {
+    const token = localStorage.getItem("token");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch(`${API_BASE}/api/auth/send-email-verification`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ userId, verifyToken }),
     });
     if (!res.ok) {
@@ -86,9 +89,12 @@ export const api = {
   },
 
   async verifyEmail(userId: string, code: string, verifyToken: string) {
+    const token = localStorage.getItem("token");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch(`${API_BASE}/api/auth/verify-email`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ userId, code, verifyToken }),
     });
     if (!res.ok) {
