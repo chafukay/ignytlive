@@ -1,57 +1,22 @@
+import type {
+  PurchasesPlugin,
+  PurchasesOfferings,
+  PurchasesPackage,
+  PurchasesStoreProduct,
+  PurchasesStoreTransaction,
+  CustomerInfo,
+} from "@revenuecat/purchases-capacitor";
 import { isNative, getPlatform } from "./capacitor";
 
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;
-
-interface PurchasesAPI {
-  configure(config: { apiKey: string; appUserID?: string }): Promise<void>;
-  logIn(config: { appUserID: string }): Promise<void>;
-  logOut(): Promise<void>;
-  getOfferings(): Promise<RevenueCatOfferings>;
-  purchasePackage(config: { aPackage: RevenueCatPackage }): Promise<{ customerInfo: RevenueCatCustomerInfo }>;
-}
-
-let PurchasesModule: PurchasesAPI | null = null;
-
-export interface RevenueCatTransaction {
-  transactionIdentifier: string;
-  productIdentifier: string;
-  purchaseDate: string;
-}
-
-export interface RevenueCatCustomerInfo {
-  originalAppUserId: string;
-  nonSubscriptionTransactions: RevenueCatTransaction[];
-}
-
-export interface RevenueCatProduct {
-  identifier: string;
-  priceString: string;
-  price: number;
-  currencyCode: string;
-}
-
-export interface RevenueCatPackage {
-  identifier: string;
-  product: RevenueCatProduct;
-  packageType: string;
-}
-
-export interface RevenueCatOfferings {
-  current?: {
-    identifier: string;
-    availablePackages: RevenueCatPackage[];
-  } | null;
-}
+let PurchasesModule: PurchasesPlugin | null = null;
 
 async function loadPurchasesModule(): Promise<boolean> {
   if (PurchasesModule) return true;
   try {
-    // @revenuecat/purchases-capacitor is installed as part of the native build process
-    // (npm install --legacy-peer-deps in the local Android/iOS build environment).
-    // On web, this import fails gracefully — native IAP is only available on device.
     const mod = await import("@revenuecat/purchases-capacitor");
-    PurchasesModule = mod.Purchases as unknown as PurchasesAPI;
+    PurchasesModule = mod.Purchases;
     return true;
   } catch {
     console.warn("[RevenueCat] Plugin not available (expected on web)");
@@ -127,7 +92,7 @@ export interface NativeCoinPackage {
   currencyCode: string;
   coins: number;
   label: string | null;
-  rcPackage: RevenueCatPackage;
+  rcPackage: PurchasesPackage;
 }
 
 export async function getOfferings(): Promise<NativeCoinPackage[]> {
@@ -138,15 +103,15 @@ export async function getOfferings(): Promise<NativeCoinPackage[]> {
   if (!isInitialized || !PurchasesModule) return [];
 
   try {
-    const offerings: RevenueCatOfferings = await PurchasesModule.getOfferings();
+    const offerings: PurchasesOfferings = await PurchasesModule.getOfferings();
 
     if (!offerings.current || !offerings.current.availablePackages) {
       console.warn("[RevenueCat] No current offering found");
       return [];
     }
 
-    return offerings.current.availablePackages.map((pkg: RevenueCatPackage) => {
-      const product = pkg.product;
+    return offerings.current.availablePackages.map((pkg: PurchasesPackage) => {
+      const product: PurchasesStoreProduct = pkg.product;
       const identifier = product.identifier || "";
       const coinsMatch = identifier.match(/(\d+)_coins/);
       const coins = coinsMatch ? parseInt(coinsMatch[1]) : 0;
@@ -176,7 +141,7 @@ export interface PurchaseResult {
 }
 
 export async function purchasePackage(
-  rcPackage: RevenueCatPackage
+  rcPackage: PurchasesPackage
 ): Promise<PurchaseResult> {
   if (!isNative()) {
     return { success: false, error: "Not on native platform" };
@@ -189,14 +154,15 @@ export async function purchasePackage(
   }
 
   try {
-    const result: { customerInfo: RevenueCatCustomerInfo } =
-      await PurchasesModule.purchasePackage({ aPackage: rcPackage });
+    const result = await PurchasesModule.purchasePackage({ aPackage: rcPackage });
 
+    const customerInfo: CustomerInfo = result.customerInfo;
     const targetProductId = rcPackage.product?.identifier;
-    const nonSubTransactions = result.customerInfo?.nonSubscriptionTransactions || [];
+    const nonSubTransactions: PurchasesStoreTransaction[] =
+      customerInfo?.nonSubscriptionTransactions || [];
     const matchingTxn = nonSubTransactions
-      .filter((t: RevenueCatTransaction) => t.productIdentifier === targetProductId)
-      .sort((a: RevenueCatTransaction, b: RevenueCatTransaction) => {
+      .filter((t) => t.productIdentifier === targetProductId)
+      .sort((a, b) => {
         const dateA = a.purchaseDate ? new Date(a.purchaseDate).getTime() : 0;
         const dateB = b.purchaseDate ? new Date(b.purchaseDate).getTime() : 0;
         return dateB - dateA;
