@@ -1001,13 +1001,17 @@ export async function registerRoutes(
         if (user.socialProvider === "google" && user.socialProviderId && user.socialProviderId !== googleId) {
           return res.status(401).send("Account mismatch");
         }
+        const updates: any = {};
         if (!user.socialProvider) {
-          await storage.updateUser(user.id, {
-            socialProvider: "google",
-            socialProviderId: googleId,
-            emailVerified: true,
-            avatar: user.avatar || avatar,
-          });
+          updates.socialProvider = "google";
+          updates.socialProviderId = googleId;
+          updates.emailVerified = true;
+        }
+        if (!user.avatar && avatar) {
+          updates.avatar = avatar;
+        }
+        if (Object.keys(updates).length > 0) {
+          await storage.updateUser(user.id, updates);
           user = (await storage.getUser(user.id))!;
         }
       } else {
