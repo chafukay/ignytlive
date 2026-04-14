@@ -64,7 +64,11 @@ export async function initRevenueCat(userId?: string): Promise<void> {
 }
 
 export async function waitForInit(): Promise<void> {
-  if (initPromise) await initPromise;
+  if (initPromise) {
+    await initPromise;
+  } else if (isNative() && !isInitialized) {
+    await initRevenueCat();
+  }
 }
 
 export async function identifyUser(userId: string): Promise<void> {

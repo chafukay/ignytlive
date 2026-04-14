@@ -3924,6 +3924,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Transaction not found. If you were charged, contact support." });
       }
 
+      if (productId !== verifiedProductId) {
+        console.warn(`[NativePurchase] Product ID mismatch: client=${productId}, verified=${verifiedProductId}, user=${userId}, txn=${transactionId}`);
+      }
+
       let coinCount = PRODUCT_COIN_MAP[verifiedProductId];
       if (!coinCount) {
         const match = verifiedProductId.match(/(\d+)_coins/);
