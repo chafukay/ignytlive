@@ -114,6 +114,11 @@ function PushInit() {
   useEffect(() => {
     if (user?.id && !user.isGuest) {
       initPushNotifications(user.id).catch(() => {});
+      if (isNative()) {
+        import("@/lib/revenuecat").then(({ initRevenueCat, identifyUser }) => {
+          initRevenueCat(String(user.id)).then(() => identifyUser(String(user.id)));
+        }).catch(() => {});
+      }
     }
   }, [user?.id]);
   return null;

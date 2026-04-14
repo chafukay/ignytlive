@@ -3854,6 +3854,155 @@ export async function registerRoutes(
   });
 
 
+  const PRODUCT_COIN_MAP: Record<string, number> = {};
+  (async () => {
+    try {
+      const pkgs = await storage.getActiveCoinPackages();
+      for (const pkg of pkgs) {
+        PRODUCT_COIN_MAP[`${pkg.coins}_coins`] = pkg.coins;
+      }
+    } catch {}
+  })();
+
+  app.post("/api/coins/native-purchase", async (req, res) => {
+    try {
+      const authUserId = await requireAuth(req, res);
+      if (!authUserId) return;
+
+      const { userId, productId, transactionId } = req.body;
+
+      if (!userId || !productId || !transactionId) {
+        return res.status(400).json({ error: "userId, productId, and transactionId are required" });
+      }
+
+      if (userId !== authUserId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      const existingPurchase = await storage.findPurchaseByStripeSessionId(`rc_${transactionId}`);
+      if (existingPurchase) {
+        const user = await storage.getUser(userId);
+        return res.json({ alreadyCredited: true, user: toSafeUser(user) });
+      }
+
+      const rcApiKey = process.env.REVENUECAT_API_KEY;
+      if (!rcApiKey) {
+        return res.status(503).json({ error: "Native purchases are not configured. Contact support." });
+      }
+
+      let verifiedProductId: string | null = null;
+      try {
+        const rcResponse = await fetch(`https://api.revenuecat.com/v1/subscribers/${userId}`, {
+          headers: {
+            "Authorization": `Bearer ${rcApiKey}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!rcResponse.ok) {
+          console.error(`[NativePurchase] RevenueCat API returned ${rcResponse.status}`);
+          return res.status(502).json({ error: "Purchase verification failed. Please try again." });
+        }
+        const rcData = await rcResponse.json() as any;
+        const purchases = rcData?.subscriber?.non_subscriptions || {};
+        for (const [prodId, transactions] of Object.entries(purchases)) {
+          const txns = transactions as any[];
+          const found = txns.some((t: any) => t.id === transactionId || t.store_transaction_id === transactionId);
+          if (found) {
+            verifiedProductId = prodId;
+            break;
+          }
+        }
+      } catch (rcErr) {
+        console.error("[NativePurchase] RevenueCat verification error:", rcErr);
+        return res.status(502).json({ error: "Purchase verification failed. Please try again." });
+      }
+
+      if (!verifiedProductId) {
+        console.warn(`[NativePurchase] Transaction ${transactionId} not found in RevenueCat for user ${userId}`);
+        return res.status(400).json({ error: "Transaction not found. If you were charged, contact support." });
+      }
+
+      let coinCount = PRODUCT_COIN_MAP[verifiedProductId];
+      if (!coinCount) {
+        const match = verifiedProductId.match(/(\d+)_coins/);
+        coinCount = match ? parseInt(match[1]) : 0;
+      }
+      if (!coinCount || coinCount <= 0) {
+        console.error(`[NativePurchase] Unknown product: ${verifiedProductId}`);
+        return res.status(400).json({ error: "Unknown product. Contact support." });
+      }
+
+      const result = await storage.purchaseCoins(
+        userId,
+        coinCount,
+        0,
+        `rc_${transactionId}`
+      );
+
+      console.log(`[NativePurchase] Credited ${result.purchase.totalCoins} coins to user ${userId} (product: ${verifiedProductId}, txn: ${transactionId})`);
+
+      res.json({
+        alreadyCredited: false,
+        purchase: result.purchase,
+        user: toSafeUser(result.user),
+        bonusApplied: result.bonusApplied,
+        bonusCoins: result.bonusCoins,
+      });
+    } catch (error) {
+      console.error("Native purchase error:", error);
+      res.status(500).json({ error: "Failed to process native purchase" });
+    }
+  });
+
+  app.post("/api/revenuecat/webhook", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const webhookSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
+
+      if (!webhookSecret) {
+        return res.status(503).json({ error: "Webhook not configured" });
+      }
+
+      if (authHeader !== `Bearer ${webhookSecret}`) {
+        return res.status(401).json({ error: "Invalid webhook authorization" });
+      }
+
+      const event = req.body;
+      const eventType = event?.event?.type;
+
+      if (!eventType) {
+        return res.status(400).json({ error: "Invalid event format" });
+      }
+
+      console.log(`[RevenueCat Webhook] Event: ${eventType}`);
+
+      if (eventType === "NON_RENEWING_PURCHASE" || eventType === "INITIAL_PURCHASE") {
+        const appUserId = event.event?.app_user_id;
+        const productId = event.event?.product_id;
+        const transactionId = event.event?.transaction_id || event.event?.id;
+
+        if (appUserId && productId && transactionId) {
+          const coinsMatch = productId.match(/(\d+)_coins/);
+          const coins = coinsMatch ? parseInt(coinsMatch[1]) : 0;
+
+          if (coins > 0) {
+            const rcKey = `rc_${transactionId}`;
+            const existing = await storage.findPurchaseByStripeSessionId(rcKey);
+            if (!existing) {
+              const result = await storage.purchaseCoins(appUserId, coins, 0, rcKey);
+              console.log(`[RevenueCat Webhook] Credited ${result.purchase.totalCoins} coins to user ${appUserId}`);
+            }
+          }
+        }
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("RevenueCat webhook error:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
   // Coin Purchase - history
   app.get("/api/coins/purchases/:userId", async (req, res) => {
     try {

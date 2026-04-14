@@ -1,13 +1,13 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { X, Check, Sparkles, Gift, CreditCard, Loader2 } from "lucide-react";
+import { X, Check, Sparkles, Gift, CreditCard, Loader2, Smartphone } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { getServerUrl } from "@/lib/capacitor";
+import { getServerUrl, isNative } from "@/lib/capacitor";
 
 interface CoinPackageAPI {
   id: number;
@@ -41,6 +41,9 @@ export default function Coins() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastPurchase, setLastPurchase] = useState<{ totalCoins: number; bonusCoins: number } | null>(null);
   const [verifyingSession, setVerifyingSession] = useState(false);
+  const [nativePurchasing, setNativePurchasing] = useState(false);
+
+  const useNativePurchase = isNative();
 
   const { data: packages = [], isLoading: packagesLoading } = useQuery<CoinPackageAPI[]>({
     queryKey: ['coin-packages'],
@@ -156,15 +159,109 @@ export default function Coins() {
     },
   });
 
+  const handleNativePurchase = async (pkg: CoinPackageAPI) => {
+    if (!user?.id) return;
+    setNativePurchasing(true);
+
+    try {
+      const { isRevenueCatAvailable, getOfferings, purchasePackage } = await import("@/lib/revenuecat");
+
+      if (!isRevenueCatAvailable()) {
+        toast({ title: "Store not available", description: "In-app purchases are not configured yet. Please try again later.", variant: "destructive" });
+        setSelectedPackage(null);
+        setNativePurchasing(false);
+        return;
+      }
+
+      const offerings = await getOfferings();
+      const nativePkg = offerings.find(
+        (o) => o.coins === pkg.coins || o.identifier.includes(String(pkg.coins))
+      );
+
+      if (!nativePkg) {
+        toast({ title: "Package not available", description: "This package is not available in your store. Please try another.", variant: "destructive" });
+        setSelectedPackage(null);
+        setNativePurchasing(false);
+        return;
+      }
+
+      const result = await purchasePackage(nativePkg.rcPackage);
+
+      if (result.userCancelled) {
+        setSelectedPackage(null);
+        setNativePurchasing(false);
+        return;
+      }
+
+      if (!result.success) {
+        toast({ title: "Purchase failed", description: result.error || "Something went wrong.", variant: "destructive" });
+        setSelectedPackage(null);
+        setNativePurchasing(false);
+        return;
+      }
+
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const verifyRes = await fetch(`${getServerUrl()}/api/coins/native-purchase`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          userId: user.id,
+          productId: result.productId,
+          transactionId: result.transactionId,
+          coins: pkg.coins,
+        }),
+      });
+
+      if (!verifyRes.ok) {
+        throw new Error(await verifyRes.text());
+      }
+
+      const data = await verifyRes.json();
+
+      if (data.user) {
+        login(data.user);
+      }
+
+      if (!data.alreadyCredited && data.purchase) {
+        setLastPurchase({
+          totalCoins: data.purchase.totalCoins,
+          bonusCoins: data.purchase.bonusCoins || 0,
+        });
+        setShowSuccess(true);
+        queryClient.invalidateQueries({ queryKey: ['firstPurchase'] });
+        setTimeout(() => setShowSuccess(false), 4000);
+      } else if (data.alreadyCredited) {
+        toast({ title: "Coins already credited", description: "This purchase was already processed." });
+      }
+
+      setSelectedPackage(null);
+    } catch (error: any) {
+      console.error("[NativePurchase] Error:", error);
+      toast({ title: "Purchase failed", description: "Something went wrong. If you were charged, your coins will be credited shortly.", variant: "destructive" });
+      setSelectedPackage(null);
+    } finally {
+      setNativePurchasing(false);
+    }
+  };
+
   const handleBuy = (pkg: CoinPackageAPI) => {
     setSelectedPackage(pkg);
   };
 
   const confirmPurchase = () => {
-    if (selectedPackage) {
+    if (!selectedPackage) return;
+
+    if (useNativePurchase) {
+      handleNativePurchase(selectedPackage);
+    } else {
       checkoutMutation.mutate(selectedPackage);
     }
   };
+
+  const isPurchasing = checkoutMutation.isPending || nativePurchasing;
 
   const bonusCoins = selectedPackage ? Math.floor(selectedPackage.coins * 0.5) : 0;
   const effectivePrice = selectedPackage ? (selectedPackage.effectivePriceCents / 100).toFixed(2) : "0";
@@ -299,8 +396,17 @@ export default function Coins() {
 
           <section className="pb-4">
             <div className="flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-              <CreditCard className="w-4 h-4" />
-              <span>Secure payments powered by Stripe</span>
+              {useNativePurchase ? (
+                <>
+                  <Smartphone className="w-4 h-4" />
+                  <span>Secure in-app purchases</span>
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4" />
+                  <span>Secure payments powered by Stripe</span>
+                </>
+              )}
             </div>
           </section>
         </div>
@@ -308,7 +414,7 @@ export default function Coins() {
       </div>
 
       {selectedPackage && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => !checkoutMutation.isPending && setSelectedPackage(null)}>
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => !isPurchasing && setSelectedPackage(null)}>
           <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-4">Confirm Purchase</h3>
 
@@ -340,14 +446,23 @@ export default function Coins() {
             </div>
 
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-              <CreditCard className="w-4 h-4 shrink-0" />
-              <span>You'll be redirected to Stripe for secure payment</span>
+              {useNativePurchase ? (
+                <>
+                  <Smartphone className="w-4 h-4 shrink-0" />
+                  <span>Purchase through your device's app store</span>
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4 shrink-0" />
+                  <span>You'll be redirected to Stripe for secure payment</span>
+                </>
+              )}
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => setSelectedPackage(null)}
-                disabled={checkoutMutation.isPending}
+                disabled={isPurchasing}
                 className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 data-testid="button-cancel-purchase"
               >
@@ -355,12 +470,14 @@ export default function Coins() {
               </button>
               <button
                 onClick={confirmPurchase}
-                disabled={checkoutMutation.isPending}
+                disabled={isPurchasing}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                 data-testid="button-confirm-purchase"
               >
-                {checkoutMutation.isPending ? (
+                {isPurchasing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
+                ) : useNativePurchase ? (
+                  <>Buy Now</>
                 ) : (
                   <>Pay ${effectivePrice}</>
                 )}

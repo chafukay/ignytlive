@@ -49,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **User Control**: Block, report, and mute specific users.
 - **Private Video Calls**: Agora integration for 1:1 video/audio calls with per-minute or per-session billing.
 - **Families (Social Groups)**: User-creatable groups with roles (Owner, Admin, Member), membership management, group chat, and leaderboards.
-- **Coin Purchase System**: Stripe Checkout integration for purchasing virtual currency with first-purchase bonuses and webhook verification.
+- **Coin Purchase System**: Platform-aware purchasing — Stripe Checkout on web, RevenueCat native IAP on Android/iOS. First-purchase 50% bonus applies on all platforms. DB-driven coin packages with admin-configurable pricing.
 - **Notification System**: In-app notifications for follows, gifts, call requests, and system messages, with unread counts and read/unread management.
 - **Admin Panel**: Separate application (`/admin`) with its own authentication (`admin_users` table), for managing users, viewing reports, and monitoring platform statistics.
 - **Event Scheduling**: Users can create, manage, and RSVP to scheduled events with categories, calendar views, and integrated authorization.
@@ -105,7 +105,8 @@ Preferred communication style: Simple, everyday language.
 ### Services
 - **Firebase Cloud Messaging (FCM)**: Push notifications for web and native. Client SDK (`firebase`) for token acquisition, Firebase Admin SDK (`firebase-admin`) for server-side delivery. Service worker: `client/public/firebase-messaging-sw.js`. Client config: `client/src/lib/firebase.ts`. Server: `server/push-service.ts`. FCM tokens stored in `native_push_tokens` table. Env vars: `VITE_FIREBASE_*` (client config), `FIREBASE_SERVICE_ACCOUNT_KEY` (server, JSON string of service account). Also retains Web Push (VAPID) as fallback.
 - **Agora**: For private video/audio calls.
-- **Stripe**: For processing coin purchases.
+- **Stripe**: For processing coin purchases (web).
+- **RevenueCat** (`@revenuecat/purchases-capacitor`): Native in-app purchases for Android (Google Play Billing) and iOS (Apple IAP). Client lib: `client/src/lib/revenuecat.ts`. Initialized on native app startup after login. SDK configured with platform-specific API keys (`VITE_REVENUECAT_IOS_KEY`, `VITE_REVENUECAT_ANDROID_KEY`). Server-side validation via `POST /api/coins/native-purchase` with optional RevenueCat REST API verification (`REVENUECAT_API_KEY`). Webhook endpoint: `POST /api/revenuecat/webhook` (secured with `REVENUECAT_WEBHOOK_SECRET`). Product identifiers follow `{coins}_coins` pattern (e.g., `500_coins`, `1000_coins`). Purchases stored in `coin_purchases` table with `rc_` prefixed transaction IDs.
 - **Twilio**: For SMS verification (phone number login).
 - **MyMemory API**: For message translation.
 - **bcryptjs**: For admin password hashing.
