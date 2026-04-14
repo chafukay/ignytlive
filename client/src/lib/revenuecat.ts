@@ -1,6 +1,7 @@
 import { isNative, getPlatform } from "./capacitor";
 
 let isInitialized = false;
+let initPromise: Promise<void> | null = null;
 
 interface PurchasesAPI {
   configure(config: { apiKey: string; appUserID?: string }): Promise<void>;
@@ -59,33 +60,46 @@ async function loadPurchasesModule(): Promise<boolean> {
 }
 
 export async function initRevenueCat(userId?: string): Promise<void> {
-  if (!isNative() || isInitialized) return;
-
-  const loaded = await loadPurchasesModule();
-  if (!loaded) return;
-
-  try {
-    const platform = getPlatform();
-    const apiKey =
-      platform === "ios"
-        ? import.meta.env.VITE_REVENUECAT_IOS_KEY
-        : import.meta.env.VITE_REVENUECAT_ANDROID_KEY;
-
-    if (!apiKey) {
-      console.warn("[RevenueCat] No API key configured for platform:", platform);
-      return;
-    }
-
-    await PurchasesModule.configure({
-      apiKey,
-      appUserID: userId || undefined,
-    });
-
-    isInitialized = true;
-    console.log("[RevenueCat] Initialized for", platform);
-  } catch (e) {
-    console.error("[RevenueCat] Init failed:", e);
+  if (!isNative()) return;
+  if (isInitialized) return;
+  if (initPromise) {
+    await initPromise;
+    return;
   }
+
+  initPromise = (async () => {
+    const loaded = await loadPurchasesModule();
+    if (!loaded) return;
+
+    try {
+      const platform = getPlatform();
+      const apiKey =
+        platform === "ios"
+          ? import.meta.env.VITE_REVENUECAT_IOS_KEY
+          : import.meta.env.VITE_REVENUECAT_ANDROID_KEY;
+
+      if (!apiKey) {
+        console.warn("[RevenueCat] No API key configured for platform:", platform);
+        return;
+      }
+
+      await PurchasesModule!.configure({
+        apiKey,
+        appUserID: userId || undefined,
+      });
+
+      isInitialized = true;
+      console.log("[RevenueCat] Initialized for", platform);
+    } catch (e) {
+      console.error("[RevenueCat] Init failed:", e);
+    }
+  })();
+
+  await initPromise;
+}
+
+export async function waitForInit(): Promise<void> {
+  if (initPromise) await initPromise;
 }
 
 export async function identifyUser(userId: string): Promise<void> {
@@ -117,7 +131,11 @@ export interface NativeCoinPackage {
 }
 
 export async function getOfferings(): Promise<NativeCoinPackage[]> {
-  if (!isNative() || !isInitialized || !PurchasesModule) return [];
+  if (!isNative()) return [];
+
+  await waitForInit();
+
+  if (!isInitialized || !PurchasesModule) return [];
 
   try {
     const offerings: RevenueCatOfferings = await PurchasesModule.getOfferings();
@@ -160,7 +178,13 @@ export interface PurchaseResult {
 export async function purchasePackage(
   rcPackage: RevenueCatPackage
 ): Promise<PurchaseResult> {
-  if (!isNative() || !isInitialized || !PurchasesModule) {
+  if (!isNative()) {
+    return { success: false, error: "Not on native platform" };
+  }
+
+  await waitForInit();
+
+  if (!isInitialized || !PurchasesModule) {
     return { success: false, error: "RevenueCat not initialized" };
   }
 

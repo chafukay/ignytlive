@@ -70,12 +70,13 @@ export default function Coins() {
   const { data: nativeOfferings = [], isLoading: nativeLoading } = useQuery<NativeCoinPackage[]>({
     queryKey: ['native-offerings'],
     queryFn: async () => {
-      const { getOfferings, isRevenueCatAvailable } = await import("@/lib/revenuecat");
-      if (!isRevenueCatAvailable()) return [];
+      const { getOfferings, waitForInit } = await import("@/lib/revenuecat");
+      await waitForInit();
       return getOfferings();
     },
     enabled: useNativePurchase,
-    retry: false,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   const nativeStoreReady = useNativePurchase && nativeOfferings.length > 0;
