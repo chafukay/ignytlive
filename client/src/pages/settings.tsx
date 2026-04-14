@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check, Globe, Trash2, AlertTriangle } from "lucide-react";
+import { ChevronRight, User, Bell, Lock, Moon, Sun, HelpCircle, Info, Video, Coins, X, Check, Globe, Trash2, AlertTriangle, Fingerprint } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useState, useEffect, type ReactNode } from "react";
@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme-context";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-notifications";
+import { isNative } from "@/lib/capacitor";
+import { isBiometricAvailable, isBiometricEnabled, saveBiometricCredentials, clearBiometricCredentials, getBiometryType } from "@/lib/biometric-auth";
+import { getAuthToken } from "@/lib/auth-context";
 import type { User as UserType } from "@shared/schema";
 
 const LANGUAGES = [
@@ -54,6 +57,37 @@ export default function Settings() {
   
   const [availableForPrivateCall, setAvailableForPrivateCall] = useState(user?.availableForPrivateCall || false);
   const [privateCallRate, setPrivateCallRate] = useState(user?.privateCallRate || 50);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricOn, setBiometricOn] = useState(isBiometricEnabled());
+  const [biometricLabel, setBiometricLabel] = useState("Biometric Login");
+
+  useEffect(() => {
+    if (isNative()) {
+      isBiometricAvailable().then((avail) => {
+        setBiometricSupported(avail);
+        if (avail) {
+          getBiometryType().then((type) => {
+            setBiometricLabel(type === "face" ? "Face ID Login" : type === "fingerprint" ? "Fingerprint Login" : "Biometric Login");
+          });
+        }
+      });
+    }
+  }, []);
+
+  const handleBiometricToggle = () => {
+    if (biometricOn) {
+      clearBiometricCredentials();
+      setBiometricOn(false);
+      toast({ title: "Quick login disabled" });
+    } else {
+      const token = getAuthToken();
+      if (token && user) {
+        saveBiometricCredentials(token, user);
+        setBiometricOn(true);
+        toast({ title: "Quick login enabled!", description: "You can now sign in with biometrics" });
+      }
+    }
+  };
   const [billingMode, setBillingMode] = useState(user?.privateCallBillingMode || "per_minute");
   const [sessionPrice, setSessionPrice] = useState(user?.privateCallSessionPrice || 500);
   const [showCallSettings, setShowCallSettings] = useState(false);
@@ -177,6 +211,7 @@ export default function Settings() {
   }> = [
     { icon: User, label: "Edit Profile", href: "/edit-profile" },
     { icon: Bell, label: "Notifications", toggle: true, value: notificationSettings.pushEnabled, onChange: handleNotificationToggle, testId: "toggle-notifications" },
+    ...(biometricSupported ? [{ icon: Fingerprint, label: biometricLabel, toggle: true as const, value: biometricOn, onChange: handleBiometricToggle, testId: "toggle-biometric" }] : []),
     { icon: Lock, label: "Privacy", href: "/privacy-settings" },
     { icon: Globe, label: "Language", extra: <span className="flex items-center gap-2 text-muted-foreground">{currentLanguage.flag} {currentLanguage.name}</span>, onClick: () => setShowLanguageModal(true), testId: "button-language" },
     { icon: theme === "dark" ? Moon : Sun, label: "Dark Mode", toggle: true, value: theme === "dark", onChange: handleThemeToggle, isTheme: true, testId: "toggle-dark-mode" },

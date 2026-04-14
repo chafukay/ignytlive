@@ -1,12 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Phone, ArrowLeft, User, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, Phone, ArrowLeft, User, AlertTriangle, Fingerprint } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleLogin } from "@react-oauth/google";
 import { isNative } from "@/lib/capacitor";
+import {
+  isBiometricAvailable,
+  isBiometricEnabled,
+  saveBiometricCredentials,
+  getSavedCredentials,
+  authenticateWithBiometric,
+  getBiometryType,
+} from "@/lib/biometric-auth";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -22,6 +30,66 @@ export default function Login() {
   const [guestUsername, setGuestUsername] = useState("");
   const [guestBirthdate, setGuestBirthdate] = useState("");
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricType, setBiometricType] = useState("biometric");
+  const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
+  const [pendingLoginData, setPendingLoginData] = useState<{ user: any; token: string } | null>(null);
+
+  useEffect(() => {
+    if (isNative()) {
+      isBiometricAvailable().then(setBiometricAvailable);
+      getBiometryType().then(setBiometricType);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isNative() && isBiometricEnabled() && biometricAvailable) {
+      handleBiometricLogin();
+    }
+  }, [biometricAvailable]);
+
+  const handleBiometricLogin = async () => {
+    const creds = getSavedCredentials();
+    if (!creds) return;
+    setIsLoading(true);
+    try {
+      const passed = await authenticateWithBiometric();
+      if (passed) {
+        login(creds.user, creds.token);
+        toast({ title: `Welcome back, ${creds.user.username}!` });
+        setLocation("/");
+      }
+    } catch {
+      toast({ title: "Biometric login failed", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const promptBiometricSetup = (user: any, token: string) => {
+    if (isNative() && biometricAvailable && !isBiometricEnabled()) {
+      setPendingLoginData({ user, token });
+      setShowBiometricPrompt(true);
+    } else {
+      setLocation("/");
+    }
+  };
+
+  const handleEnableBiometric = () => {
+    if (pendingLoginData) {
+      saveBiometricCredentials(pendingLoginData.token, pendingLoginData.user);
+      toast({ title: "Quick login enabled!", description: `You can now use ${biometricType === "face" ? "Face ID" : biometricType === "fingerprint" ? "fingerprint" : "biometrics"} to sign in` });
+    }
+    setShowBiometricPrompt(false);
+    setPendingLoginData(null);
+    setLocation("/");
+  };
+
+  const handleSkipBiometric = () => {
+    setShowBiometricPrompt(false);
+    setPendingLoginData(null);
+    setLocation("/");
+  };
 
   const handleNativeGoogleSignIn = async () => {
     setIsLoading(true);
@@ -61,7 +129,7 @@ export default function Login() {
             } else {
               toast({ title: `Welcome, ${user.username}!` });
             }
-            setLocation("/");
+            promptBiometricSetup(user, token);
           }
         } catch (err) {
           toast({ title: "Google sign in failed", description: "Could not parse response", variant: "destructive" });
@@ -89,7 +157,7 @@ export default function Login() {
       } else {
         toast({ title: `Welcome, ${result.user.username}!` });
       }
-      setLocation("/");
+      promptBiometricSetup(result.user, result.token);
     } catch (error: any) {
       toast({ title: "Google sign in failed", description: error?.message || "Please try again", variant: "destructive" });
     } finally {
@@ -114,7 +182,7 @@ export default function Login() {
         localStorage.setItem("verifyToken", result.verifyToken);
       }
       toast({ title: `Welcome back, ${result.user.username}!` });
-      setLocation("/");
+      promptBiometricSetup(result.user, result.token);
     } catch (error: any) {
       toast({ title: "Login failed", description: error?.message || "Please check your username and password", variant: "destructive" });
     } finally {
@@ -151,7 +219,7 @@ export default function Login() {
       const result = await api.verifyPhoneCode(phone, verificationCode);
       login(result.user, result.token);
       toast({ title: `Welcome, ${result.user.username}!` });
-      setLocation("/");
+      promptBiometricSetup(result.user, result.token);
     } catch (error) {
       toast({ title: "Invalid code", description: "Please check the code and try again", variant: "destructive" });
     } finally {
@@ -386,6 +454,39 @@ export default function Login() {
     );
   }
 
+  if (showBiometricPrompt) {
+    const biometricLabel = biometricType === "face" ? "Face ID" : biometricType === "fingerprint" ? "Fingerprint" : "Biometric Login";
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#1a0a2e] via-[#16082a] to-[#0d0015] flex flex-col items-center justify-center p-6">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-sm text-center">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-primary to-pink-500 flex items-center justify-center mx-auto mb-6">
+            <Fingerprint className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Enable Quick Login?</h2>
+          <p className="text-white/50 text-sm mb-8">
+            Use {biometricLabel} to sign in instantly next time — no password needed.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={handleEnableBiometric}
+              className="w-full bg-gradient-to-r from-primary to-pink-500 text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity"
+              data-testid="button-enable-biometric"
+            >
+              Enable {biometricLabel}
+            </button>
+            <button
+              onClick={handleSkipBiometric}
+              className="w-full text-white/50 hover:text-white text-sm py-3 transition-colors"
+              data-testid="button-skip-biometric"
+            >
+              Not now
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   return (
@@ -437,6 +538,18 @@ export default function Login() {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
             Continue with Google
+          </button>
+        )}
+
+        {isNative() && biometricAvailable && isBiometricEnabled() && (
+          <button
+            onClick={handleBiometricLogin}
+            disabled={isLoading}
+            className="w-full bg-gradient-to-r from-primary to-pink-500 text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-3"
+            data-testid="button-login-biometric"
+          >
+            <Fingerprint className="w-5 h-5" />
+            {biometricType === "face" ? "Sign in with Face ID" : biometricType === "fingerprint" ? "Sign in with Fingerprint" : "Sign in with Biometrics"}
           </button>
         )}
 

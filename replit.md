@@ -18,7 +18,8 @@ Preferred communication style: Simple, everyday language.
 - **Animations**: Framer Motion
 - **Build Tool**: Vite
 - **Design**: Mobile-first with responsive desktop support, featuring a TikTok-inspired interface with bottom/side navigation.
-- **Native Mobile**: Capacitor integration for Android and iOS builds. Platform detection via `client/src/lib/capacitor.ts`. Native plugins: Push Notifications, Share, Camera, StatusBar, SplashScreen, Keyboard, Haptics, App (back button).
+- **Native Mobile**: Capacitor integration for Android and iOS builds. Platform detection via `client/src/lib/capacitor.ts`. Native plugins: Push Notifications, Share, Camera, StatusBar, SplashScreen, Keyboard, Haptics, App (back button), Biometric Auth.
+- **Biometric Login**: `@aparajita/capacitor-biometric-auth` for fingerprint/Face ID/PIN login on native. Utility in `client/src/lib/biometric-auth.ts`. After first successful login, user is prompted to enable quick login. Credentials stored in localStorage (token + user). Settings page has toggle to enable/disable. On login page, biometric button auto-appears if enabled. Auto-triggers biometric prompt on app open if previously enabled.
 
 ### Backend
 - **Runtime**: Node.js with Express
