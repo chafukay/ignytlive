@@ -1,13 +1,58 @@
 import { isNative, getPlatform } from "./capacitor";
 
 let isInitialized = false;
+let PurchasesModule: any = null;
+
+export interface RevenueCatTransaction {
+  transactionIdentifier: string;
+  productIdentifier: string;
+  purchaseDate: string;
+}
+
+export interface RevenueCatCustomerInfo {
+  originalAppUserId: string;
+  nonSubscriptionTransactions: RevenueCatTransaction[];
+}
+
+export interface RevenueCatProduct {
+  identifier: string;
+  priceString: string;
+  price: number;
+  currencyCode: string;
+}
+
+export interface RevenueCatPackage {
+  identifier: string;
+  product: RevenueCatProduct;
+  packageType: string;
+}
+
+export interface RevenueCatOfferings {
+  current?: {
+    identifier: string;
+    availablePackages: RevenueCatPackage[];
+  } | null;
+}
+
+async function loadPurchasesModule(): Promise<boolean> {
+  if (PurchasesModule) return true;
+  try {
+    const mod = await import("@revenuecat/purchases-capacitor");
+    PurchasesModule = mod.Purchases;
+    return true;
+  } catch {
+    console.warn("[RevenueCat] Plugin not available (expected on web)");
+    return false;
+  }
+}
 
 export async function initRevenueCat(userId?: string): Promise<void> {
   if (!isNative() || isInitialized) return;
 
-  try {
-    const { Purchases } = await import("@revenuecat/purchases-capacitor");
+  const loaded = await loadPurchasesModule();
+  if (!loaded) return;
 
+  try {
     const platform = getPlatform();
     const apiKey =
       platform === "ios"
@@ -19,7 +64,7 @@ export async function initRevenueCat(userId?: string): Promise<void> {
       return;
     }
 
-    await Purchases.configure({
+    await PurchasesModule.configure({
       apiKey,
       appUserID: userId || undefined,
     });
@@ -32,20 +77,18 @@ export async function initRevenueCat(userId?: string): Promise<void> {
 }
 
 export async function identifyUser(userId: string): Promise<void> {
-  if (!isNative() || !isInitialized) return;
+  if (!isNative() || !isInitialized || !PurchasesModule) return;
   try {
-    const { Purchases } = await import("@revenuecat/purchases-capacitor");
-    await Purchases.logIn({ appUserID: userId });
+    await PurchasesModule.logIn({ appUserID: userId });
   } catch (e) {
     console.error("[RevenueCat] Identify failed:", e);
   }
 }
 
 export async function logoutRevenueCat(): Promise<void> {
-  if (!isNative() || !isInitialized) return;
+  if (!isNative() || !isInitialized || !PurchasesModule) return;
   try {
-    const { Purchases } = await import("@revenuecat/purchases-capacitor");
-    await Purchases.logOut();
+    await PurchasesModule.logOut();
   } catch (e) {
     console.error("[RevenueCat] Logout failed:", e);
   }
@@ -58,22 +101,21 @@ export interface NativeCoinPackage {
   currencyCode: string;
   coins: number;
   label: string | null;
-  rcPackage: any;
+  rcPackage: RevenueCatPackage;
 }
 
 export async function getOfferings(): Promise<NativeCoinPackage[]> {
-  if (!isNative() || !isInitialized) return [];
+  if (!isNative() || !isInitialized || !PurchasesModule) return [];
 
   try {
-    const { Purchases } = await import("@revenuecat/purchases-capacitor");
-    const offerings = await Purchases.getOfferings();
+    const offerings: RevenueCatOfferings = await PurchasesModule.getOfferings();
 
     if (!offerings.current || !offerings.current.availablePackages) {
       console.warn("[RevenueCat] No current offering found");
       return [];
     }
 
-    return offerings.current.availablePackages.map((pkg: any) => {
+    return offerings.current.availablePackages.map((pkg: RevenueCatPackage) => {
       const product = pkg.product;
       const identifier = product.identifier || "";
       const coinsMatch = identifier.match(/(\d+)_coins/);
@@ -104,21 +146,21 @@ export interface PurchaseResult {
 }
 
 export async function purchasePackage(
-  rcPackage: any
+  rcPackage: RevenueCatPackage
 ): Promise<PurchaseResult> {
-  if (!isNative() || !isInitialized) {
+  if (!isNative() || !isInitialized || !PurchasesModule) {
     return { success: false, error: "RevenueCat not initialized" };
   }
 
   try {
-    const { Purchases } = await import("@revenuecat/purchases-capacitor");
-    const result = await Purchases.purchasePackage({ aPackage: rcPackage });
+    const result: { customerInfo: RevenueCatCustomerInfo } =
+      await PurchasesModule.purchasePackage({ aPackage: rcPackage });
 
     const targetProductId = rcPackage.product?.identifier;
     const nonSubTransactions = result.customerInfo?.nonSubscriptionTransactions || [];
     const matchingTxn = nonSubTransactions
-      .filter((t: any) => t.productIdentifier === targetProductId)
-      .sort((a: any, b: any) => {
+      .filter((t: RevenueCatTransaction) => t.productIdentifier === targetProductId)
+      .sort((a: RevenueCatTransaction, b: RevenueCatTransaction) => {
         const dateA = a.purchaseDate ? new Date(a.purchaseDate).getTime() : 0;
         const dateB = b.purchaseDate ? new Date(b.purchaseDate).getTime() : 0;
         return dateB - dateA;
@@ -135,15 +177,16 @@ export async function purchasePackage(
       transactionId,
       productId: targetProductId,
     };
-  } catch (e: any) {
-    if (e?.code === "1" || e?.userCancelled || e?.message?.includes("cancelled") || e?.message?.includes("canceled")) {
+  } catch (e: unknown) {
+    const err = e as { code?: string; userCancelled?: boolean; message?: string };
+    if (err?.code === "1" || err?.userCancelled || err?.message?.includes("cancelled") || err?.message?.includes("canceled")) {
       return { success: false, userCancelled: true, error: "Purchase cancelled" };
     }
     console.error("[RevenueCat] Purchase failed:", e);
-    return { success: false, error: e?.message || "Purchase failed" };
+    return { success: false, error: err?.message || "Purchase failed" };
   }
 }
 
 export function isRevenueCatAvailable(): boolean {
-  return isNative() && isInitialized;
+  return isNative() && isInitialized && PurchasesModule !== null;
 }

@@ -3,11 +3,11 @@ import { GuestGate } from "@/components/guest-gate";
 import { X, Check, Sparkles, Gift, CreditCard, Loader2, Smartphone } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getServerUrl, isNative } from "@/lib/capacitor";
+import type { NativeCoinPackage } from "@/lib/revenuecat";
 
 interface CoinPackageAPI {
   id: number;
@@ -20,7 +20,20 @@ interface CoinPackageAPI {
   sortOrder: number;
 }
 
-const EMOJI_MAP: Record<number, string> = {};
+interface DisplayPackage {
+  id: number | string;
+  coins: number;
+  displayPrice: string;
+  effectivePriceCents: number;
+  priceUsd: number;
+  originalPriceUsd: number | null;
+  discountPercent: number;
+  label: string | null;
+  sortOrder: number;
+  nativePackage?: NativeCoinPackage;
+  apiPackage?: CoinPackageAPI;
+}
+
 function getPackageEmoji(coins: number): string {
   if (coins >= 50000) return "\u{1F4E6}\u{1F4E6}";
   if (coins >= 15000) return "\u{1F9F1}\u{1F9F1}";
@@ -37,7 +50,7 @@ export default function Coins() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedPackage, setSelectedPackage] = useState<CoinPackageAPI | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<DisplayPackage | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastPurchase, setLastPurchase] = useState<{ totalCoins: number; bonusCoins: number } | null>(null);
   const [verifyingSession, setVerifyingSession] = useState(false);
@@ -45,7 +58,7 @@ export default function Coins() {
 
   const useNativePurchase = isNative();
 
-  const { data: packages = [], isLoading: packagesLoading } = useQuery<CoinPackageAPI[]>({
+  const { data: apiPackages = [], isLoading: packagesLoading } = useQuery<CoinPackageAPI[]>({
     queryKey: ['coin-packages'],
     queryFn: async () => {
       const res = await fetch(`${getServerUrl()}/api/coin-packages`);
@@ -53,6 +66,54 @@ export default function Coins() {
       return res.json();
     },
   });
+
+  const { data: nativeOfferings = [], isLoading: nativeLoading } = useQuery<NativeCoinPackage[]>({
+    queryKey: ['native-offerings'],
+    queryFn: async () => {
+      const { getOfferings, isRevenueCatAvailable } = await import("@/lib/revenuecat");
+      if (!isRevenueCatAvailable()) return [];
+      return getOfferings();
+    },
+    enabled: useNativePurchase,
+    retry: false,
+  });
+
+  const displayPackages: DisplayPackage[] = (() => {
+    if (useNativePurchase && nativeOfferings.length > 0) {
+      return nativeOfferings
+        .filter((np) => np.coins > 0)
+        .map((np) => {
+          const matchedApi = apiPackages.find((ap) => ap.coins === np.coins);
+          return {
+            id: np.identifier,
+            coins: np.coins,
+            displayPrice: np.localizedPriceString,
+            effectivePriceCents: Math.round(np.price * 100),
+            priceUsd: Math.round(np.price * 100),
+            originalPriceUsd: matchedApi?.originalPriceUsd ?? null,
+            discountPercent: matchedApi?.discountPercent ?? 0,
+            label: matchedApi?.label ?? np.label,
+            sortOrder: matchedApi?.sortOrder ?? 0,
+            nativePackage: np,
+            apiPackage: matchedApi,
+          };
+        })
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+
+    return apiPackages.map((ap) => ({
+      id: ap.id,
+      coins: ap.coins,
+      displayPrice: `$${(ap.effectivePriceCents / 100).toFixed(2)}`,
+      effectivePriceCents: ap.effectivePriceCents,
+      priceUsd: ap.priceUsd,
+      originalPriceUsd: ap.originalPriceUsd,
+      discountPercent: ap.discountPercent,
+      label: ap.label,
+      sortOrder: ap.sortOrder,
+      apiPackage: ap,
+    }));
+  })();
 
   const { data: firstPurchaseData } = useQuery({
     queryKey: ['firstPurchase', user?.id],
@@ -121,7 +182,8 @@ export default function Coins() {
   }, [user?.id]);
 
   const checkoutMutation = useMutation({
-    mutationFn: async (pkg: CoinPackageAPI) => {
+    mutationFn: async (pkg: DisplayPackage) => {
+      if (!pkg.apiPackage) throw new Error("No API package for Stripe checkout");
       const token = localStorage.getItem('authToken');
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -130,7 +192,7 @@ export default function Coins() {
         headers,
         body: JSON.stringify({
           userId: user!.id,
-          packageId: pkg.id,
+          packageId: pkg.apiPackage.id,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -139,8 +201,8 @@ export default function Coins() {
     onSuccess: async (data) => {
       if (data.url) {
         try {
-          const { isNative } = await import("@/lib/capacitor");
-          if (isNative()) {
+          const { isNative: checkNative } = await import("@/lib/capacitor");
+          if (checkNative()) {
             const { Browser } = await import("@capacitor/browser");
             await Browser.open({ url: data.url, presentationStyle: 'popover' });
           } else {
@@ -159,12 +221,12 @@ export default function Coins() {
     },
   });
 
-  const handleNativePurchase = async (pkg: CoinPackageAPI) => {
-    if (!user?.id) return;
+  const handleNativePurchase = async (pkg: DisplayPackage) => {
+    if (!user?.id || !pkg.nativePackage) return;
     setNativePurchasing(true);
 
     try {
-      const { isRevenueCatAvailable, getOfferings, purchasePackage } = await import("@/lib/revenuecat");
+      const { isRevenueCatAvailable, purchasePackage } = await import("@/lib/revenuecat");
 
       if (!isRevenueCatAvailable()) {
         toast({ title: "Store not available", description: "In-app purchases are not configured yet. Please try again later.", variant: "destructive" });
@@ -173,19 +235,7 @@ export default function Coins() {
         return;
       }
 
-      const offerings = await getOfferings();
-      const nativePkg = offerings.find(
-        (o) => o.coins === pkg.coins || o.identifier.includes(String(pkg.coins))
-      );
-
-      if (!nativePkg) {
-        toast({ title: "Package not available", description: "This package is not available in your store. Please try another.", variant: "destructive" });
-        setSelectedPackage(null);
-        setNativePurchasing(false);
-        return;
-      }
-
-      const result = await purchasePackage(nativePkg.rcPackage);
+      const result = await purchasePackage(pkg.nativePackage.rcPackage);
 
       if (result.userCancelled) {
         setSelectedPackage(null);
@@ -211,7 +261,6 @@ export default function Coins() {
           userId: user.id,
           productId: result.productId,
           transactionId: result.transactionId,
-          coins: pkg.coins,
         }),
       });
 
@@ -238,8 +287,9 @@ export default function Coins() {
       }
 
       setSelectedPackage(null);
-    } catch (error: any) {
-      console.error("[NativePurchase] Error:", error);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error("[NativePurchase] Error:", errMsg);
       toast({ title: "Purchase failed", description: "Something went wrong. If you were charged, your coins will be credited shortly.", variant: "destructive" });
       setSelectedPackage(null);
     } finally {
@@ -247,14 +297,14 @@ export default function Coins() {
     }
   };
 
-  const handleBuy = (pkg: CoinPackageAPI) => {
+  const handleBuy = (pkg: DisplayPackage) => {
     setSelectedPackage(pkg);
   };
 
   const confirmPurchase = () => {
     if (!selectedPackage) return;
 
-    if (useNativePurchase) {
+    if (useNativePurchase && selectedPackage.nativePackage) {
       handleNativePurchase(selectedPackage);
     } else {
       checkoutMutation.mutate(selectedPackage);
@@ -264,18 +314,20 @@ export default function Coins() {
   const isPurchasing = checkoutMutation.isPending || nativePurchasing;
 
   const bonusCoins = selectedPackage ? Math.floor(selectedPackage.coins * 0.5) : 0;
-  const effectivePrice = selectedPackage ? (selectedPackage.effectivePriceCents / 100).toFixed(2) : "0";
 
-  const bestOffers = packages.slice(0, 3);
-  const mainPackages = packages.slice(3, 6);
-  const morePackages = packages.slice(6);
+  const isLoading = packagesLoading || (useNativePurchase && nativeLoading);
 
-  const renderPackageCard = (pkg: CoinPackageAPI, tagColor: string = "bg-pink-500") => {
-    const price = (pkg.effectivePriceCents / 100).toFixed(2);
-    const origPrice = pkg.originalPriceUsd ? (pkg.originalPriceUsd / 100).toFixed(2) : null;
-    const basePrice = pkg.discountPercent > 0 ? (pkg.priceUsd / 100).toFixed(2) : null;
-    const showStrikethrough = origPrice || basePrice;
-    const strikethroughPrice = origPrice || basePrice;
+  const bestOffers = displayPackages.slice(0, 3);
+  const mainPackages = displayPackages.slice(3, 6);
+  const morePackages = displayPackages.slice(6);
+
+  const renderPackageCard = (pkg: DisplayPackage, tagColor: string = "bg-pink-500") => {
+    const showStrikethrough = pkg.originalPriceUsd || pkg.discountPercent > 0;
+    const strikethroughPrice = pkg.originalPriceUsd
+      ? `$${(pkg.originalPriceUsd / 100).toFixed(2)}`
+      : pkg.discountPercent > 0
+        ? `$${(pkg.priceUsd / 100).toFixed(2)}`
+        : null;
 
     return (
       <div
@@ -296,10 +348,10 @@ export default function Coins() {
           <span className="font-bold text-sm text-gray-900 dark:text-white">{pkg.coins.toLocaleString()}</span>
         </div>
         <div className="text-3xl mb-1 h-10 flex items-center justify-center">{getPackageEmoji(pkg.coins)}</div>
-        <div className="font-bold text-gray-900 dark:text-white text-sm">${price}</div>
+        <div className="font-bold text-gray-900 dark:text-white text-sm">{pkg.displayPrice}</div>
         <div className="h-4">
-          {showStrikethrough ? (
-            <span className="text-xs text-gray-400 line-through">${strikethroughPrice}</span>
+          {showStrikethrough && strikethroughPrice ? (
+            <span className="text-xs text-gray-400 line-through">{strikethroughPrice}</span>
           ) : null}
         </div>
       </div>
@@ -331,7 +383,7 @@ export default function Coins() {
           </div>
         )}
 
-        {packagesLoading ? (
+        {isLoading ? (
           <div className="p-6 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-3" />
             <p className="text-gray-600 dark:text-gray-400 font-medium">Loading packages...</p>
@@ -438,15 +490,15 @@ export default function Coins() {
             <div className="flex items-center justify-between mb-4 px-2">
               <span className="text-gray-500 dark:text-gray-400">Price</span>
               <div className="flex items-center gap-2">
-                {selectedPackage.discountPercent > 0 && (
+                {selectedPackage.discountPercent > 0 && !useNativePurchase && (
                   <span className="text-sm text-gray-400 line-through">${(selectedPackage.priceUsd / 100).toFixed(2)}</span>
                 )}
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">${effectivePrice}</span>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">{selectedPackage.displayPrice}</span>
               </div>
             </div>
 
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-              {useNativePurchase ? (
+              {useNativePurchase && selectedPackage.nativePackage ? (
                 <>
                   <Smartphone className="w-4 h-4 shrink-0" />
                   <span>Purchase through your device's app store</span>
@@ -476,10 +528,10 @@ export default function Coins() {
               >
                 {isPurchasing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
-                ) : useNativePurchase ? (
+                ) : useNativePurchase && selectedPackage.nativePackage ? (
                   <>Buy Now</>
                 ) : (
-                  <>Pay ${effectivePrice}</>
+                  <>Pay {selectedPackage.displayPrice}</>
                 )}
               </button>
             </div>

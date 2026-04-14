@@ -3890,6 +3890,9 @@ export async function registerRoutes(
         return res.status(503).json({ error: "Native purchases are not configured. Contact support." });
       }
 
+      interface RCTransaction { id?: string; store_transaction_id?: string }
+      interface RCSubscriberResponse { subscriber?: { non_subscriptions?: Record<string, RCTransaction[]> } }
+
       let verifiedProductId: string | null = null;
       try {
         const rcResponse = await fetch(`https://api.revenuecat.com/v1/subscribers/${userId}`, {
@@ -3902,11 +3905,10 @@ export async function registerRoutes(
           console.error(`[NativePurchase] RevenueCat API returned ${rcResponse.status}`);
           return res.status(502).json({ error: "Purchase verification failed. Please try again." });
         }
-        const rcData = await rcResponse.json() as any;
+        const rcData: RCSubscriberResponse = await rcResponse.json() as RCSubscriberResponse;
         const purchases = rcData?.subscriber?.non_subscriptions || {};
-        for (const [prodId, transactions] of Object.entries(purchases)) {
-          const txns = transactions as any[];
-          const found = txns.some((t: any) => t.id === transactionId || t.store_transaction_id === transactionId);
+        for (const [prodId, txns] of Object.entries(purchases)) {
+          const found = txns.some((t) => t.id === transactionId || t.store_transaction_id === transactionId);
           if (found) {
             verifiedProductId = prodId;
             break;
@@ -3967,7 +3969,17 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Invalid webhook authorization" });
       }
 
-      const event = req.body;
+      interface RCWebhookEvent {
+        event?: {
+          type?: string;
+          app_user_id?: string;
+          product_id?: string;
+          transaction_id?: string;
+          id?: string;
+        };
+      }
+
+      const event: RCWebhookEvent = req.body;
       const eventType = event?.event?.type;
 
       if (!eventType) {
@@ -3982,8 +3994,11 @@ export async function registerRoutes(
         const transactionId = event.event?.transaction_id || event.event?.id;
 
         if (appUserId && productId && transactionId) {
-          const coinsMatch = productId.match(/(\d+)_coins/);
-          const coins = coinsMatch ? parseInt(coinsMatch[1]) : 0;
+          let coins = PRODUCT_COIN_MAP[productId] || 0;
+          if (!coins) {
+            const coinsMatch = productId.match(/(\d+)_coins/);
+            coins = coinsMatch ? parseInt(coinsMatch[1]) : 0;
+          }
 
           if (coins > 0) {
             const rcKey = `rc_${transactionId}`;
