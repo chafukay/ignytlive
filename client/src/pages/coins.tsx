@@ -78,8 +78,11 @@ export default function Coins() {
     retry: false,
   });
 
+  const nativeStoreReady = useNativePurchase && nativeOfferings.length > 0;
+  const nativeStoreUnavailable = useNativePurchase && !nativeLoading && nativeOfferings.length === 0;
+
   const displayPackages: DisplayPackage[] = (() => {
-    if (useNativePurchase && nativeOfferings.length > 0) {
+    if (nativeStoreReady) {
       return nativeOfferings
         .filter((np) => np.coins > 0)
         .map((np) => {
@@ -99,6 +102,10 @@ export default function Coins() {
           };
         })
         .sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+
+    if (useNativePurchase) {
+      return [];
     }
 
     return apiPackages.map((ap) => ({
@@ -304,7 +311,12 @@ export default function Coins() {
   const confirmPurchase = () => {
     if (!selectedPackage) return;
 
-    if (useNativePurchase && selectedPackage.nativePackage) {
+    if (useNativePurchase) {
+      if (!selectedPackage.nativePackage) {
+        toast({ title: "Not available", description: "This package is not available in your app store yet. Please try again later.", variant: "destructive" });
+        setSelectedPackage(null);
+        return;
+      }
       handleNativePurchase(selectedPackage);
     } else {
       checkoutMutation.mutate(selectedPackage);
@@ -387,6 +399,12 @@ export default function Coins() {
           <div className="p-6 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-3" />
             <p className="text-gray-600 dark:text-gray-400 font-medium">Loading packages...</p>
+          </div>
+        ) : nativeStoreUnavailable ? (
+          <div className="p-6 text-center">
+            <Smartphone className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400 font-medium mb-2">Store Not Available</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm">In-app purchases are being set up. Please check back soon.</p>
           </div>
         ) : (
         <div className="p-4 space-y-8">

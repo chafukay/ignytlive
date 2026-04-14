@@ -1,7 +1,16 @@
 import { isNative, getPlatform } from "./capacitor";
 
 let isInitialized = false;
-let PurchasesModule: any = null;
+
+interface PurchasesAPI {
+  configure(config: { apiKey: string; appUserID?: string }): Promise<void>;
+  logIn(config: { appUserID: string }): Promise<void>;
+  logOut(): Promise<void>;
+  getOfferings(): Promise<RevenueCatOfferings>;
+  purchasePackage(config: { aPackage: RevenueCatPackage }): Promise<{ customerInfo: RevenueCatCustomerInfo }>;
+}
+
+let PurchasesModule: PurchasesAPI | null = null;
 
 export interface RevenueCatTransaction {
   transactionIdentifier: string;
@@ -37,8 +46,11 @@ export interface RevenueCatOfferings {
 async function loadPurchasesModule(): Promise<boolean> {
   if (PurchasesModule) return true;
   try {
+    // @revenuecat/purchases-capacitor is installed as part of the native build process
+    // (npm install --legacy-peer-deps in the local Android/iOS build environment).
+    // On web, this import fails gracefully — native IAP is only available on device.
     const mod = await import("@revenuecat/purchases-capacitor");
-    PurchasesModule = mod.Purchases;
+    PurchasesModule = mod.Purchases as unknown as PurchasesAPI;
     return true;
   } catch {
     console.warn("[RevenueCat] Plugin not available (expected on web)");
