@@ -1284,15 +1284,18 @@ export async function registerRoutes(
       const verifyKey = `verify:${phone}`;
       const verifyCheck = checkLoginRateLimit(verifyKey);
       if (!verifyCheck.allowed) {
-        return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
+        const retryMinutes = Math.ceil((verifyCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many verification attempts. Try again in ${retryMinutes} minute(s).` });
       }
-      recordLoginFailure(verifyKey);
 
       const isValid = await storage.verifyPhoneCode(phone, code);
-      
+
       if (!isValid) {
+        recordLoginFailure(verifyKey);
         return res.status(401).json({ error: "Invalid or expired code" });
       }
+
+      clearLoginFailures(verifyKey);
 
       // Check if user exists with this phone
       let user = await storage.getUserByPhone(phone);
@@ -1450,14 +1453,17 @@ export async function registerRoutes(
       const verifyKey = `verify:${phone}`;
       const verifyCheck = checkLoginRateLimit(verifyKey);
       if (!verifyCheck.allowed) {
-        return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
+        const retryMinutes = Math.ceil((verifyCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many verification attempts. Try again in ${retryMinutes} minute(s).` });
       }
-      recordLoginFailure(verifyKey);
 
       const isValid = await storage.verifyPhoneCode(phone, code);
       if (!isValid) {
+        recordLoginFailure(verifyKey);
         return res.status(401).json({ error: "Invalid or expired code" });
       }
+
+      clearLoginFailures(verifyKey);
 
       // Re-check phone uniqueness at verification time
       const existingUser = await storage.getUserByPhone(phone);
