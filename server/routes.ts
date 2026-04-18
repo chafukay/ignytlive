@@ -84,6 +84,7 @@ function stripPasswords(obj: any): any {
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import { sendVerificationEmail, isEmailServiceConfigured } from "./email-service";
+import { normalizePhone, checkSmsAbuse, recordSmsSent, checkEmailAbuse, recordEmailSent } from "./abuse-protection";
 import Stripe from "stripe";
 import bcrypt from "bcryptjs";
 
@@ -667,28 +668,25 @@ export async function registerRoutes(
     try {
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ error: "User ID required" });
-      
+
       const clientIp = req.ip || "unknown";
-      const sendKeyIp = `email-send-ip:${clientIp}`;
-      const sendKeyUser = `email-send:${userId}`;
-      const ipCheck = checkLoginRateLimit(sendKeyIp);
-      const userCheck = checkLoginRateLimit(sendKeyUser);
-      if (!ipCheck.allowed || !userCheck.allowed) {
-        const retryMs = Math.max(ipCheck.retryAfterMs || 0, userCheck.retryAfterMs || 0);
-        const retryMinutes = Math.ceil(retryMs / 60000);
-        return res.status(429).json({ error: `Too many requests. Try again in ${retryMinutes} minute(s).` });
-      }
-      recordLoginFailure(sendKeyIp);
-      recordLoginFailure(sendKeyUser);
-      
+
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ error: "User not found" });
       if (user.emailVerified) return res.status(400).json({ error: "Email already verified" });
       if (user.isGuest) return res.status(400).json({ error: "Guest accounts cannot verify email" });
-      
+
+      const abuseCheck = checkEmailAbuse(user.email || null, userId, clientIp);
+      if (!abuseCheck.allowed) {
+        if (abuseCheck.retryAfterMs) {
+          res.setHeader("Retry-After", Math.ceil(abuseCheck.retryAfterMs / 1000).toString());
+        }
+        return res.status(abuseCheck.status || 429).json({ error: abuseCheck.reason });
+      }
+
       const verificationCode = crypto.randomInt(100000, 999999).toString();
       const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      
+
       await storage.updateUser(userId, {
         emailVerificationToken: verificationCode,
         emailVerificationExpiry: verificationExpiry,
@@ -697,6 +695,8 @@ export async function registerRoutes(
       if (user.email) {
         await sendVerificationEmail(user.email, verificationCode, user.username);
       }
+
+      recordEmailSent(user.email || null, userId, clientIp);
 
       res.json({ message: "Verification code sent to your email", emailServiceConfigured: isEmailServiceConfigured() });
     } catch (error) {
@@ -1220,54 +1220,46 @@ export async function registerRoutes(
     }
   });
 
-  // SMS rate limiter: max 3 codes per phone per hour
-  const smsAttempts = new Map<string, { count: number; firstAttempt: number }>();
-  const SMS_RATE_LIMIT = { maxCodes: 3, windowMs: 60 * 60 * 1000 };
-
   // Phone authentication - send verification code
   app.post("/api/auth/phone/send-code", async (req, res) => {
     try {
-      const { phone } = req.body;
-      
-      if (!phone || typeof phone !== "string") {
+      const { phone: rawPhone } = req.body;
+
+      if (!rawPhone || typeof rawPhone !== "string") {
         return res.status(400).json({ error: "Phone number is required" });
       }
 
-      const now = Date.now();
-      const smsRecord = smsAttempts.get(phone);
-      if (smsRecord) {
-        if (now - smsRecord.firstAttempt > SMS_RATE_LIMIT.windowMs) {
-          smsAttempts.delete(phone);
-        } else if (smsRecord.count >= SMS_RATE_LIMIT.maxCodes) {
-          return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
-        }
+      const phone = normalizePhone(rawPhone);
+      if (!phone) {
+        return res.status(400).json({ error: "Please enter a valid phone number with country code." });
       }
 
-      // Generate 6-digit code
+      const clientIp = req.ip || "unknown";
+      const abuseCheck = checkSmsAbuse(phone, clientIp);
+      if (!abuseCheck.allowed) {
+        if (abuseCheck.retryAfterMs) {
+          res.setHeader("Retry-After", Math.ceil(abuseCheck.retryAfterMs / 1000).toString());
+        }
+        return res.status(abuseCheck.status || 429).json({ error: abuseCheck.reason });
+      }
+
       const { generateVerificationCode, sendVerificationCode } = await import("./sms");
       const code = generateVerificationCode();
-      
+
       const result = await sendVerificationCode(phone, code);
-      
+
       if (!result.sent) {
         if (result.errorCode === "NOT_CONFIGURED" && process.env.NODE_ENV !== "production") {
           await storage.createPhoneVerificationCode(phone, code);
-          const existing = smsAttempts.get(phone);
-          if (existing) { existing.count++; } else { smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() }); }
+          recordSmsSent(phone, clientIp);
           return res.json({ success: true, message: "Code generated (SMS not configured)", smsConfigured: false });
         }
         return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
 
       await storage.createPhoneVerificationCode(phone, code);
-      
-      const existing = smsAttempts.get(phone);
-      if (existing) {
-        existing.count++;
-      } else {
-        smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
-      }
-      
+      recordSmsSent(phone, clientIp);
+
       res.json({ success: true, message: "Verification code sent", smsConfigured: true });
     } catch (error) {
       console.error("Phone code error:", error);
@@ -1278,10 +1270,15 @@ export async function registerRoutes(
   // Phone authentication - verify code and login/register
   app.post("/api/auth/phone/verify", async (req, res) => {
     try {
-      const { phone, code, birthdate } = req.body;
-      
-      if (!phone || !code) {
+      const { phone: rawPhone, code, birthdate } = req.body;
+
+      if (!rawPhone || !code) {
         return res.status(400).json({ error: "Phone and code are required" });
+      }
+
+      const phone = normalizePhone(rawPhone);
+      if (!phone) {
+        return res.status(400).json({ error: "Please enter a valid phone number with country code." });
       }
 
       const verifyKey = `verify:${phone}`;
@@ -1385,20 +1382,24 @@ export async function registerRoutes(
   app.post("/api/users/:userId/link-phone/send-code", async (req, res) => {
     try {
       if (!(await requireOwnership(req, res, req.params.userId))) return;
-      const { phone } = req.body;
+      const { phone: rawPhone } = req.body;
 
-      if (!phone || typeof phone !== "string") {
+      if (!rawPhone || typeof rawPhone !== "string") {
         return res.status(400).json({ error: "Phone number is required" });
       }
 
-      const now = Date.now();
-      const smsRecord = smsAttempts.get(phone);
-      if (smsRecord) {
-        if (now - smsRecord.firstAttempt > SMS_RATE_LIMIT.windowMs) {
-          smsAttempts.delete(phone);
-        } else if (smsRecord.count >= SMS_RATE_LIMIT.maxCodes) {
-          return res.status(429).json({ error: "Too many verification attempts. Please try again later." });
+      const phone = normalizePhone(rawPhone);
+      if (!phone) {
+        return res.status(400).json({ error: "Please enter a valid phone number with country code." });
+      }
+
+      const clientIp = req.ip || "unknown";
+      const abuseCheck = checkSmsAbuse(phone, clientIp);
+      if (!abuseCheck.allowed) {
+        if (abuseCheck.retryAfterMs) {
+          res.setHeader("Retry-After", Math.ceil(abuseCheck.retryAfterMs / 1000).toString());
         }
+        return res.status(abuseCheck.status || 429).json({ error: abuseCheck.reason });
       }
 
       // Check if phone is already linked to another user
@@ -1414,21 +1415,14 @@ export async function registerRoutes(
       if (!result.sent) {
         if (result.errorCode === "NOT_CONFIGURED" && process.env.NODE_ENV !== "production") {
           await storage.createPhoneVerificationCode(phone, code);
-          const existingSms = smsAttempts.get(phone);
-          if (existingSms) { existingSms.count++; } else { smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() }); }
+          recordSmsSent(phone, clientIp);
           return res.json({ success: true, message: "Code generated (SMS not configured)", smsConfigured: false });
         }
         return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
       }
 
       await storage.createPhoneVerificationCode(phone, code);
-
-      const existingSms = smsAttempts.get(phone);
-      if (existingSms) {
-        existingSms.count++;
-      } else {
-        smsAttempts.set(phone, { count: 1, firstAttempt: Date.now() });
-      }
+      recordSmsSent(phone, clientIp);
 
       res.json({ success: true, message: "Verification code sent", smsConfigured: true });
     } catch (error) {
@@ -1442,10 +1436,15 @@ export async function registerRoutes(
     try {
       if (!(await requireOwnership(req, res, req.params.userId))) return;
       const userId = req.params.userId;
-      const { phone, code } = req.body;
+      const { phone: rawPhone, code } = req.body;
 
-      if (!phone || !code) {
+      if (!rawPhone || !code) {
         return res.status(400).json({ error: "Phone and code are required" });
+      }
+
+      const phone = normalizePhone(rawPhone);
+      if (!phone) {
+        return res.status(400).json({ error: "Please enter a valid phone number with country code." });
       }
 
       const verifyKey = `verify:${phone}`;
