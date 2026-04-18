@@ -287,6 +287,16 @@ export default function Login() {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => setLocation("/forgot-password")}
+                className="text-sm text-primary hover:underline"
+                data-testid="link-forgot-password"
+              >
+                Forgot password?
+              </button>
+            </div>
             <button
               type="submit"
               disabled={isLoading}

@@ -83,7 +83,7 @@ function stripPasswords(obj: any): any {
 }
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
-import { sendVerificationEmail, isEmailServiceConfigured } from "./email-service";
+import { sendVerificationEmail, sendPasswordResetEmail, isEmailServiceConfigured } from "./email-service";
 import { normalizePhone, checkSmsAbuse, recordSmsSent, checkEmailAbuse, recordEmailSent } from "./abuse-protection";
 import Stripe from "stripe";
 import bcrypt from "bcryptjs";
@@ -745,6 +745,177 @@ export async function registerRoutes(
       res.json({ user: toSafeUser(updated), message: "Email verified successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to verify email" });
+    }
+  });
+
+  // Forgot password - send reset code via email or SMS
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { identifier } = req.body || {};
+      if (!identifier || typeof identifier !== "string") {
+        return res.status(400).json({ error: "Email, phone, or username required" });
+      }
+
+      const trimmed = identifier.trim();
+      const clientIp = req.ip || "unknown";
+      const ipKey = `forgot-pw-ip:${clientIp}`;
+      const ipCheck = checkLoginRateLimit(ipKey);
+      if (!ipCheck.allowed) {
+        const retryMinutes = Math.ceil((ipCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many requests. Try again in ${retryMinutes} minute(s).` });
+      }
+      recordLoginFailure(ipKey);
+
+      // Detect identifier type and look up user
+      let user: any = null;
+      let lookupType: "email" | "phone" | "username" = "username";
+
+      if (trimmed.includes("@")) {
+        lookupType = "email";
+        user = await storage.getUserByEmail(trimmed.toLowerCase());
+      } else if (/^\+?[\d\s\-()]+$/.test(trimmed)) {
+        const normalized = normalizePhone(trimmed);
+        if (normalized) {
+          lookupType = "phone";
+          user = await storage.getUserByPhone(normalized);
+        }
+      }
+      if (!user) {
+        user = await storage.getUserByUsername(trimmed);
+      }
+
+      // Always return same generic message to prevent enumeration
+      const genericResponse = { message: "If an account exists with that information, a reset code has been sent." };
+
+      if (!user || user.isDeleted || user.isGuest) {
+        return res.json(genericResponse);
+      }
+
+      // Pick the channel: prefer the one matching how they searched, fall back to whatever they have
+      let channel: "email" | "sms" | null = null;
+      let target = "";
+
+      if (lookupType === "phone" && user.phone) {
+        channel = "sms";
+        target = user.phone;
+      } else if (lookupType === "email" && user.email && !user.email.endsWith("@guest.local")) {
+        channel = "email";
+        target = user.email;
+      } else if (user.email && !user.email.endsWith("@guest.local")) {
+        channel = "email";
+        target = user.email;
+      } else if (user.phone) {
+        channel = "sms";
+        target = user.phone;
+      }
+
+      if (!channel) {
+        return res.json(genericResponse);
+      }
+
+      // Abuse protection
+      if (channel === "sms") {
+        const abuseCheck = checkSmsAbuse(target, clientIp);
+        if (!abuseCheck.allowed) {
+          console.warn(`[FORGOT-PW] SMS blocked for ***${target.slice(-4)}: ${abuseCheck.reason}`);
+          return res.json(genericResponse);
+        }
+      } else {
+        const abuseCheck = checkEmailAbuse(target, user.id, clientIp);
+        if (!abuseCheck.allowed) {
+          console.warn(`[FORGOT-PW] Email blocked for ${target}: ${abuseCheck.reason}`);
+          return res.json(genericResponse);
+        }
+      }
+
+      const code = crypto.randomInt(100000, 1000000).toString();
+      const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      await storage.updateUser(user.id, {
+        passwordResetToken: code,
+        passwordResetExpiry: expiry,
+        passwordResetChannel: channel,
+      });
+
+      if (channel === "sms") {
+        const { sendPasswordResetSms } = await import("./sms");
+        const result = await sendPasswordResetSms(target, code);
+        if (result.sent) recordSmsSent(target, clientIp);
+        else console.warn(`[FORGOT-PW] SMS failed: ${result.error}`);
+      } else {
+        const sent = await sendPasswordResetEmail(target, code, user.username);
+        if (sent) recordEmailSent(target, user.id, clientIp);
+      }
+
+      clearLoginFailures(ipKey);
+      return res.json({ ...genericResponse, channel, hint: channel === "sms" ? `***${target.slice(-4)}` : target.replace(/(.{2}).+(@.+)/, "$1***$2") });
+    } catch (error) {
+      console.error("[FORGOT-PW] Error:", error);
+      res.status(500).json({ error: "Failed to process request. Please try again." });
+    }
+  });
+
+  // Reset password - verify code and set new password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { identifier, code, newPassword } = req.body || {};
+      if (!identifier || !code || !newPassword) {
+        return res.status(400).json({ error: "Identifier, code, and new password required" });
+      }
+      if (typeof newPassword !== "string" || newPassword.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+
+      const trimmed = identifier.trim();
+      const clientIp = req.ip || "unknown";
+      const verifyKey = `reset-pw-ip:${clientIp}`;
+      const verifyCheck = checkLoginRateLimit(verifyKey);
+      if (!verifyCheck.allowed) {
+        const retryMinutes = Math.ceil((verifyCheck.retryAfterMs || 0) / 60000);
+        return res.status(429).json({ error: `Too many attempts. Try again in ${retryMinutes} minute(s).` });
+      }
+
+      // Look up user
+      let user: any = null;
+      if (trimmed.includes("@")) {
+        user = await storage.getUserByEmail(trimmed.toLowerCase());
+      } else if (/^\+?[\d\s\-()]+$/.test(trimmed)) {
+        const normalized = normalizePhone(trimmed);
+        if (normalized) user = await storage.getUserByPhone(normalized);
+      }
+      if (!user) {
+        user = await storage.getUserByUsername(trimmed);
+      }
+
+      if (!user || user.isDeleted) {
+        recordLoginFailure(verifyKey);
+        return res.status(400).json({ error: "Invalid or expired reset code" });
+      }
+
+      if (!user.passwordResetToken || user.passwordResetToken !== code) {
+        recordLoginFailure(verifyKey);
+        return res.status(400).json({ error: "Invalid or expired reset code" });
+      }
+
+      if (!user.passwordResetExpiry || new Date() > new Date(user.passwordResetExpiry)) {
+        return res.status(400).json({ error: "Reset code has expired. Please request a new one." });
+      }
+
+      // Hash new password and clear reset token
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+        passwordResetChannel: null,
+      });
+
+      clearLoginFailures(verifyKey);
+      console.log(`[RESET-PW] Password reset successful for user ${user.id}`);
+      res.json({ message: "Password reset successfully. You can now log in with your new password." });
+    } catch (error) {
+      console.error("[RESET-PW] Error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
     }
   });
 

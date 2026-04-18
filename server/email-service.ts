@@ -77,6 +77,50 @@ export async function sendVerificationEmail(toEmail: string, code: string, usern
   }
 }
 
+export async function sendPasswordResetEmail(toEmail: string, code: string, username: string): Promise<boolean> {
+  const transport = getTransporter();
+  if (!transport) {
+    console.warn("[EMAIL] SMTP not configured - password reset email not sent.");
+    return false;
+  }
+
+  const fromEmail = process.env.FROM_EMAIL || "noreply@ignytlive.com";
+
+  try {
+    await transport.sendMail({
+      from: `"IgnytLIVE" <${fromEmail}>`,
+      to: toEmail,
+      subject: "Reset Your Password - IgnytLIVE",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #0d0618; color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <img src="https://ignyt.replit.app/logo-ignyt.png" alt="IgnytLIVE" style="width: 80px; height: 80px; margin: 0 auto 12px auto; display: block; border-radius: 16px;" />
+            <h1 style="color: #a855f7; margin: 0;">IgnytLIVE</h1>
+          </div>
+          <h2 style="color: #ffffff;">Reset Your Password</h2>
+          <p style="color: #d1d5db;">Hi ${username},</p>
+          <p style="color: #d1d5db;">We received a request to reset your password. Use the code below to set a new password:</p>
+          <div style="background: #1a0a2e; border: 1px solid #a855f7; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #a855f7;">${code}</span>
+          </div>
+          <p style="color: #d1d5db;">This code expires in 15 minutes. If you didn't request a password reset, you can safely ignore this email — your password won't change.</p>
+          <hr style="border: none; border-top: 1px solid #374151; margin: 32px 0;" />
+          <p style="color: #6b7280; font-size: 12px;">For security, never share this code with anyone. IgnytLIVE staff will never ask for it.</p>
+          <p style="color: #6b7280; font-size: 12px;">Need help? Contact us at support@ignytlive.com</p>
+        </div>
+      `,
+      text: `Hi ${username}, your IgnytLIVE password reset code is: ${code}. This code expires in 15 minutes. If you didn't request this, ignore this email.`,
+    });
+    console.log(`[EMAIL] Password reset email sent to ${toEmail}`);
+    return true;
+  } catch (error) {
+    console.error("[EMAIL] Failed to send password reset email:", error instanceof Error ? error.message : "Unknown error");
+    transporter = null;
+    lastConfig = "";
+    return false;
+  }
+}
+
 export async function sendGenericEmail(toEmail: string, subject: string, html: string, text: string): Promise<boolean> {
   const transport = getTransporter();
   if (!transport) {

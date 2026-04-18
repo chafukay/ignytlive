@@ -50,6 +50,7 @@ import Terms from "@/pages/terms";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import CommunityGuidelines from "@/pages/community-guidelines";
 import VerifyEmail from "@/pages/verify-email";
+import ForgotPassword from "@/pages/forgot-password";
 import IncomingCallBanner from "@/components/incoming-call-banner";
 import { useEffect, useState, useCallback } from "react";
 import { initPushNotifications } from "@/lib/push-notifications";
@@ -150,6 +151,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />

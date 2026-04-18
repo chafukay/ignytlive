@@ -98,3 +98,41 @@ export async function sendVerificationCode(phone: string, code: string): Promise
 export function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
+
+export async function sendPasswordResetSms(phone: string, code: string): Promise<SmsResult> {
+  const twilioClient = getClient();
+
+  if (!twilioClient || !fromNumber) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(`[SMS] CRITICAL: Twilio not configured in production - cannot send password reset to ***${phone.slice(-4)}`);
+      return { sent: false, error: "SMS service temporarily unavailable. Please try again later.", errorCode: "NOT_CONFIGURED", httpStatus: 503 };
+    }
+    console.log(`[SMS] Dev mode - password reset code for ***${phone.slice(-4)}: ${code}`);
+    return { sent: false, error: "SMS service not configured", errorCode: "NOT_CONFIGURED", httpStatus: 503 };
+  }
+
+  try {
+    await twilioClient.messages.create({
+      body: `Your IgnytLIVE password reset code is: ${code}. This code expires in 15 minutes. If you didn't request this, ignore this message.`,
+      from: fromNumber,
+      to: phone,
+    });
+    console.log(`[SMS] Sent password reset code to ***${phone.slice(-4)}`);
+    return { sent: true };
+  } catch (error: unknown) {
+    const twilioCode = getTwilioErrorCode(error);
+    const twilioStatus = getTwilioStatus(error);
+    console.error(`[SMS] Failed to send password reset to ***${phone.slice(-4)}: code=${twilioCode} status=${twilioStatus}`, getTwilioMessage(error));
+
+    if (twilioCode === 21211 || twilioCode === 21614 || twilioCode === 21217) {
+      return { sent: false, error: "Invalid phone number.", errorCode: "INVALID_NUMBER", httpStatus: 400 };
+    }
+    if (twilioCode === 21408) {
+      return { sent: false, error: "SMS cannot be sent to this region.", errorCode: "REGION_NOT_SUPPORTED", httpStatus: 400 };
+    }
+    if (twilioCode === 20429 || twilioStatus === 429) {
+      return { sent: false, error: "Too many requests. Please wait and try again.", errorCode: "RATE_LIMITED", httpStatus: 429 };
+    }
+    return { sent: false, error: "Failed to send password reset code.", errorCode: "UNKNOWN", httpStatus: 500 };
+  }
+}
