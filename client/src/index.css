@@ -221,6 +221,12 @@
   50% { transform: translateY(-8px); }
 }
 
+@keyframes shorts-tap-fade {
+  0% { opacity: 0; transform: scale(0.7); }
+  20% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
 .beauty-slider {
   -webkit-appearance: none;
   appearance: none;

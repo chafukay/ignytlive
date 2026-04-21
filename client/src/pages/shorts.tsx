@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
-import { Heart, MessageCircle, Share2, Music2, Disc, Plus, Video, X, Send, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Heart, MessageCircle, Share2, Music2, Disc, Plus, Video, X, Send, ChevronDown, ChevronUp, Trash2, Play, Pause } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -32,6 +32,10 @@ export default function Shorts() {
   const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
   const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({});
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
+  const [pausedShorts, setPausedShorts] = useState<Record<string, boolean>>({});
+  const [tapIndicator, setTapIndicator] = useState<{ shortId: string; paused: boolean } | null>(null);
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const tapIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { user } = useAuth();
   const { isGuest, requireAccount } = useGuestCheck();
   const { toast } = useToast();
@@ -97,6 +101,48 @@ export default function Shorts() {
     const index = Math.round(e.currentTarget.scrollTop / e.currentTarget.clientHeight);
     setActiveShort(index);
   };
+
+  // When the active short changes, clear the paused flag for the new one and
+  // pause/play videos accordingly so the visible short autoplays.
+  useEffect(() => {
+    if (!shorts) return;
+    shorts.forEach((short, i) => {
+      const video = videoRefs.current[short.id];
+      if (!video) return;
+      if (i === activeShort) {
+        setPausedShorts((prev) => (prev[short.id] ? { ...prev, [short.id]: false } : prev));
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    });
+  }, [activeShort, shorts]);
+
+  const togglePlayPause = (shortId: string) => {
+    const video = videoRefs.current[shortId];
+    if (!video) return;
+    const willPause = !video.paused;
+    if (willPause) {
+      video.pause();
+    } else {
+      // Optimistically update for snappy feedback, but if play() rejects
+      // (e.g. browser autoplay policy), revert so the icon reflects reality.
+      video.play().catch(() => {
+        setPausedShorts((prev) => ({ ...prev, [shortId]: true }));
+        setTapIndicator({ shortId, paused: true });
+      });
+    }
+    setPausedShorts((prev) => ({ ...prev, [shortId]: willPause }));
+    setTapIndicator({ shortId, paused: willPause });
+    if (tapIndicatorTimer.current) clearTimeout(tapIndicatorTimer.current);
+    tapIndicatorTimer.current = setTimeout(() => setTapIndicator(null), 600);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (tapIndicatorTimer.current) clearTimeout(tapIndicatorTimer.current);
+    };
+  }, []);
 
   const formatCount = (count: number) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
@@ -213,16 +259,43 @@ export default function Shorts() {
             return (
             <div key={short.id} className="h-full w-full snap-start relative flex items-center justify-center bg-black">
               {hasVideo ? (
-                <video 
-                  src={short.videoUrl}
-                  poster={short.thumbnail || undefined}
-                  className="w-full h-full object-contain"
-                  autoPlay={i === activeShort}
-                  loop
-                  muted
-                  playsInline
-                  data-testid={`video-short-${short.id}`}
-                />
+                <>
+                  <video
+                    ref={(el) => { videoRefs.current[short.id] = el; }}
+                    src={short.videoUrl}
+                    poster={short.thumbnail || undefined}
+                    className="w-full h-full object-contain"
+                    autoPlay={i === activeShort}
+                    loop
+                    muted
+                    playsInline
+                    onPlay={() => setPausedShorts((prev) => (prev[short.id] ? { ...prev, [short.id]: false } : prev))}
+                    onPause={() => setPausedShorts((prev) => (prev[short.id] ? prev : { ...prev, [short.id]: true }))}
+                    data-testid={`video-short-${short.id}`}
+                  />
+                  <button
+                    type="button"
+                    aria-label={pausedShorts[short.id] ? "Play video" : "Pause video"}
+                    onClick={() => togglePlayPause(short.id)}
+                    className="absolute inset-0 z-10 w-full h-full bg-transparent cursor-pointer"
+                    data-testid={`button-toggle-play-${short.id}`}
+                  />
+                  {tapIndicator && tapIndicator.shortId === short.id && (
+                    <div
+                      className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center"
+                      style={{ animation: 'shorts-tap-fade 600ms ease-out forwards' }}
+                      data-testid={`indicator-play-state-${short.id}`}
+                    >
+                      <div className="bg-black/50 backdrop-blur-sm rounded-full p-5">
+                        {tapIndicator.paused ? (
+                          <Play className="w-12 h-12 text-white fill-white" />
+                        ) : (
+                          <Pause className="w-12 h-12 text-white fill-white" />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : hasThumbnail ? (
                 <img 
                   src={short.thumbnail!} 
