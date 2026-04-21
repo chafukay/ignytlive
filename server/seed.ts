@@ -364,6 +364,49 @@ export async function seedVipTiers() {
   }
 }
 
+async function getReferencingForeignKeys(tableName: string): Promise<Array<{ table: string; column: string }>> {
+  const result = await db.execute(sql`
+    SELECT tc.table_name AS table_name, kcu.column_name AS column_name
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON tc.constraint_schema = kcu.constraint_schema
+     AND tc.constraint_name = kcu.constraint_name
+    JOIN information_schema.constraint_column_usage ccu
+      ON tc.constraint_schema = ccu.constraint_schema
+     AND tc.constraint_name = ccu.constraint_name
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_schema = 'public'
+      AND ccu.table_name = ${tableName}
+      AND ccu.column_name = 'id'
+  `);
+  return (result.rows as Array<{ table_name: string; column_name: string }>).map(r => ({
+    table: r.table_name,
+    column: r.column_name,
+  }));
+}
+
+async function cascadeDeleteRows(table: string, column: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const idList = sql.join(ids.map(id => sql`${id}`), sql`, `);
+  const tableIdent = sql.identifier(table);
+  const columnIdent = sql.identifier(column);
+
+  // Find which rows in this table will be deleted, so we can cascade to their dependents
+  const affected = await db.execute(
+    sql`SELECT id FROM ${tableIdent} WHERE ${columnIdent} IN (${idList})`
+  );
+  const affectedIds = (affected.rows as Array<{ id: string }>).map(r => r.id);
+
+  if (affectedIds.length > 0) {
+    const childFks = await getReferencingForeignKeys(table);
+    for (const fk of childFks) {
+      await cascadeDeleteRows(fk.table, fk.column, affectedIds);
+    }
+  }
+
+  await db.execute(sql`DELETE FROM ${tableIdent} WHERE ${columnIdent} IN (${idList})`);
+}
+
 export async function cleanupGuestUsers() {
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -375,19 +418,18 @@ export async function cleanupGuestUsers() {
         lt(users.createdAt, sevenDaysAgo),
         sql`${users.id} NOT IN (${familyOwners})`
       ));
-    
+
     if (guestIds.length === 0) return;
-    
+
     const ids = guestIds.map(g => g.id);
-    const idList = sql.join(ids.map(id => sql`${id}`), sql`, `);
-    await db.execute(sql`DELETE FROM coin_purchases WHERE user_id IN (${idList})`);
-    await db.execute(sql`DELETE FROM gift_transactions WHERE sender_id IN (${idList}) OR receiver_id IN (${idList})`);
-    await db.execute(sql`DELETE FROM follows WHERE follower_id IN (${idList}) OR following_id IN (${idList})`);
-    await db.execute(sql`DELETE FROM notifications WHERE user_id IN (${idList})`);
-    await db.execute(sql`DELETE FROM messages WHERE sender_id IN (${idList}) OR receiver_id IN (${idList})`);
-    await db.execute(sql`DELETE FROM user_blocks WHERE blocker_id IN (${idList}) OR blocked_id IN (${idList})`);
-    await db.execute(sql`DELETE FROM user_reports WHERE reporter_id IN (${idList}) OR reported_id IN (${idList})`);
-    
+
+    // Dynamically discover every table that has a FK to users.id and cascade-delete
+    // related rows (and their dependents) before removing the guest users themselves.
+    const userFks = await getReferencingForeignKeys('users');
+    for (const fk of userFks) {
+      await cascadeDeleteRows(fk.table, fk.column, ids);
+    }
+
     const result = await db.delete(users).where(inArray(users.id, ids));
     const cleaned = result.rowCount ?? 0;
     if (cleaned > 0) {
