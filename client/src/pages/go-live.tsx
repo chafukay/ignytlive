@@ -1,6 +1,7 @@
 import { GuestGate } from "@/components/guest-gate";
 import LocationPickerModal from "@/components/location-picker-modal";
 import { Settings, Camera, X, Lock, Crown, Users as UsersIcon, RefreshCw, VideoOff, ImageIcon, MapPin, Globe, Eye, EyeOff, Shield, Sparkles, Wand2, Frame, Sticker, Stars, SunMedium, Contrast, Palette, Share2, Copy, Check, Radio, UserPlus, Gem, Link as LinkIcon } from "lucide-react";
+import { VideoTapOverlay } from "@/components/video-tap-overlay";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -504,14 +505,18 @@ export default function GoLive() {
           </button>
         </div>
       ) : (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
-          style={{ filter: activeFilterCss !== "none" ? activeFilterCss : undefined, transition: "filter 0.4s ease" }}
-        />
+        <>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+            style={{ filter: activeFilterCss !== "none" ? activeFilterCss : undefined, transition: "filter 0.4s ease" }}
+            data-testid="video-go-live-preview"
+          />
+          <VideoTapOverlay videoRef={videoRef} testId="go-live-preview" forceLive />
+        </>
       )}
       {activeFilterOverlay && (
         <div className="absolute inset-0 pointer-events-none transition-colors duration-300" style={{ backgroundColor: activeFilterOverlay }} />

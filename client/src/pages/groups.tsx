@@ -515,7 +515,9 @@ function GroupMessageBubble({
                   <video
                     src={message.mediaUrl}
                     controls
+                    playsInline
                     className="w-full rounded-lg max-h-48"
+                    data-testid={`video-group-message-${message.id}`}
                   />
                 ) : (
                   <img

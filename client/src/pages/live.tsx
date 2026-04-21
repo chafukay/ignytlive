@@ -18,6 +18,7 @@ import CallButton from "@/components/call-button";
 import ModerationPanel, { UserActionMenu } from "@/components/moderation-panel";
 import { useToast } from "@/hooks/use-toast";
 import { useGuestCheck } from "@/components/guest-gate";
+import { VideoTapOverlay } from "@/components/video-tap-overlay";
 import type { Gift as GiftType, StreamGoal } from "@shared/schema";
 
 interface Comment {
@@ -774,6 +775,8 @@ export default function LiveRoom() {
                       data-testid="video-broadcaster"
                     />
                   )}
+                  <VideoTapOverlay videoRef={videoRef} testId="broadcaster" forceLive />
+
                   {liveEffects?.filterOverlay && (
                     <div className="absolute inset-0 pointer-events-none z-[2]" style={{ backgroundColor: liveEffects.filterOverlay }} />
                   )}
@@ -932,6 +935,9 @@ export default function LiveRoom() {
                 className={`w-full h-full absolute inset-0 [&>div]:w-full [&>div]:h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover ${hasRemoteVideo ? '' : 'hidden'}`}
                 data-testid="video-viewer-agora"
               />
+              {hasRemoteVideo && (
+                <VideoTapOverlay testId="viewer-stream" forceLive />
+              )}
               {/* Fallback/placeholder when no remote video */}
               {!hasRemoteVideo && (
                 <div className="w-full h-full relative">
@@ -993,13 +999,17 @@ export default function LiveRoom() {
                       className="w-full h-full"
                     />
                   ) : (
-                    <video
-                      ref={coHostVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover scale-x-[-1]"
-                    />
+                    <>
+                      <video
+                        ref={coHostVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover scale-x-[-1]"
+                        data-testid="video-cohost-self"
+                      />
+                      <VideoTapOverlay videoRef={coHostVideoRef} testId="cohost-self" forceLive />
+                    </>
                   )}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
                     <span className="text-white text-[10px] font-bold">You (Live)</span>

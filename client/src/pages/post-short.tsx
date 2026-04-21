@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { X, Video, Upload, Camera, Square, Check, RefreshCw } from "lucide-react";
+import { VideoTapOverlay } from "@/components/video-tap-overlay";
 
 const MAX_DURATION_SECONDS = 60; // Configurable max duration
 
@@ -364,9 +365,11 @@ export default function PostShort() {
             loop
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
+            data-testid="video-post-short-preview"
           />
-          
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
+          <VideoTapOverlay videoRef={previewRef} testId="post-short-preview" />
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
           
           {/* Duration Badge */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
