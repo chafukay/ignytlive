@@ -1394,8 +1394,26 @@ export async function registerRoutes(
   // Phone authentication - send verification code
   // Public: check whether a phone number's country is supported for SMS.
   // Used by login/forgot-password forms for inline validation feedback.
+  // Light per-IP rate limit (30 req / min) to discourage scraping / abuse.
+  const checkCountryHits = new Map<string, { count: number; firstAt: number }>();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of checkCountryHits) if (now - v.firstAt > 60_000) checkCountryHits.delete(k);
+  }, 5 * 60_000).unref?.();
   app.post("/api/sms/check-country", async (req, res) => {
     try {
+      const ip = req.ip || "unknown";
+      const now = Date.now();
+      const hit = checkCountryHits.get(ip);
+      if (hit && now - hit.firstAt < 60_000) {
+        if (hit.count >= 30) {
+          res.setHeader("Retry-After", Math.ceil((60_000 - (now - hit.firstAt)) / 1000).toString());
+          return res.status(429).json({ supported: false, errorCode: "RATE_LIMITED", reason: "Too many requests. Slow down." });
+        }
+        hit.count++;
+      } else {
+        checkCountryHits.set(ip, { count: 1, firstAt: now });
+      }
       const { phone } = req.body || {};
       if (!phone || typeof phone !== "string") {
         return res.status(400).json({ supported: false, errorCode: "INVALID_NUMBER", reason: "Phone number is required." });
@@ -1455,7 +1473,17 @@ export async function registerRoutes(
           recordSmsSent(phone, clientIp);
           return res.json({ success: true, message: "Code generated (SMS not configured)", smsConfigured: false });
         }
-        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
+        // Twilio rejected (e.g., 21408 region not enabled). Surface unified
+        // country-aware error shape so the client can show inline guidance.
+        const info = inspectPhoneCountry(phone);
+        const isRegionFail = result.errorCode === "REGION_NOT_ENABLED" || /21408|geographic|region/i.test(result.error || "");
+        return res.status(result.httpStatus || 500).json({
+          error: result.error,
+          errorCode: isRegionFail ? "COUNTRY_NOT_SUPPORTED" : (result.errorCode || "SMS_FAILED"),
+          country: info.country,
+          countryName: info.countryName,
+          suggestedAction: isRegionFail ? "use_email" : "different_number",
+        });
       }
 
       await storage.createPhoneVerificationCode(phone, code);
@@ -1628,7 +1656,15 @@ export async function registerRoutes(
           recordSmsSent(phone, clientIp);
           return res.json({ success: true, message: "Code generated (SMS not configured)", smsConfigured: false });
         }
-        return res.status(result.httpStatus || 500).json({ error: result.error, code: result.errorCode });
+        const info = inspectPhoneCountry(phone);
+        const isRegionFail = result.errorCode === "REGION_NOT_ENABLED" || /21408|geographic|region/i.test(result.error || "");
+        return res.status(result.httpStatus || 500).json({
+          error: result.error,
+          errorCode: isRegionFail ? "COUNTRY_NOT_SUPPORTED" : (result.errorCode || "SMS_FAILED"),
+          country: info.country,
+          countryName: info.countryName,
+          suggestedAction: isRegionFail ? "use_email" : "different_number",
+        });
       }
 
       await storage.createPhoneVerificationCode(phone, code);

@@ -58,7 +58,7 @@ export default function Login() {
       api.checkPhoneCountry(trimmed).then((info) => {
         setCountryInfo(info);
       }).catch(() => setCountryInfo(null));
-    }, 400);
+    }, 200);
     return () => clearTimeout(t);
   }, [phone, mode]);
 
@@ -230,10 +230,20 @@ export default function Login() {
       setMode("verify");
     } catch (error: any) {
       const msg = error?.message || "Failed to send code";
-      const desc = error?.errorCode === "COUNTRY_NOT_SUPPORTED"
-        ? "Try signing up with email instead."
-        : undefined;
-      toast({ title: msg, description: desc, variant: "destructive" });
+      // If server reports country not supported (e.g., Twilio 21408), persist
+      // an inline warning + disable submit so the user sees structured guidance.
+      if (error?.errorCode === "COUNTRY_NOT_SUPPORTED") {
+        setCountryInfo({
+          valid: true,
+          supported: false,
+          country: error?.country,
+          countryName: error?.countryName,
+          reason: msg,
+        });
+        toast({ title: msg, description: "Try signing in with username/email instead.", variant: "destructive" });
+      } else {
+        toast({ title: msg, variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -379,11 +389,11 @@ export default function Login() {
             {blocked && (
               <button
                 type="button"
-                onClick={() => setLocation("/register")}
+                onClick={() => { setMode("username"); setCountryInfo(null); }}
                 className="w-full text-sm text-primary hover:underline text-left"
                 data-testid="button-use-email-instead"
               >
-                Sign up with email instead →
+                Sign in with username/email instead →
               </button>
             )}
             <button

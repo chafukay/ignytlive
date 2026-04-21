@@ -64,7 +64,7 @@ export default function ForgotPassword() {
       api.checkPhoneCountry(trimmed)
         .then((info) => setCountryInfo(info))
         .catch(() => setCountryInfo(null));
-    }, 400);
+    }, 200);
     return () => clearTimeout(t);
   }, [identifier, step]);
 

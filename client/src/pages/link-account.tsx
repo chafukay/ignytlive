@@ -3,7 +3,15 @@ import { GuestGate } from "@/components/guest-gate";
 import { ArrowLeft, Mail, Phone, Shield, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+
+function countryToFlag(iso: string): string {
+  if (!iso || iso.length !== 2) return "";
+  const A = 0x1f1e6;
+  const upper = iso.toUpperCase();
+  return String.fromCodePoint(A + upper.charCodeAt(0) - 65, A + upper.charCodeAt(1) - 65);
+}
 import { useToast } from "@/hooks/use-toast";
 import { getServerUrl, isNative } from "@/lib/capacitor";
 
@@ -29,6 +37,26 @@ export default function LinkAccount() {
   const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [phoneCountryInfo, setPhoneCountryInfo] = useState<{ valid: boolean; supported: boolean; country?: string; countryName?: string } | null>(null);
+
+  // Debounced country precheck for the link-phone input
+  useEffect(() => {
+    if (codeSent) {
+      setPhoneCountryInfo(null);
+      return;
+    }
+    const trimmed = phoneNumber.trim();
+    if (trimmed.length < 6) {
+      setPhoneCountryInfo(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      api.checkPhoneCountry(trimmed)
+        .then((info) => setPhoneCountryInfo(info))
+        .catch(() => setPhoneCountryInfo(null));
+    }, 200);
+    return () => clearTimeout(t);
+  }, [phoneNumber, codeSent]);
 
   const hasRealEmail = user?.email && !user.email.includes('@phone.ignyt.live');
   const hasPhone = user?.phone && user?.phoneVerified;
@@ -302,9 +330,21 @@ export default function LinkAccount() {
                     className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     data-testid="input-link-phone"
                   />
+                  {phoneCountryInfo?.country && phoneCountryInfo.countryName && (
+                    <p
+                      className={`text-xs flex items-center gap-1 ${phoneCountryInfo.valid && !phoneCountryInfo.supported ? "text-amber-500" : "text-muted-foreground"}`}
+                      data-testid="text-link-country-info"
+                    >
+                      <span className="text-base">{countryToFlag(phoneCountryInfo.country)}</span>
+                      <span>{phoneCountryInfo.countryName}</span>
+                      {phoneCountryInfo.valid && !phoneCountryInfo.supported && (
+                        <span className="ml-1">— SMS not supported.</span>
+                      )}
+                    </p>
+                  )}
                   <button
                     onClick={handleSendCode}
-                    disabled={loading}
+                    disabled={loading || !!(phoneCountryInfo && phoneCountryInfo.valid && !phoneCountryInfo.supported)}
                     className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
                     data-testid="button-send-code"
                   >
