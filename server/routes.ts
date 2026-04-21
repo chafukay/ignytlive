@@ -1477,8 +1477,11 @@ export async function registerRoutes(
         // country-aware error shape so the client can show inline guidance.
         const info = inspectPhoneCountry(phone);
         const isRegionFail = result.errorCode === "REGION_NOT_ENABLED" || /21408|geographic|region/i.test(result.error || "");
+        const errorMsg = isRegionFail
+          ? `We can't currently send SMS to ${info.countryName || "this country"}. Try signing in with email instead.`
+          : result.error;
         return res.status(result.httpStatus || 500).json({
-          error: result.error,
+          error: errorMsg,
           errorCode: isRegionFail ? "COUNTRY_NOT_SUPPORTED" : (result.errorCode || "SMS_FAILED"),
           country: info.country,
           countryName: info.countryName,
@@ -1658,8 +1661,11 @@ export async function registerRoutes(
         }
         const info = inspectPhoneCountry(phone);
         const isRegionFail = result.errorCode === "REGION_NOT_ENABLED" || /21408|geographic|region/i.test(result.error || "");
+        const errorMsg = isRegionFail
+          ? `We can't currently send SMS to ${info.countryName || "this country"}. Try signing in with email instead.`
+          : result.error;
         return res.status(result.httpStatus || 500).json({
-          error: result.error,
+          error: errorMsg,
           errorCode: isRegionFail ? "COUNTRY_NOT_SUPPORTED" : (result.errorCode || "SMS_FAILED"),
           country: info.country,
           countryName: info.countryName,

@@ -17,6 +17,7 @@ import {
 } from "@/lib/biometric-auth";
 import { inspectPhoneClient, countryToFlag } from "@/lib/phone-country";
 import { Check } from "lucide-react";
+import { ToastAction } from "@/components/ui/toast";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -237,7 +238,20 @@ export default function Login() {
           countryName: error?.countryName,
           reason: msg,
         });
-        toast({ title: msg, description: "Try signing in with username/email instead.", variant: "destructive" });
+        toast({
+          title: msg,
+          description: "Try signing in with username/email instead.",
+          variant: "destructive",
+          action: (
+            <ToastAction
+              altText="Use username or email"
+              onClick={() => { setMode("username"); setCountryInfo(null); }}
+              data-testid="toast-action-use-email"
+            >
+              Use email
+            </ToastAction>
+          ),
+        });
       } else {
         toast({ title: msg, variant: "destructive" });
       }
