@@ -1,5 +1,5 @@
 import Layout from "@/components/layout";
-import { Heart, MessageCircle, Share2, Music2, Disc, Plus, Video, X, Send, ChevronDown, ChevronUp, Trash2, Play, Pause } from "lucide-react";
+import { Heart, MessageCircle, Share2, Music2, Disc, Plus, Video, X, Send, ChevronDown, ChevronUp, Trash2, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -34,8 +34,17 @@ export default function Shorts() {
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const [pausedShorts, setPausedShorts] = useState<Record<string, boolean>>({});
   const [tapIndicator, setTapIndicator] = useState<{ shortId: string; paused: boolean } | null>(null);
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.sessionStorage.getItem('shorts-muted');
+    return stored === null ? true : stored === 'true';
+  });
+  const [heartBursts, setHeartBursts] = useState<{ id: string; shortId: string; x: number; y: number }[]>([]);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const tapIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTapRef = useRef<{ shortId: string; time: number } | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number; id: number; shortId: string } | null>(null);
   const { user } = useAuth();
   const { isGuest, requireAccount } = useGuestCheck();
   const { toast } = useToast();
@@ -141,8 +150,87 @@ export default function Shorts() {
   useEffect(() => {
     return () => {
       if (tapIndicatorTimer.current) clearTimeout(tapIndicatorTimer.current);
+      if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
     };
   }, []);
+
+  // Persist mute preference for the session and apply it to all current videos.
+  useEffect(() => {
+    try { window.sessionStorage.setItem('shorts-muted', String(isMuted)); } catch {}
+    Object.values(videoRefs.current).forEach((v) => {
+      if (v) v.muted = isMuted;
+    });
+  }, [isMuted]);
+
+  const toggleMute = () => setIsMuted((m) => !m);
+
+  const triggerDoubleTapLike = (shortId: string, x: number, y: number) => {
+    const burstId = `${shortId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setHeartBursts((prev) => [...prev, { id: burstId, shortId, x, y }]);
+    setTimeout(() => {
+      setHeartBursts((prev) => prev.filter((b) => b.id !== burstId));
+    }, 800);
+    if (isGuest) { requireAccount(); return; }
+    if (!user) return;
+    likeMutation.mutate(shortId);
+  };
+
+  const DOUBLE_TAP_WINDOW_MS = 350;
+  const SINGLE_TAP_DELAY_MS = 360;
+  const TAP_MOVE_THRESHOLD_PX = 10;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>, shortId: string) => {
+    pointerStartRef.current = { x: e.clientX, y: e.clientY, id: e.pointerId, shortId };
+  };
+
+  const cancelPointerTracking = () => {
+    pointerStartRef.current = null;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const start = pointerStartRef.current;
+    if (!start || start.id !== e.pointerId) return;
+    const dx = Math.abs(e.clientX - start.x);
+    const dy = Math.abs(e.clientY - start.y);
+    if (dx > TAP_MOVE_THRESHOLD_PX || dy > TAP_MOVE_THRESHOLD_PX) {
+      // User is swiping (likely to scroll between shorts) — abort tap.
+      pointerStartRef.current = null;
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>, shortId: string) => {
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
+    if (!start || start.id !== e.pointerId || start.shortId !== shortId) return;
+    const dx = Math.abs(e.clientX - start.x);
+    const dy = Math.abs(e.clientY - start.y);
+    if (dx > TAP_MOVE_THRESHOLD_PX || dy > TAP_MOVE_THRESHOLD_PX) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const now = Date.now();
+    const last = lastTapRef.current;
+
+    if (last && last.shortId === shortId && now - last.time < DOUBLE_TAP_WINDOW_MS) {
+      // Second tap within the window — cancel pending pause/resume and treat as like.
+      if (singleTapTimer.current) {
+        clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
+      lastTapRef.current = null;
+      triggerDoubleTapLike(shortId, x, y);
+      return;
+    }
+
+    lastTapRef.current = { shortId, time: now };
+    if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
+    singleTapTimer.current = setTimeout(() => {
+      togglePlayPause(shortId);
+      singleTapTimer.current = null;
+      lastTapRef.current = null;
+    }, SINGLE_TAP_DELAY_MS);
+  };
 
   const formatCount = (count: number) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
@@ -261,13 +349,16 @@ export default function Shorts() {
               {hasVideo ? (
                 <>
                   <video
-                    ref={(el) => { videoRefs.current[short.id] = el; }}
+                    ref={(el) => {
+                      videoRefs.current[short.id] = el;
+                      if (el) el.muted = isMuted;
+                    }}
                     src={short.videoUrl}
                     poster={short.thumbnail || undefined}
                     className="w-full h-full object-contain"
                     autoPlay={i === activeShort}
                     loop
-                    muted
+                    muted={isMuted}
                     playsInline
                     onPlay={() => setPausedShorts((prev) => (prev[short.id] ? { ...prev, [short.id]: false } : prev))}
                     onPause={() => setPausedShorts((prev) => (prev[short.id] ? prev : { ...prev, [short.id]: true }))}
@@ -276,10 +367,42 @@ export default function Shorts() {
                   <button
                     type="button"
                     aria-label={pausedShorts[short.id] ? "Play video" : "Pause video"}
-                    onClick={() => togglePlayPause(short.id)}
-                    className="absolute inset-0 z-10 w-full h-full bg-transparent cursor-pointer"
+                    onPointerDown={(e) => handlePointerDown(e, short.id)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={(e) => handlePointerUp(e, short.id)}
+                    onPointerCancel={cancelPointerTracking}
+                    onPointerLeave={cancelPointerTracking}
+                    onDoubleClick={(e) => e.preventDefault()}
+                    className="absolute inset-0 z-10 w-full h-full bg-transparent cursor-pointer select-none"
+                    style={{ touchAction: 'pan-y' }}
                     data-testid={`button-toggle-play-${short.id}`}
                   />
+                  {heartBursts
+                    .filter((b) => b.shortId === short.id)
+                    .map((b) => (
+                      <div
+                        key={b.id}
+                        className="absolute z-20 pointer-events-none"
+                        style={{
+                          left: b.x,
+                          top: b.y,
+                          animation: 'shorts-heart-pop 800ms ease-out forwards',
+                        }}
+                        data-testid={`indicator-double-tap-like-${short.id}`}
+                      >
+                        <Heart className="w-24 h-24 text-red-500 fill-red-500 drop-shadow-[0_0_12px_rgba(0,0,0,0.5)]" />
+                      </div>
+                    ))}
+                  <button
+                    type="button"
+                    onClick={toggleMute}
+                    aria-label={isMuted ? "Unmute video" : "Mute video"}
+                    className="absolute z-30 p-2 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 transition-colors text-white"
+                    style={{ top: 'calc(var(--safe-top) + 0.5rem)', left: '0.75rem' }}
+                    data-testid={`button-toggle-mute-${short.id}`}
+                  >
+                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                  </button>
                   {tapIndicator && tapIndicator.shortId === short.id && (
                     <div
                       className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center"

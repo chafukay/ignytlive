@@ -221,6 +221,13 @@
   50% { transform: translateY(-8px); }
 }
 
+@keyframes shorts-heart-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-15deg); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(-15deg); }
+  60% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-15deg); }
+  100% { opacity: 0; transform: translate(-50%, -65%) scale(1.4) rotate(-15deg); }
+}
+
 @keyframes shorts-tap-fade {
   0% { opacity: 0; transform: scale(0.7); }
   20% { opacity: 1; transform: scale(1); }
