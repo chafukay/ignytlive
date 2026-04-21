@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { users, gifts, badges, wheelPrizes, adminUsers, coinPackages, vipTiers } from "@shared/schema";
-import { eq, and, lt, notInArray, sql } from "drizzle-orm";
+import { eq, and, lt, notInArray, inArray, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export async function seedDatabase() {
@@ -379,15 +379,16 @@ export async function cleanupGuestUsers() {
     if (guestIds.length === 0) return;
     
     const ids = guestIds.map(g => g.id);
-    await db.execute(sql`DELETE FROM coin_purchases WHERE user_id = ANY(${ids})`);
-    await db.execute(sql`DELETE FROM gift_transactions WHERE sender_id = ANY(${ids}) OR receiver_id = ANY(${ids})`);
-    await db.execute(sql`DELETE FROM follows WHERE follower_id = ANY(${ids}) OR following_id = ANY(${ids})`);
-    await db.execute(sql`DELETE FROM notifications WHERE user_id = ANY(${ids})`);
-    await db.execute(sql`DELETE FROM messages WHERE sender_id = ANY(${ids}) OR receiver_id = ANY(${ids})`);
-    await db.execute(sql`DELETE FROM user_blocks WHERE blocker_id = ANY(${ids}) OR blocked_id = ANY(${ids})`);
-    await db.execute(sql`DELETE FROM user_reports WHERE reporter_id = ANY(${ids}) OR reported_id = ANY(${ids})`);
+    const idList = sql.join(ids.map(id => sql`${id}`), sql`, `);
+    await db.execute(sql`DELETE FROM coin_purchases WHERE user_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM gift_transactions WHERE sender_id IN (${idList}) OR receiver_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM follows WHERE follower_id IN (${idList}) OR following_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM notifications WHERE user_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM messages WHERE sender_id IN (${idList}) OR receiver_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM user_blocks WHERE blocker_id IN (${idList}) OR blocked_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM user_reports WHERE reporter_id IN (${idList}) OR reported_id IN (${idList})`);
     
-    const result = await db.delete(users).where(sql`${users.id} = ANY(${ids})`);
+    const result = await db.delete(users).where(inArray(users.id, ids));
     const cleaned = result.rowCount ?? 0;
     if (cleaned > 0) {
       console.log(`Cleaned up ${cleaned} guest accounts older than 7 days`);

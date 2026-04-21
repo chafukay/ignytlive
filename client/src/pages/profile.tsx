@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, MailCheck, AlertCircle, CalendarDays } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, Trash2, MailCheck, AlertCircle, CalendarDays } from "lucide-react";
 import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -36,6 +36,26 @@ export default function Profile() {
       toast({ title: "Failed to update banner", variant: "destructive" });
     },
   });
+
+  const removeBannerMutation = useMutation({
+    mutationFn: async () => {
+      return api.updateUser(user!.id, { profileBanner: null } as any);
+    },
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      if (bannerInputRef.current) bannerInputRef.current.value = "";
+      toast({ title: "Profile banner removed" });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove banner", variant: "destructive" });
+    },
+  });
+
+  const handleRemoveBanner = () => {
+    if (!user?.profileBanner || removeBannerMutation.isPending) return;
+    if (typeof window !== "undefined" && !window.confirm("Remove your profile banner?")) return;
+    removeBannerMutation.mutate();
+  };
 
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,6 +163,21 @@ export default function Profile() {
                 >
                   <ImageIcon className="w-5 h-5" />
                 </button>
+                {user.profileBanner && (
+                  <button
+                    onClick={handleRemoveBanner}
+                    disabled={removeBannerMutation.isPending}
+                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                    title="Remove profile banner"
+                    data-testid="button-remove-banner"
+                  >
+                    {removeBannerMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-5 h-5" />
+                    )}
+                  </button>
+                )}
               </>
             )}
             <Link href="/settings">
