@@ -5,13 +5,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-
-function countryToFlag(iso: string): string {
-  if (!iso || iso.length !== 2) return "";
-  const A = 0x1f1e6;
-  const upper = iso.toUpperCase();
-  return String.fromCodePoint(A + upper.charCodeAt(0) - 65, A + upper.charCodeAt(1) - 65);
-}
+import { inspectPhoneClient, countryToFlag } from "@/lib/phone-country";
+import { Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getServerUrl, isNative } from "@/lib/capacitor";
 
@@ -39,21 +34,21 @@ export default function LinkAccount() {
   const [loading, setLoading] = useState(false);
   const [phoneCountryInfo, setPhoneCountryInfo] = useState<{ valid: boolean; supported: boolean; country?: string; countryName?: string } | null>(null);
 
-  // Debounced country precheck for the link-phone input
+  // Local libphonenumber-js parsing first; server confirms when valid.
   useEffect(() => {
     if (codeSent) {
       setPhoneCountryInfo(null);
       return;
     }
     const trimmed = phoneNumber.trim();
-    if (trimmed.length < 6) {
-      setPhoneCountryInfo(null);
-      return;
-    }
+    const local = inspectPhoneClient(trimmed);
+    if (local) setPhoneCountryInfo(local);
+    else setPhoneCountryInfo(null);
+    if (!local || !local.valid) return;
     const t = setTimeout(() => {
       api.checkPhoneCountry(trimmed)
-        .then((info) => setPhoneCountryInfo(info))
-        .catch(() => setPhoneCountryInfo(null));
+        .then((info) => { if (info && (info.country || info.errorCode)) setPhoneCountryInfo(info); })
+        .catch(() => { /* keep local result */ });
     }, 200);
     return () => clearTimeout(t);
   }, [phoneNumber, codeSent]);
@@ -332,11 +327,14 @@ export default function LinkAccount() {
                   />
                   {phoneCountryInfo?.country && phoneCountryInfo.countryName && (
                     <p
-                      className={`text-xs flex items-center gap-1 ${phoneCountryInfo.valid && !phoneCountryInfo.supported ? "text-amber-500" : "text-muted-foreground"}`}
+                      className={`text-xs flex items-center gap-1 ${phoneCountryInfo.valid && !phoneCountryInfo.supported ? "text-amber-500" : "text-emerald-500"}`}
                       data-testid="text-link-country-info"
                     >
                       <span className="text-base">{countryToFlag(phoneCountryInfo.country)}</span>
                       <span>{phoneCountryInfo.countryName}</span>
+                      {phoneCountryInfo.valid && phoneCountryInfo.supported && (
+                        <Check className="w-3.5 h-3.5 ml-0.5" data-testid="icon-link-country-supported" />
+                      )}
                       {phoneCountryInfo.valid && !phoneCountryInfo.supported && (
                         <span className="ml-1">— SMS not supported.</span>
                       )}

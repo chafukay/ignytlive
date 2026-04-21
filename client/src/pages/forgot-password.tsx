@@ -1,27 +1,13 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, CheckCircle2, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getServerUrl } from "@/lib/capacitor";
 import { api } from "@/lib/api";
+import { inspectPhoneClient, countryToFlag, looksLikePhoneIdentifier } from "@/lib/phone-country";
 
 const API_BASE = getServerUrl();
-
-function looksLikePhone(s: string): boolean {
-  const t = s.trim();
-  if (!t) return false;
-  if (t.startsWith("+")) return true;
-  // Mostly digits, no @, no letters beyond a few separators
-  return /^[\d\s().-]{7,}$/.test(t);
-}
-
-function countryToFlag(iso: string): string {
-  if (!iso || iso.length !== 2) return "";
-  const A = 0x1f1e6;
-  const upper = iso.toUpperCase();
-  return String.fromCodePoint(A + upper.charCodeAt(0) - 65, A + upper.charCodeAt(1) - 65);
-}
 
 async function postJson(path: string, body: any) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -49,21 +35,26 @@ export default function ForgotPassword() {
   const [channelHint, setChannelHint] = useState("");
   const [countryInfo, setCountryInfo] = useState<{ valid: boolean; supported: boolean; country?: string; countryName?: string } | null>(null);
 
-  // Debounced inline check when identifier looks like a phone number
+  // Local libphonenumber-js parsing first; only call server for confirmation
+  // when the identifier really looks like a phone (avoid blocking numeric usernames).
   useEffect(() => {
     if (step !== "request") {
       setCountryInfo(null);
       return;
     }
     const trimmed = identifier.trim();
-    if (!looksLikePhone(trimmed) || trimmed.length < 6) {
+    if (!looksLikePhoneIdentifier(trimmed)) {
       setCountryInfo(null);
       return;
     }
+    const local = inspectPhoneClient(trimmed);
+    if (local) setCountryInfo(local);
+    else setCountryInfo(null);
+    if (!local || !local.valid) return;
     const t = setTimeout(() => {
       api.checkPhoneCountry(trimmed)
-        .then((info) => setCountryInfo(info))
-        .catch(() => setCountryInfo(null));
+        .then((info) => { if (info && (info.country || info.errorCode)) setCountryInfo(info); })
+        .catch(() => { /* keep local result */ });
     }, 200);
     return () => clearTimeout(t);
   }, [identifier, step]);
@@ -155,11 +146,14 @@ export default function ForgotPassword() {
                 </div>
                 {countryInfo?.country && countryInfo.countryName && (
                   <p
-                    className={`text-xs flex items-center gap-1 ${countryInfo.valid && !countryInfo.supported ? "text-amber-400" : "text-white/50"}`}
+                    className={`text-xs flex items-center gap-1 ${countryInfo.valid && !countryInfo.supported ? "text-amber-400" : "text-emerald-400"}`}
                     data-testid="text-country-info"
                   >
                     <span className="text-base">{countryToFlag(countryInfo.country)}</span>
                     <span>{countryInfo.countryName}</span>
+                    {countryInfo.valid && countryInfo.supported && (
+                      <Check className="w-3.5 h-3.5 ml-0.5" data-testid="icon-country-supported" />
+                    )}
                     {countryInfo.valid && !countryInfo.supported && (
                       <span className="ml-1">— SMS not supported. Try your email instead.</span>
                     )}

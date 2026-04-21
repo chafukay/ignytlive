@@ -51,9 +51,11 @@ export function normalizePhone(raw: string): string | null {
   return "+" + s;
 }
 
+// Returns ISO 3166 alpha-2 country code (e.g. "US"). Use callingCode from
+// inspectPhoneCountry() if you need the dialing code.
 export function getCountryCode(normalizedPhone: string): string | null {
   const info = inspectPhoneCountry(normalizedPhone);
-  return info.callingCode || null;
+  return info.country || null;
 }
 
 const PREMIUM_RATE_PREFIXES = [

@@ -15,13 +15,8 @@ import {
   authenticateWithBiometric,
   getBiometryType,
 } from "@/lib/biometric-auth";
-
-function countryToFlag(iso: string): string {
-  if (!iso || iso.length !== 2) return "";
-  const A = 0x1f1e6;
-  const upper = iso.toUpperCase();
-  return String.fromCodePoint(A + upper.charCodeAt(0) - 65, A + upper.charCodeAt(1) - 65);
-}
+import { inspectPhoneClient, countryToFlag } from "@/lib/phone-country";
+import { Check } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -43,21 +38,23 @@ export default function Login() {
   const [pendingLoginData, setPendingLoginData] = useState<{ user: any; token: string } | null>(null);
   const [countryInfo, setCountryInfo] = useState<{ valid: boolean; supported: boolean; country?: string; countryName?: string; reason?: string } | null>(null);
 
-  // Debounced inline check of phone country support
+  // Local libphonenumber-js parsing for instant feedback. The server pre-check
+  // (api.checkPhoneCountry) is then run as confirmation in case the env-driven
+  // allowlist disagrees with the client default blocklist.
   useEffect(() => {
     if (mode !== "phone") {
       setCountryInfo(null);
       return;
     }
+    const local = inspectPhoneClient(phone);
+    if (local) setCountryInfo(local);
+    else setCountryInfo(null);
+    if (!local || !local.valid) return;
     const trimmed = phone.trim();
-    if (trimmed.length < 6) {
-      setCountryInfo(null);
-      return;
-    }
     const t = setTimeout(() => {
       api.checkPhoneCountry(trimmed).then((info) => {
-        setCountryInfo(info);
-      }).catch(() => setCountryInfo(null));
+        if (info && (info.country || info.errorCode)) setCountryInfo(info);
+      }).catch(() => { /* keep local result */ });
     }, 200);
     return () => clearTimeout(t);
   }, [phone, mode]);
@@ -378,9 +375,15 @@ export default function Login() {
               data-testid="input-phone"
             />
             {countryInfo?.country && countryInfo.countryName ? (
-              <p className={`text-xs flex items-center gap-1 ${blocked ? "text-amber-400" : "text-white/50"}`} data-testid="text-country-info">
+              <p
+                className={`text-xs flex items-center gap-1 ${blocked ? "text-amber-400" : "text-emerald-400"}`}
+                data-testid="text-country-info"
+              >
                 <span className="text-base">{flag}</span>
                 <span>{countryInfo.countryName}</span>
+                {!blocked && countryInfo.supported && (
+                  <Check className="w-3.5 h-3.5 ml-0.5" data-testid="icon-country-supported" />
+                )}
                 {blocked && <span className="ml-1">— SMS not supported. Use email instead.</span>}
               </p>
             ) : (
