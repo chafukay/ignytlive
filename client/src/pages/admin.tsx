@@ -105,6 +105,22 @@ export default function AdminDashboard() {
     enabled: activeTab === 'moderation' && !!token,
   });
 
+  const { data: smsCountrySettings } = useQuery<{
+    allowlistIso: string[];
+    allowlistDialing: string[];
+    blocklist: string[];
+    source: "env" | "default";
+    hasAllowlist: boolean;
+  }>({
+    queryKey: ['admin', 'sms-country-settings'],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/admin/sms-country-settings`, token!);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: activeTab === 'moderation' && !!token,
+  });
+
   const { data: flaggedData } = useQuery<{ items: any[]; total: number; unreviewed: number }>({
     queryKey: ['admin', 'flagged-content', flaggedFilter],
     queryFn: async () => {
@@ -744,6 +760,42 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 bg-zinc-900 rounded-xl border border-zinc-800 p-4" data-testid="panel-sms-country-settings">
+              <h3 className="text-lg font-semibold text-white mb-1">SMS Country Settings</h3>
+              <p className="text-zinc-500 text-xs mb-4">Read-only. Configured via the <code className="text-zinc-300">SMS_COUNTRY_ALLOWLIST</code> environment variable. Default-blocked countries always apply.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-white">Allowlist</span>
+                    <span className="text-zinc-600 text-xs">{smsCountrySettings?.hasAllowlist ? `source: ${smsCountrySettings?.source}` : "all countries allowed"}</span>
+                  </div>
+                  {smsCountrySettings?.hasAllowlist ? (
+                    <div className="flex flex-wrap gap-1.5" data-testid="list-sms-allowlist">
+                      {smsCountrySettings.allowlistIso.map((iso) => (
+                        <span key={`iso-${iso}`} className="px-2 py-0.5 rounded bg-green-500/10 text-green-400 text-xs">{iso}</span>
+                      ))}
+                      {smsCountrySettings.allowlistDialing.map((d) => (
+                        <span key={`d-${d}`} className="px-2 py-0.5 rounded bg-green-500/10 text-green-400 text-xs">+{d}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-600 text-xs">No allowlist configured. All countries (except blocked) accepted.</p>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-white">Default blocklist</span>
+                    <span className="text-zinc-600 text-xs">always enforced</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5" data-testid="list-sms-blocklist">
+                    {smsCountrySettings?.blocklist.map((iso) => (
+                      <span key={iso} className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 text-xs">{iso}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

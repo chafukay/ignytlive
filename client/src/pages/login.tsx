@@ -16,6 +16,13 @@ import {
   getBiometryType,
 } from "@/lib/biometric-auth";
 
+function countryToFlag(iso: string): string {
+  if (!iso || iso.length !== 2) return "";
+  const A = 0x1f1e6;
+  const upper = iso.toUpperCase();
+  return String.fromCodePoint(A + upper.charCodeAt(0) - 65, A + upper.charCodeAt(1) - 65);
+}
+
 export default function Login() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
@@ -34,6 +41,26 @@ export default function Login() {
   const [biometricType, setBiometricType] = useState("biometric");
   const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
   const [pendingLoginData, setPendingLoginData] = useState<{ user: any; token: string } | null>(null);
+  const [countryInfo, setCountryInfo] = useState<{ valid: boolean; supported: boolean; country?: string; countryName?: string; reason?: string } | null>(null);
+
+  // Debounced inline check of phone country support
+  useEffect(() => {
+    if (mode !== "phone") {
+      setCountryInfo(null);
+      return;
+    }
+    const trimmed = phone.trim();
+    if (trimmed.length < 6) {
+      setCountryInfo(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      api.checkPhoneCountry(trimmed).then((info) => {
+        setCountryInfo(info);
+      }).catch(() => setCountryInfo(null));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [phone, mode]);
 
   useEffect(() => {
     if (isNative()) {
@@ -201,8 +228,12 @@ export default function Login() {
       const result = await api.sendPhoneCode(phone);
       toast({ title: result.message });
       setMode("verify");
-    } catch (error) {
-      toast({ title: "Failed to send code", variant: "destructive" });
+    } catch (error: any) {
+      const msg = error?.message || "Failed to send code";
+      const desc = error?.errorCode === "COUNTRY_NOT_SUPPORTED"
+        ? "Try signing up with email instead."
+        : undefined;
+      toast({ title: msg, description: desc, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -316,6 +347,8 @@ export default function Login() {
   }
 
   if (mode === "phone") {
+    const flag = countryInfo?.country ? countryToFlag(countryInfo.country) : "";
+    const blocked = countryInfo && countryInfo.valid && !countryInfo.supported;
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#1a0a2e] via-[#16082a] to-[#0d0015] flex flex-col items-center justify-center p-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
@@ -334,10 +367,28 @@ export default function Login() {
               className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50"
               data-testid="input-phone"
             />
-            <p className="text-white/30 text-xs">Include country code (e.g., +1 for US)</p>
+            {countryInfo?.country && countryInfo.countryName ? (
+              <p className={`text-xs flex items-center gap-1 ${blocked ? "text-amber-400" : "text-white/50"}`} data-testid="text-country-info">
+                <span className="text-base">{flag}</span>
+                <span>{countryInfo.countryName}</span>
+                {blocked && <span className="ml-1">— SMS not supported. Use email instead.</span>}
+              </p>
+            ) : (
+              <p className="text-white/30 text-xs">Include country code (e.g., +1 for US)</p>
+            )}
+            {blocked && (
+              <button
+                type="button"
+                onClick={() => setLocation("/register")}
+                className="w-full text-sm text-primary hover:underline text-left"
+                data-testid="button-use-email-instead"
+              >
+                Sign up with email instead →
+              </button>
+            )}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !!blocked}
               className="w-full bg-gradient-to-r from-primary to-pink-500 text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
               data-testid="button-send-code"
             >

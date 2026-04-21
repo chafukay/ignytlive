@@ -64,8 +64,35 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone }),
     });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<{ success: boolean; message: string; smsConfigured: boolean }>;
+    const data = await res.json().catch(() => ({} as any));
+    if (!res.ok) {
+      const err: any = new Error(data?.error || `Request failed (${res.status})`);
+      err.errorCode = data?.errorCode;
+      err.country = data?.country;
+      err.countryName = data?.countryName;
+      err.suggestedAction = data?.suggestedAction;
+      throw err;
+    }
+    return data as { success: boolean; message: string; smsConfigured: boolean };
+  },
+
+  async checkPhoneCountry(phone: string) {
+    const res = await fetch(`${API_BASE}/api/sms/check-country`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    const data = await res.json().catch(() => ({} as any));
+    return data as {
+      supported: boolean;
+      valid: boolean;
+      country?: string;
+      countryName?: string;
+      callingCode?: string;
+      errorCode?: string;
+      reason?: string;
+      suggestedAction?: "use_email" | "different_number";
+    };
   },
 
   async verifyPhoneCode(phone: string, code: string) {

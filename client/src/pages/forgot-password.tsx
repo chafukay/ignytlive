@@ -1,11 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getServerUrl } from "@/lib/capacitor";
+import { api } from "@/lib/api";
 
 const API_BASE = getServerUrl();
+
+function looksLikePhone(s: string): boolean {
+  const t = s.trim();
+  if (!t) return false;
+  if (t.startsWith("+")) return true;
+  // Mostly digits, no @, no letters beyond a few separators
+  return /^[\d\s().-]{7,}$/.test(t);
+}
+
+function countryToFlag(iso: string): string {
+  if (!iso || iso.length !== 2) return "";
+  const A = 0x1f1e6;
+  const upper = iso.toUpperCase();
+  return String.fromCodePoint(A + upper.charCodeAt(0) - 65, A + upper.charCodeAt(1) - 65);
+}
 
 async function postJson(path: string, body: any) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -31,6 +47,26 @@ export default function ForgotPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [channelHint, setChannelHint] = useState("");
+  const [countryInfo, setCountryInfo] = useState<{ valid: boolean; supported: boolean; country?: string; countryName?: string } | null>(null);
+
+  // Debounced inline check when identifier looks like a phone number
+  useEffect(() => {
+    if (step !== "request") {
+      setCountryInfo(null);
+      return;
+    }
+    const trimmed = identifier.trim();
+    if (!looksLikePhone(trimmed) || trimmed.length < 6) {
+      setCountryInfo(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      api.checkPhoneCountry(trimmed)
+        .then((info) => setCountryInfo(info))
+        .catch(() => setCountryInfo(null));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [identifier, step]);
 
   const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,9 +153,21 @@ export default function ForgotPassword() {
                     autoFocus
                   />
                 </div>
+                {countryInfo?.country && countryInfo.countryName && (
+                  <p
+                    className={`text-xs flex items-center gap-1 ${countryInfo.valid && !countryInfo.supported ? "text-amber-400" : "text-white/50"}`}
+                    data-testid="text-country-info"
+                  >
+                    <span className="text-base">{countryToFlag(countryInfo.country)}</span>
+                    <span>{countryInfo.countryName}</span>
+                    {countryInfo.valid && !countryInfo.supported && (
+                      <span className="ml-1">— SMS not supported. Try your email instead.</span>
+                    )}
+                  </p>
+                )}
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || !!(countryInfo && countryInfo.valid && !countryInfo.supported)}
                   className="w-full bg-gradient-to-r from-primary to-pink-500 text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
                   data-testid="button-send-code"
                 >

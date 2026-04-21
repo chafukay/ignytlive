@@ -84,7 +84,7 @@ function stripPasswords(obj: any): any {
 import { awardXP, checkDailyLoginBonus } from "./xp-service";
 import { initPushService, getVapidPublicKey, sendPushToUser, shouldSendAlert } from "./push-service";
 import { sendVerificationEmail, sendPasswordResetEmail, isEmailServiceConfigured } from "./email-service";
-import { normalizePhone, checkSmsAbuse, recordSmsSent, checkEmailAbuse, recordEmailSent } from "./abuse-protection";
+import { normalizePhone, checkSmsAbuse, recordSmsSent, checkEmailAbuse, recordEmailSent, inspectPhoneCountry, getSmsCountrySettings } from "./abuse-protection";
 import Stripe from "stripe";
 import bcrypt from "bcryptjs";
 
@@ -1392,6 +1392,30 @@ export async function registerRoutes(
   });
 
   // Phone authentication - send verification code
+  // Public: check whether a phone number's country is supported for SMS.
+  // Used by login/forgot-password forms for inline validation feedback.
+  app.post("/api/sms/check-country", async (req, res) => {
+    try {
+      const { phone } = req.body || {};
+      if (!phone || typeof phone !== "string") {
+        return res.status(400).json({ supported: false, errorCode: "INVALID_NUMBER", reason: "Phone number is required." });
+      }
+      const info = inspectPhoneCountry(phone);
+      res.json({
+        supported: info.supported,
+        valid: info.valid,
+        country: info.country,
+        countryName: info.countryName,
+        callingCode: info.callingCode,
+        errorCode: info.errorCode,
+        reason: info.reason,
+        suggestedAction: info.supported ? undefined : (info.errorCode === "COUNTRY_NOT_SUPPORTED" ? "use_email" : "different_number"),
+      });
+    } catch (error) {
+      res.status(500).json({ supported: false, errorCode: "SERVER_ERROR", reason: "Failed to check country." });
+    }
+  });
+
   app.post("/api/auth/phone/send-code", async (req, res) => {
     try {
       const { phone: rawPhone } = req.body;
@@ -1411,7 +1435,13 @@ export async function registerRoutes(
         if (abuseCheck.retryAfterMs) {
           res.setHeader("Retry-After", Math.ceil(abuseCheck.retryAfterMs / 1000).toString());
         }
-        return res.status(abuseCheck.status || 429).json({ error: abuseCheck.reason });
+        return res.status(abuseCheck.status || 429).json({
+          error: abuseCheck.reason,
+          errorCode: abuseCheck.errorCode,
+          country: abuseCheck.country,
+          countryName: abuseCheck.countryName,
+          suggestedAction: abuseCheck.suggestedAction,
+        });
       }
 
       const { generateVerificationCode, sendVerificationCode } = await import("./sms");
@@ -1573,7 +1603,13 @@ export async function registerRoutes(
         if (abuseCheck.retryAfterMs) {
           res.setHeader("Retry-After", Math.ceil(abuseCheck.retryAfterMs / 1000).toString());
         }
-        return res.status(abuseCheck.status || 429).json({ error: abuseCheck.reason });
+        return res.status(abuseCheck.status || 429).json({
+          error: abuseCheck.reason,
+          errorCode: abuseCheck.errorCode,
+          country: abuseCheck.country,
+          countryName: abuseCheck.countryName,
+          suggestedAction: abuseCheck.suggestedAction,
+        });
       }
 
       // Check if phone is already linked to another user
@@ -5286,6 +5322,15 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete coin package" });
+    }
+  });
+
+  app.get("/api/admin/sms-country-settings", async (req, res) => {
+    if (!await requireAdmin(req, res)) return;
+    try {
+      res.json(getSmsCountrySettings());
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch SMS country settings" });
     }
   });
 

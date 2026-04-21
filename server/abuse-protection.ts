@@ -37,23 +37,23 @@ function recordBucket(key: string, windowMs: number): void {
   }
 }
 
+import { parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
+
 export function normalizePhone(raw: string): string | null {
   if (!raw || typeof raw !== "string") return null;
-  const s = raw.trim().replace(/[^\d]/g, "");
+  const trimmed = raw.trim();
+  // Try libphonenumber first for accurate normalization
+  const parsed = parsePhoneNumberFromString(trimmed.startsWith("+") ? trimmed : "+" + trimmed.replace(/[^\d]/g, ""));
+  if (parsed && parsed.isValid()) return parsed.number;
+  // Fall back to digits-only with + (preserves prior behavior for partial numbers)
+  const s = trimmed.replace(/[^\d]/g, "");
   if (s.length < 8 || s.length > 15) return null;
   return "+" + s;
 }
 
 export function getCountryCode(normalizedPhone: string): string | null {
-  if (!normalizedPhone.startsWith("+")) return null;
-  const digits = normalizedPhone.slice(1);
-  if (digits.startsWith("1")) return "1";
-  if (digits.length >= 2) {
-    const two = digits.slice(0, 2);
-    if (["44", "33", "49", "39", "34", "31", "32", "41", "43", "45", "46", "47", "48", "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63", "64", "65", "66", "81", "82", "84", "86", "90", "91", "92", "93", "94", "95", "98"].includes(two)) return two;
-  }
-  if (digits.length >= 3) return digits.slice(0, 3);
-  return null;
+  const info = inspectPhoneCountry(normalizedPhone);
+  return info.callingCode || null;
 }
 
 const PREMIUM_RATE_PREFIXES = [
@@ -71,16 +71,107 @@ export function isPremiumRateNumber(normalizedPhone: string): boolean {
   return PREMIUM_RATE_PREFIXES.some((p) => digits.startsWith(p));
 }
 
-const SMS_COUNTRY_ALLOWLIST = (process.env.SMS_COUNTRY_ALLOWLIST || "")
-  .split(",")
-  .map((c) => c.trim())
-  .filter(Boolean);
+// Countries Twilio disables by default (sanctioned / high-fraud regions).
+// Even if SMS_COUNTRY_ALLOWLIST isn't set, these are blocked so users get a
+// clear message instead of a Twilio 21408 race.
+const DEFAULT_BLOCKED_COUNTRIES = new Set<string>([
+  "CU", // Cuba
+  "IR", // Iran
+  "KP", // North Korea
+  "SY", // Syria
+  "SD", // Sudan
+]);
+
+// Allowlist parsing supports both ISO 3166 alpha-2 codes (US, IN) and
+// dialing codes (1, 91) for backwards compatibility.
+const allowlistIso = new Set<string>();
+const allowlistDialing = new Set<string>();
+{
+  const raw = (process.env.SMS_COUNTRY_ALLOWLIST || "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  for (const item of raw) {
+    if (/^\d+$/.test(item)) allowlistDialing.add(item);
+    else allowlistIso.add(item.toUpperCase());
+  }
+}
+const HAS_ALLOWLIST = allowlistIso.size > 0 || allowlistDialing.size > 0;
+
+let regionNames: Intl.DisplayNames | null = null;
+try {
+  regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+} catch {
+  regionNames = null;
+}
+
+export interface CountryInspection {
+  valid: boolean;
+  country?: string;        // ISO alpha-2, e.g. "US"
+  countryName?: string;    // Display name, e.g. "United States"
+  callingCode?: string;    // Dialing code, e.g. "1"
+  e164?: string;           // Normalized E.164 form
+  supported: boolean;
+  reason?: string;         // Human-readable reason when not supported
+  errorCode?: string;      // Machine-readable: INVALID_NUMBER | PREMIUM_RATE | COUNTRY_NOT_SUPPORTED
+}
+
+export function inspectPhoneCountry(rawPhone: string): CountryInspection {
+  if (!rawPhone || typeof rawPhone !== "string") {
+    return { valid: false, supported: false, reason: "Phone number is required.", errorCode: "INVALID_NUMBER" };
+  }
+  const trimmed = rawPhone.trim();
+  const candidate = trimmed.startsWith("+") ? trimmed : "+" + trimmed.replace(/[^\d]/g, "");
+  const parsed = parsePhoneNumberFromString(candidate);
+  if (!parsed || !parsed.isValid()) {
+    return { valid: false, supported: false, reason: "Please enter a valid phone number with country code.", errorCode: "INVALID_NUMBER" };
+  }
+  const country = parsed.country;
+  const callingCode = parsed.countryCallingCode;
+  const countryName = country && regionNames ? (regionNames.of(country) || country) : country;
+  const e164 = parsed.number;
+
+  if (isPremiumRateNumber(e164)) {
+    return { valid: true, country, countryName, callingCode, e164, supported: false, reason: "This phone number type (premium rate) is not supported.", errorCode: "PREMIUM_RATE" };
+  }
+
+  if (country && DEFAULT_BLOCKED_COUNTRIES.has(country)) {
+    return {
+      valid: true, country, countryName, callingCode, e164,
+      supported: false,
+      reason: `We can't currently send SMS to ${countryName ?? "this country"}. Try signing up with email instead.`,
+      errorCode: "COUNTRY_NOT_SUPPORTED",
+    };
+  }
+
+  if (HAS_ALLOWLIST) {
+    const isoOk = !!country && allowlistIso.has(country);
+    const dialOk = !!callingCode && allowlistDialing.has(callingCode);
+    if (!isoOk && !dialOk) {
+      return {
+        valid: true, country, countryName, callingCode, e164,
+        supported: false,
+        reason: `We can't currently send SMS to ${countryName ?? "this country"}. Try signing up with email instead.`,
+        errorCode: "COUNTRY_NOT_SUPPORTED",
+      };
+    }
+  }
+
+  return { valid: true, country, countryName, callingCode, e164, supported: true };
+}
 
 export function isCountryAllowed(normalizedPhone: string): boolean {
-  if (SMS_COUNTRY_ALLOWLIST.length === 0) return true;
-  const cc = getCountryCode(normalizedPhone);
-  if (!cc) return false;
-  return SMS_COUNTRY_ALLOWLIST.includes(cc);
+  return inspectPhoneCountry(normalizedPhone).supported;
+}
+
+export function getSmsCountrySettings() {
+  return {
+    allowlistIso: Array.from(allowlistIso).sort(),
+    allowlistDialing: Array.from(allowlistDialing).sort(),
+    blocklist: Array.from(DEFAULT_BLOCKED_COUNTRIES).sort(),
+    source: HAS_ALLOWLIST ? "env" as const : "default" as const,
+    hasAllowlist: HAS_ALLOWLIST,
+  };
 }
 
 const SMS_LIMITS = {
@@ -97,14 +188,24 @@ export interface SmsCheckResult {
   reason?: string;
   retryAfterMs?: number;
   status?: number;
+  errorCode?: string;
+  country?: string;
+  countryName?: string;
+  suggestedAction?: "use_email" | "different_number" | "wait";
 }
 
 export function checkSmsAbuse(phone: string, ip: string): SmsCheckResult {
-  if (isPremiumRateNumber(phone)) {
-    return { allowed: false, reason: "This phone number type is not supported.", status: 400 };
-  }
-  if (!isCountryAllowed(phone)) {
-    return { allowed: false, reason: "SMS to this country is not currently supported.", status: 400 };
+  const inspection = inspectPhoneCountry(phone);
+  if (!inspection.supported) {
+    return {
+      allowed: false,
+      reason: inspection.reason || "SMS to this country is not currently supported.",
+      status: 400,
+      errorCode: inspection.errorCode || "COUNTRY_NOT_SUPPORTED",
+      country: inspection.country,
+      countryName: inspection.countryName,
+      suggestedAction: inspection.errorCode === "COUNTRY_NOT_SUPPORTED" ? "use_email" : "different_number",
+    };
   }
 
   const checks = [
