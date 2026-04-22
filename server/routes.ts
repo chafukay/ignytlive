@@ -1902,6 +1902,13 @@ export async function registerRoutes(
       if (themePreference !== undefined) updates.themePreference = themePreference;
       if (preferredCountry !== undefined) updates.preferredCountry = preferredCountry;
       if (req.body.profileBanner !== undefined) updates.profileBanner = req.body.profileBanner;
+      if (req.body.bannerPosition !== undefined) {
+        const pos = Number(req.body.bannerPosition);
+        if (!Number.isFinite(pos) || pos < 0 || pos > 100) {
+          return res.status(400).json({ error: "bannerPosition must be a number between 0 and 100" });
+        }
+        updates.bannerPosition = Math.round(pos);
+      }
 
       const user = await storage.updateUser(userId, updates);
       res.json(toSafeUser(user));

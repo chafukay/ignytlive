@@ -1,6 +1,7 @@
 import Layout from "@/components/layout";
 import { GuestGate } from "@/components/guest-gate";
-import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, Trash2, MailCheck, AlertCircle, CalendarDays } from "lucide-react";
+import { Settings, User, Wallet, Award, ChevronRight, Moon, Trophy, Clapperboard, Users, Star, ShoppingBag, Crown, Gift, Building2, Package, Eye, Share2, LogOut, Sparkles, BadgeCheck, Medal, UserCheck, Camera, ImageIcon, Loader2, Trash2, MailCheck, AlertCircle, CalendarDays, Pencil } from "lucide-react";
+import { BannerEditDialog } from "@/components/banner-edit-dialog";
 import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { useLocation, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -22,14 +23,15 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [dndEnabled, setDndEnabled] = useState(user?.dndEnabled || false);
-  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [bannerDialogOpen, setBannerDialogOpen] = useState(false);
 
   const bannerMutation = useMutation({
-    mutationFn: async (imageDataUrl: string) => {
-      return api.updateUser(user!.id, { profileBanner: imageDataUrl } as any);
+    mutationFn: async (payload: { profileBanner: string | null; bannerPosition?: number }) => {
+      return api.updateUser(user!.id, payload as any);
     },
     onSuccess: (updatedUser) => {
       setUser(updatedUser);
+      setBannerDialogOpen(false);
       toast({ title: "Profile banner updated!" });
     },
     onError: () => {
@@ -39,11 +41,11 @@ export default function Profile() {
 
   const removeBannerMutation = useMutation({
     mutationFn: async () => {
-      return api.updateUser(user!.id, { profileBanner: null } as any);
+      return api.updateUser(user!.id, { profileBanner: null, bannerPosition: 50 } as any);
     },
     onSuccess: (updatedUser) => {
       setUser(updatedUser);
-      if (bannerInputRef.current) bannerInputRef.current.value = "";
+      setBannerDialogOpen(false);
       toast({ title: "Profile banner removed" });
     },
     onError: () => {
@@ -51,24 +53,14 @@ export default function Profile() {
     },
   });
 
+  const handleSaveBanner = (banner: string | null, position: number) => {
+    bannerMutation.mutate({ profileBanner: banner, bannerPosition: position });
+  };
+
   const handleRemoveBanner = () => {
     if (!user?.profileBanner || removeBannerMutation.isPending) return;
     if (typeof window !== "undefined" && !window.confirm("Remove your profile banner?")) return;
     removeBannerMutation.mutate();
-  };
-
-  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "Image must be under 2MB", variant: "destructive" });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      bannerMutation.mutate(reader.result as string);
-    };
-    reader.readAsDataURL(file);
   };
 
   // Check if user is currently live streaming
@@ -144,42 +136,6 @@ export default function Profile() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-xl font-bold text-foreground">Profile</h1>
           <div className="flex items-center gap-2">
-            {(user.vipTier || 0) > 0 && (
-              <>
-                <input
-                  ref={bannerInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleBannerChange}
-                  data-testid="input-banner-upload"
-                />
-                <button
-                  onClick={() => bannerInputRef.current?.click()}
-                  disabled={bannerMutation.isPending}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  title="Change profile background (VIP feature)"
-                  data-testid="button-change-banner"
-                >
-                  <ImageIcon className="w-5 h-5" />
-                </button>
-                {user.profileBanner && (
-                  <button
-                    onClick={handleRemoveBanner}
-                    disabled={removeBannerMutation.isPending}
-                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                    title="Remove profile banner"
-                    data-testid="button-remove-banner"
-                  >
-                    {removeBannerMutation.isPending ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-5 h-5" />
-                    )}
-                  </button>
-                )}
-              </>
-            )}
             <Link href="/settings">
               <Settings className="w-6 h-6 text-foreground cursor-pointer" />
             </Link>
@@ -246,7 +202,11 @@ export default function Profile() {
         <div
           className="relative rounded-2xl overflow-hidden mb-6 p-6"
           style={user.profileBanner
-            ? { backgroundImage: `url(${user.profileBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            ? {
+                backgroundImage: `url(${user.profileBanner})`,
+                backgroundSize: 'cover',
+                backgroundPosition: `center ${(user as any).bannerPosition ?? 50}%`,
+              }
             : undefined
           }
           data-testid="profile-banner"
@@ -254,6 +214,14 @@ export default function Profile() {
           {user.profileBanner && (
             <div className="absolute inset-0 bg-black/30" />
           )}
+          <button
+            onClick={() => setBannerDialogOpen(true)}
+            className="absolute top-2 right-2 z-20 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur text-white flex items-center justify-center transition-colors"
+            title="Edit banner"
+            data-testid="button-edit-banner"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
           <div className="relative z-10 flex flex-col items-center">
           <div className="relative mb-3">
             <div className="relative">
@@ -593,6 +561,16 @@ export default function Profile() {
           </div>
         </div>
       </div>
+      <BannerEditDialog
+        open={bannerDialogOpen}
+        onOpenChange={setBannerDialogOpen}
+        currentBanner={user.profileBanner}
+        currentPosition={(user as any).bannerPosition ?? 50}
+        isSaving={bannerMutation.isPending}
+        isRemoving={removeBannerMutation.isPending}
+        onSave={handleSaveBanner}
+        onRemove={handleRemoveBanner}
+      />
     </Layout>
     </GuestGate>
   );

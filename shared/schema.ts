@@ -55,6 +55,7 @@ export const users = pgTable("users", {
   referralCode: text("referral_code").unique(),
   referredBy: varchar("referred_by"),
   profileBanner: text("profile_banner"),
+  bannerPosition: integer("banner_position").default(50),
   isAdmin: boolean("is_admin").notNull().default(false),
   emailVerified: boolean("email_verified").notNull().default(false),
   emailVerificationToken: text("email_verification_token"),
