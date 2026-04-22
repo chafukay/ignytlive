@@ -142,6 +142,56 @@ export default function LiveRoom() {
     }
   }, [isBroadcaster]);
 
+  // Screenshot privacy: warn viewers when they try to capture, and show a one-time notice
+  useEffect(() => {
+    if (isBroadcaster || !stream) return;
+    const noticeKey = `screenshotNotice:${stream.id}`;
+    if (!sessionStorage.getItem(noticeKey)) {
+      toast({
+        title: "Screenshots are discouraged",
+        description: "This live stream is the creator's content. Recording or screenshotting may violate our guidelines.",
+      });
+      sessionStorage.setItem(noticeKey, "1");
+    }
+    let lastWarn = 0;
+    const warn = () => {
+      const now = Date.now();
+      if (now - lastWarn < 4000) return;
+      lastWarn = now;
+      toast({
+        title: "Screenshot detected",
+        description: "Please respect the creator and don't share captures without permission.",
+        variant: "destructive",
+      });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "PrintScreen" || (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4" || e.key === "5"))) {
+        warn();
+      }
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      try {
+        if (e.clipboardData && Array.from(e.clipboardData.items).some((i) => i.type.startsWith("image/"))) {
+          warn();
+        }
+      } catch {}
+    };
+    const onContext = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "VIDEO" || target.closest('[data-testid^="video-"]'))) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("copy", onCopy as any);
+    document.addEventListener("contextmenu", onContext);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("copy", onCopy as any);
+      document.removeEventListener("contextmenu", onContext);
+    };
+  }, [isBroadcaster, stream?.id, toast]);
+
   // Check if user is following the streamer
   const { data: followStatus, refetch: refetchFollowStatus } = useQuery({
     queryKey: ['isFollowing', user?.id, stream?.userId],
@@ -783,6 +833,21 @@ export default function LiveRoom() {
                     />
                   )}
                   <VideoTapOverlay videoRef={videoRef} testId="broadcaster" forceLive />
+
+                  {/* Anti-screenshot watermark with viewer identity (only shown to viewers) */}
+                  {!isBroadcaster && user && (
+                    <div className="absolute inset-0 pointer-events-none z-[5] overflow-hidden select-none" data-testid="screenshot-watermark">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-30deg] flex flex-col items-center gap-12 opacity-[0.07] text-white text-xs font-mono whitespace-nowrap">
+                        {Array.from({ length: 6 }).map((_, row) => (
+                          <div key={row} className="flex gap-12">
+                            {Array.from({ length: 4 }).map((_, col) => (
+                              <span key={col}>@{user.username} • {new Date().toLocaleDateString()}</span>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {liveEffects?.filterOverlay && (
                     <div className="absolute inset-0 pointer-events-none z-[2]" style={{ backgroundColor: liveEffects.filterOverlay }} />
