@@ -1529,23 +1529,25 @@ export default function LiveRoom() {
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.2 }}
             >
-              {/* Quick Gift Bar */}
-              <div className="px-4 pb-2">
-                <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
-                  {gifts?.slice(0, 7).map((gift) => (
-                    <button
-                      key={gift.id}
-                      onClick={() => handleSendGift(gift)}
-                      disabled={isSendingGift}
-                      className="flex flex-col items-center min-w-[50px] hover:scale-110 transition-transform disabled:opacity-50"
-                      data-testid={`quick-gift-${gift.id}`}
-                    >
-                      <span className="text-2xl">{gift.emoji}</span>
-                      <span className="text-[9px] text-yellow-400 font-bold">{gift.coinCost}</span>
-                    </button>
-                  ))}
+              {/* Quick Gift Bar - hidden for the streamer themself */}
+              {streamerUser && user && streamerUser.id !== user.id && (
+                <div className="px-4 pb-2">
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                    {gifts?.slice(0, 7).map((gift) => (
+                      <button
+                        key={gift.id}
+                        onClick={() => handleSendGift(gift)}
+                        disabled={isSendingGift}
+                        className="flex flex-col items-center min-w-[50px] hover:scale-110 transition-transform disabled:opacity-50"
+                        data-testid={`quick-gift-${gift.id}`}
+                      >
+                        <span className="text-2xl">{gift.emoji}</span>
+                        <span className="text-[9px] text-yellow-400 font-bold">{gift.coinCost}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Bottom Interface */}
               <div className="p-4 pt-0" style={{ paddingBottom: 'calc(1.5rem + var(--safe-bottom, 0px))' }}>
@@ -1586,13 +1588,15 @@ export default function LiveRoom() {
                   <Share2 className="w-5 h-5 text-white" />
                 </button>
 
-                <button 
-                  onClick={() => { if (isGuest) { requireAccount(); return; } setShowGiftMenu(!showGiftMenu); }}
-                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-orange-500/30"
-                  data-testid="button-gift"
-                >
-                  <Gift className="w-5 h-5 text-white" />
-                </button>
+                {streamerUser && user && streamerUser.id !== user.id && (
+                  <button 
+                    onClick={() => { if (isGuest) { requireAccount(); return; } setShowGiftMenu(!showGiftMenu); }}
+                    className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-orange-500/30"
+                    data-testid="button-gift"
+                  >
+                    <Gift className="w-5 h-5 text-white" />
+                  </button>
+                )}
 
                 {streamerUser && user && streamerUser.id !== user.id && (
                   <CallButton receiverId={streamerUser.id} receiverName={streamerUser.username} coinCost={100} />
