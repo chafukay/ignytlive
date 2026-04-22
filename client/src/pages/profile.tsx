@@ -427,34 +427,34 @@ export default function Profile() {
 
         {/* Quick Access */}
         <div className="grid grid-cols-5 gap-2 mb-6">
-          <Link href="/shorts">
+          <Link href="/shorts" className="block min-w-0">
             <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-shorts">
               <Clapperboard className="w-5 h-5 text-pink-400 mx-auto mb-1.5" />
-              <span className="text-foreground text-[10px] font-medium">Shorts</span>
+              <span className="block text-foreground text-[10px] font-medium leading-tight break-words">Shorts</span>
             </div>
           </Link>
-          <Link href="/leaderboard">
+          <Link href="/leaderboard" className="block min-w-0">
             <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-leaderboard">
               <Trophy className="w-5 h-5 text-yellow-400 mx-auto mb-1.5" />
-              <span className="text-foreground text-[10px] font-medium">Leaderboard</span>
+              <span className="block text-foreground text-[10px] font-medium leading-tight break-words">Leaderboard</span>
             </div>
           </Link>
-          <Link href="/groups">
+          <Link href="/groups" className="block min-w-0">
             <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-groups">
               <Users className="w-5 h-5 text-blue-400 mx-auto mb-1.5" />
-              <span className="text-foreground text-[10px] font-medium">Groups</span>
+              <span className="block text-foreground text-[10px] font-medium leading-tight break-words">Groups</span>
             </div>
           </Link>
-          <Link href="/achievements">
+          <Link href="/achievements" className="block min-w-0">
             <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-achievements">
               <Medal className="w-5 h-5 text-green-400 mx-auto mb-1.5" />
-              <span className="text-foreground text-[10px] font-medium">Achievements</span>
+              <span className="block text-foreground text-[10px] font-medium leading-tight break-words">Achievements</span>
             </div>
           </Link>
-          <Link href="/events">
+          <Link href="/events" className="block min-w-0">
             <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-2xl p-3 text-center cursor-pointer hover:scale-105 transition-transform" data-testid="link-events">
               <CalendarDays className="w-5 h-5 text-orange-400 mx-auto mb-1.5" />
-              <span className="text-foreground text-[10px] font-medium">Events</span>
+              <span className="block text-foreground text-[10px] font-medium leading-tight break-words">Events</span>
             </div>
           </Link>
         </div>
