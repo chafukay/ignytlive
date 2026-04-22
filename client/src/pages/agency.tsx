@@ -437,10 +437,11 @@ export default function AgencyPage() {
                     <AlertDialogCancel data-testid="button-cancel-delete-agency">Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deleteMutation.mutate(myMembership.agencyId)}
+                      disabled={deleteMutation.isPending}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       data-testid="button-confirm-delete-agency"
                     >
-                      Delete
+                      {deleteMutation.isPending ? "Deleting..." : "Delete"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
