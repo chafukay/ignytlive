@@ -47,7 +47,7 @@ export default function GoLive() {
   const [blockLinks, setBlockLinks] = useState(false);
   const [activePanel, setActivePanel] = useState<"beauty" | "effects" | null>(null);
   const [beautySettings, setBeautySettings] = useState({
-    smooth: 0, slim: 0, eyes: 0, brightness: 0, contrast: 0, lipColor: 0,
+    smooth: 0, slim: 0, eyes: 0, brightness: 12, contrast: 8, lipColor: 0,
   });
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [selectedFrame, setSelectedFrame] = useState<string | null>(null);
@@ -94,10 +94,38 @@ export default function GoLive() {
         video: { 
           facingMode,
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 720 },
+          // @ts-expect-error advanced constraints aren't fully typed but improve exposure on supported devices
+          advanced: [
+            { exposureMode: "continuous" },
+            { whiteBalanceMode: "continuous" },
+            { focusMode: "continuous" },
+          ],
         },
         audio: true
       });
+
+      try {
+        const videoTrack = mediaStream.getVideoTracks()[0];
+        if (videoTrack && typeof videoTrack.getCapabilities === "function") {
+          const caps: any = videoTrack.getCapabilities();
+          const advanced: any[] = [];
+          if (caps.exposureMode?.includes?.("continuous")) advanced.push({ exposureMode: "continuous" });
+          if (caps.exposureCompensation && typeof caps.exposureCompensation.max === "number") {
+            advanced.push({ exposureCompensation: Math.min(caps.exposureCompensation.max, (caps.exposureCompensation.max + (caps.exposureCompensation.min ?? 0)) / 2 + (caps.exposureCompensation.step ?? 0.5)) });
+          }
+          if (caps.brightness && typeof caps.brightness.max === "number") {
+            const mid = ((caps.brightness.max ?? 0) + (caps.brightness.min ?? 0)) / 2;
+            advanced.push({ brightness: Math.min(caps.brightness.max, mid + ((caps.brightness.max - mid) * 0.4)) });
+          }
+          if (caps.whiteBalanceMode?.includes?.("continuous")) advanced.push({ whiteBalanceMode: "continuous" });
+          if (advanced.length > 0) {
+            await videoTrack.applyConstraints({ advanced });
+          }
+        }
+      } catch (capErr) {
+        console.debug("Camera capability tuning skipped:", capErr);
+      }
       
       setStream(mediaStream);
       if (videoRef.current) {

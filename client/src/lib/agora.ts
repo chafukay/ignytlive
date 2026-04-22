@@ -116,9 +116,29 @@ export async function joinAsHost(
     {},
     {
       encoderConfig: "720p_2",
-      facingMode
+      facingMode,
+      optimizationMode: "detail"
     }
   );
+
+  try {
+    const videoTrack = localVideoTrack.getMediaStreamTrack();
+    if (videoTrack && typeof videoTrack.getCapabilities === "function") {
+      const caps: any = videoTrack.getCapabilities();
+      const advanced: any[] = [];
+      if (caps.exposureMode?.includes?.("continuous")) advanced.push({ exposureMode: "continuous" });
+      if (caps.whiteBalanceMode?.includes?.("continuous")) advanced.push({ whiteBalanceMode: "continuous" });
+      if (caps.brightness && typeof caps.brightness.max === "number") {
+        const mid = ((caps.brightness.max ?? 0) + (caps.brightness.min ?? 0)) / 2;
+        advanced.push({ brightness: Math.min(caps.brightness.max, mid + ((caps.brightness.max - mid) * 0.4)) });
+      }
+      if (advanced.length > 0) {
+        await videoTrack.applyConstraints({ advanced });
+      }
+    }
+  } catch (capErr) {
+    console.debug("[Agora] Camera capability tuning skipped:", capErr);
+  }
 
   if (videoContainer) {
     localVideoTrack.play(videoContainer);
