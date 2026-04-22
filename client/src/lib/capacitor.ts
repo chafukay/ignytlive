@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { PrivacyScreen } from '@capacitor-community/privacy-screen';
 
 export function isNative(): boolean {
   return Capacitor.isNativePlatform();
@@ -23,6 +24,31 @@ export function getServerUrl(): string {
     return 'https://ignyt.replit.app';
   }
   return '';
+}
+
+/**
+ * Enable native screenshot blocking (Android FLAG_SECURE) and screen-recording protection (iOS).
+ * Safe no-op on web. Idempotent.
+ */
+export async function enablePrivacyScreen(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await PrivacyScreen.enable();
+  } catch (err) {
+    console.debug('[PrivacyScreen] enable failed:', err);
+  }
+}
+
+/**
+ * Disable native screenshot blocking. Call when leaving a privacy-sensitive page.
+ */
+export async function disablePrivacyScreen(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await PrivacyScreen.disable();
+  } catch (err) {
+    console.debug('[PrivacyScreen] disable failed:', err);
+  }
 }
 
 export function getWebSocketUrl(params: URLSearchParams): string {

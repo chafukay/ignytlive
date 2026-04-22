@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { isNative, getServerUrl } from "@/lib/capacitor";
+import { isNative, getServerUrl, enablePrivacyScreen, disablePrivacyScreen } from "@/lib/capacitor";
 
 const COUNTRIES_MAP: Record<string, string> = {
   US: "United States 🇺🇸", GB: "United Kingdom 🇬🇧", CA: "Canada 🇨🇦", AU: "Australia 🇦🇺",
@@ -163,6 +163,12 @@ export default function GoLive() {
       }
     };
   }, [stream]);
+
+  // Native: block screenshots on the broadcaster's setup/preview screen too
+  useEffect(() => {
+    enablePrivacyScreen();
+    return () => { disablePrivacyScreen(); };
+  }, []);
 
   const flipCamera = () => {
     setFacingMode(prev => prev === "user" ? "environment" : "user");

@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createStreamWebSocket } from "@/lib/websocket";
 import { isAgoraConfigured, ensureAgoraConfigured, joinAsHost, joinAsAudience, leaveChannel, switchCamera, toggleMute, promoteToHost, demoteToAudience } from "@/lib/agora";
-import { getServerUrl } from "@/lib/capacitor";
+import { getServerUrl, enablePrivacyScreen, disablePrivacyScreen } from "@/lib/capacitor";
 import type { IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import PKBattleView from "@/components/pk-battle-view";
 import SpinWheel from "@/components/spin-wheel";
@@ -185,10 +185,13 @@ export default function LiveRoom() {
     window.addEventListener("keydown", onKey);
     window.addEventListener("copy", onCopy as any);
     document.addEventListener("contextmenu", onContext);
+    // Native: block screenshots/recording at OS level (Android FLAG_SECURE / iOS overlay)
+    enablePrivacyScreen();
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("copy", onCopy as any);
       document.removeEventListener("contextmenu", onContext);
+      disablePrivacyScreen();
     };
   }, [isBroadcaster, stream?.id, toast]);
 
