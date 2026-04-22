@@ -2456,6 +2456,11 @@ export async function registerRoutes(
       
       // Guest restriction
       if (await checkGuestRestriction(transactionData.senderId, res, storage)) return;
+
+      // Prevent self-gifting
+      if (transactionData.senderId === transactionData.receiverId) {
+        return res.status(400).json({ error: "You cannot send a gift to yourself" });
+      }
       
       // Check if recipient has DND enabled (for gift notifications, we still allow the gift but suppress notification)
       const recipient = await storage.getUser(transactionData.receiverId);

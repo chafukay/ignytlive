@@ -34,6 +34,11 @@ export default function GiftPanel({ receiverId, receiverName, streamId, isOpen, 
       return;
     }
 
+    if (user.id === receiverId) {
+      toast({ title: "You can't gift yourself", description: "Send gifts to other creators instead.", variant: "destructive" });
+      return;
+    }
+
     if ((user.coins || 0) < gift.coinCost) {
       toast({ title: "Not enough coins", description: "Top up to send this gift!", variant: "destructive" });
       return;
