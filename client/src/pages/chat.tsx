@@ -283,6 +283,8 @@ export default function Chat() {
       if (user) {
         markReadMutation.mutate(selectedUserId);
       }
+    } else {
+      setMobileShowConversation(false);
     }
   }, [selectedUserId]);
 
