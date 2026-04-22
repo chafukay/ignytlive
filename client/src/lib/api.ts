@@ -531,7 +531,7 @@ export const api = {
   async markMessagesAsRead(userId: string, otherUserId: string) {
     const res = await fetch(`${API_BASE}/api/messages/mark-read`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ otherUserId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -541,7 +541,7 @@ export const api = {
   async deleteConversation(userId1: string, userId2: string) {
     const res = await fetch(`${API_BASE}/api/messages/conversation/${userId1}/${userId2}`, {
       method: "DELETE",
-      headers: token ? { "Authorization": `Bearer ${token}` } : {},
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -550,7 +550,7 @@ export const api = {
   async deleteMessage(messageId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
       method: "DELETE",
-      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -559,7 +559,7 @@ export const api = {
   async editMessage(messageId: string, userId: string, content: string) {
     const res = await fetch(`${API_BASE}/api/messages/${messageId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ content }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -722,7 +722,7 @@ export const api = {
   async toggleDND(userId: string, enabled: boolean) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/dnd`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ enabled }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1036,7 +1036,7 @@ export const api = {
   async removeRoomModerator(streamId: string, userId: string, requesterId: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/moderators/${userId}`, {
       method: "DELETE",
-      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1061,7 +1061,7 @@ export const api = {
   async unbanUser(streamId: string, userId: string, requesterId: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/bans/${userId}`, {
       method: "DELETE",
-      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1092,7 +1092,7 @@ export const api = {
   async unmuteUser(streamId: string, userId: string, requesterId: string) {
     const res = await fetch(`${API_BASE}/api/streams/${streamId}/mutes/${userId}`, {
       method: "DELETE",
-      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -1143,7 +1143,7 @@ export const api = {
   async purchaseItem(userId: string, itemId: string) {
     const res = await fetch(`${API_BASE}/api/store/purchase`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ itemId }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1187,7 +1187,7 @@ export const api = {
   async generateReferralCode(userId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/referral-code`, {
       method: "POST",
-      headers: token ? { "Authorization": `Bearer ${token}` } : {},
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ referralCode: string }>;
@@ -1196,7 +1196,7 @@ export const api = {
   async applyReferralCode(userId: string, referralCode: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/apply-referral`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ referralCode }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1218,7 +1218,7 @@ export const api = {
   async claimDailyLogin(userId: string) {
     const res = await fetch(`${API_BASE}/api/users/${userId}/daily-login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+      headers: authJsonHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<DailyLoginResult>;
@@ -1363,7 +1363,7 @@ export const api = {
 
   async checkRsvp(eventId: string, userId: string) {
     const res = await fetch(`${API_BASE}/api/events/${eventId}/rsvp/check`, {
-      headers: token ? { "Authorization": `Bearer ${token}` } : {},
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ hasRsvped: boolean }>;
