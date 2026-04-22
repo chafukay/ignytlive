@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
-import { LogIn, Edit2, Check, X } from "lucide-react";
+import { LogIn, Edit2, Check, X, LogOut } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "./layout";
 
 export function GuestGate({ children, allowProfile }: { children: React.ReactNode; allowProfile?: boolean }) {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
@@ -89,6 +89,18 @@ export function GuestGate({ children, allowProfile }: { children: React.ReactNod
               data-testid="button-guest-signup"
             >
               Create Account
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                setLocation("/login");
+                toast({ title: "Exited guest mode" });
+              }}
+              className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white text-sm font-medium rounded-xl transition-colors"
+              data-testid="button-exit-guest-mode"
+            >
+              <LogOut className="w-4 h-4" />
+              Exit Guest Mode
             </button>
           </div>
         </Layout>
