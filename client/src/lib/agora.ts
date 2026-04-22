@@ -90,7 +90,8 @@ async function getToken(channelName: string, role: "host" | "audience"): Promise
 
 export async function joinAsHost(
   channelName: string, 
-  videoContainer: HTMLElement | string | null
+  videoContainer: HTMLElement | string | null,
+  facingMode: "user" | "environment" = "user"
 ): Promise<{ audioTrack: IMicrophoneAudioTrack; videoTrack: ICameraVideoTrack }> {
   if (!APP_ID) {
     throw new Error("Agora App ID not configured");
@@ -115,7 +116,7 @@ export async function joinAsHost(
     {},
     {
       encoderConfig: "720p_2",
-      facingMode: "user"
+      facingMode
     }
   );
 
@@ -125,7 +126,7 @@ export async function joinAsHost(
 
   await agoraClient.publish([localAudioTrack, localVideoTrack]);
   
-  console.log("Joined as host and published stream to channel:", channelName);
+  console.log("Joined as host and published stream to channel:", channelName, "facingMode:", facingMode);
   
   return { audioTrack: localAudioTrack, videoTrack: localVideoTrack };
 }

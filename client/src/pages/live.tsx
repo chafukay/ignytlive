@@ -64,7 +64,14 @@ export default function LiveRoom() {
   const localVideoRef = useRef<HTMLDivElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [facingMode, setFacingMode] = useState<"user" | "environment">(() => {
+    try {
+      const stored = sessionStorage.getItem('liveCameraFacing');
+      return stored === "environment" ? "environment" : "user";
+    } catch {
+      return "user";
+    }
+  });
   const [agoraConnected, setAgoraConnected] = useState(false);
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const [agoraError, setAgoraError] = useState<string | null>(null);
@@ -422,7 +429,7 @@ export default function LiveRoom() {
         
         try {
           const container = localVideoRef.current;
-          await joinAsHost(channelName, container);
+          await joinAsHost(channelName, container, facingMode);
           if (mounted) {
             setAgoraConnected(true);
             setAgoraError(null);

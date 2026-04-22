@@ -209,6 +209,7 @@ export default function GoLive() {
         beautyOverlay,
       };
       sessionStorage.setItem('liveEffects', JSON.stringify(effectsData));
+      sessionStorage.setItem('liveCameraFacing', facingMode);
       
       toast({ title: "You're now live!" });
       setLocation(`/live/${stream.id}`);
