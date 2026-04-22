@@ -59,7 +59,6 @@ export default function Profile() {
 
   const handleRemoveBanner = () => {
     if (!user?.profileBanner || removeBannerMutation.isPending) return;
-    if (typeof window !== "undefined" && !window.confirm("Remove your profile banner?")) return;
     removeBannerMutation.mutate();
   };
 

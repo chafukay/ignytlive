@@ -9,6 +9,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import UserAvatar from "@/components/user-avatar";
 import { ArrowLeft, Building2, Plus, Users, Crown, Diamond, UserMinus, Search, ChevronRight, Loader2, LogOut, Shield, Settings } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import type { User } from "@shared/schema";
 
@@ -405,14 +416,35 @@ export default function AgencyPage() {
               </button>
             )}
             {isOwner && (
-              <button
-                onClick={() => { if (window.confirm("Delete this agency? This cannot be undone.")) deleteMutation.mutate(myMembership.agencyId); }}
-                disabled={deleteMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 text-red-400 border border-red-500/30 py-3 rounded-xl hover:bg-red-500/10"
-                data-testid="button-delete-agency"
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete Agency"}
-              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    disabled={deleteMutation.isPending}
+                    className="w-full flex items-center justify-center gap-2 text-red-400 border border-red-500/30 py-3 rounded-xl hover:bg-red-500/10"
+                    data-testid="button-delete-agency"
+                  >
+                    {deleteMutation.isPending ? "Deleting..." : "Delete Agency"}
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent data-testid="dialog-confirm-delete-agency">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this agency?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This cannot be undone. All members will be removed and the agency will be permanently deleted.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-delete-agency">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteMutation.mutate(myMembership.agencyId)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      data-testid="button-confirm-delete-agency"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </Layout>
