@@ -9,7 +9,7 @@ import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Users, MessageCircle, ArrowLeft, Send, Lock, Unlock, Image, Video, X, Crown, UserMinus, Radio, Coins } from "lucide-react";
 import type { Group, GroupMessage, User } from "@shared/schema";
@@ -29,6 +29,8 @@ export default function Groups() {
   const [isPrivateMedia, setIsPrivateMedia] = useState(false);
   const [unlockCost, setUnlockCost] = useState(50);
   const [memberUsername, setMemberUsername] = useState("");
+  const [mediaPromptType, setMediaPromptType] = useState<"image" | "video" | null>(null);
+  const [mediaPromptUrl, setMediaPromptUrl] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -230,10 +232,7 @@ export default function Groups() {
                   variant="ghost"
                   size="icon"
                   className="text-white/60 hover:text-cyan-400"
-                  onClick={() => {
-                    const url = prompt("Enter image URL:");
-                    if (url) { setMediaUrl(url); setMediaType("image"); }
-                  }}
+                  onClick={() => { setMediaPromptUrl(""); setMediaPromptType("image"); }}
                   data-testid="button-add-image"
                 >
                   <Image className="w-5 h-5" />
@@ -242,10 +241,7 @@ export default function Groups() {
                   variant="ghost"
                   size="icon"
                   className="text-white/60 hover:text-pink-400"
-                  onClick={() => {
-                    const url = prompt("Enter video URL:");
-                    if (url) { setMediaUrl(url); setMediaType("video"); }
-                  }}
+                  onClick={() => { setMediaPromptUrl(""); setMediaPromptType("video"); }}
                   data-testid="button-add-video"
                 >
                   <Video className="w-5 h-5" />
@@ -347,6 +343,56 @@ export default function Groups() {
                   ))}
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!mediaPromptType} onOpenChange={(open) => { if (!open) setMediaPromptType(null); }}>
+            <DialogContent className="bg-violet-950 border-white/20 max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-white">
+                  {mediaPromptType === "image" ? "Add image" : "Add video"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Input
+                  autoFocus
+                  value={mediaPromptUrl}
+                  onChange={(e) => setMediaPromptUrl(e.target.value)}
+                  placeholder={mediaPromptType === "image" ? "https://example.com/image.jpg" : "https://example.com/video.mp4"}
+                  className="bg-white/5 border-white/20 text-white"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && mediaPromptUrl.trim() && mediaPromptType) {
+                      setMediaUrl(mediaPromptUrl.trim());
+                      setMediaType(mediaPromptType);
+                      setMediaPromptType(null);
+                    }
+                  }}
+                  data-testid="input-media-url"
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="ghost"
+                  onClick={() => setMediaPromptType(null)}
+                  data-testid="button-cancel-media-url"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (mediaPromptUrl.trim() && mediaPromptType) {
+                      setMediaUrl(mediaPromptUrl.trim());
+                      setMediaType(mediaPromptType);
+                      setMediaPromptType(null);
+                    }
+                  }}
+                  disabled={!mediaPromptUrl.trim()}
+                  className="bg-gradient-to-r from-pink-500 to-violet-600"
+                  data-testid="button-confirm-media-url"
+                >
+                  Add
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

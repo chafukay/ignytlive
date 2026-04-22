@@ -10,6 +10,16 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth, adminFetch } from "@/lib/admin-auth-context";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { User } from "@shared/schema";
 
 type AdminTab = 'dashboard' | 'users' | 'reports' | 'economy' | 'moderation';
@@ -53,6 +63,7 @@ export default function AdminDashboard() {
   const [newFilterWord, setNewFilterWord] = useState("");
   const [newFilterCategory, setNewFilterCategory] = useState("custom");
   const [flaggedFilter, setFlaggedFilter] = useState<"all" | "unreviewed" | "reviewed">("unreviewed");
+  const [userToDeactivate, setUserToDeactivate] = useState<{ id: string; username: string } | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ['admin', 'stats'],
@@ -534,7 +545,7 @@ export default function AdminDashboard() {
                             </button>
                           ) : (
                             <button
-                              onClick={() => { if (confirm(`Deactivate ${u.username}? This will anonymize their data.`)) deactivateUserMutation.mutate(u.id); }}
+                              onClick={() => setUserToDeactivate({ id: u.id, username: u.username })}
                               className="p-1.5 rounded-lg bg-red-900/50 text-red-400 hover:bg-red-800/50 text-xs"
                               data-testid={`deactivate-user-${u.id}`}
                               title="Deactivate user"
@@ -976,6 +987,33 @@ export default function AdminDashboard() {
           isPending={createPackageMutation.isPending || updatePackageMutation.isPending}
         />
       )}
+
+      <AlertDialog open={!!userToDeactivate} onOpenChange={(open) => { if (!open) setUserToDeactivate(null); }}>
+        <AlertDialogContent data-testid="dialog-confirm-deactivate-user">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate {userToDeactivate?.username}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will anonymize their data and cannot be undone from the user's side.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-deactivate-user">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (userToDeactivate) {
+                  deactivateUserMutation.mutate(userToDeactivate.id);
+                  setUserToDeactivate(null);
+                }
+              }}
+              disabled={deactivateUserMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-deactivate-user"
+            >
+              {deactivateUserMutation.isPending ? "Deactivating..." : "Deactivate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

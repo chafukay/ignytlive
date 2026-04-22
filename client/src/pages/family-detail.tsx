@@ -6,6 +6,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, getAuthToken } from "@/lib/auth-context";
 import { useParams, useLocation, Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -576,18 +587,36 @@ export default function FamilyDetail() {
                   Save Changes
                 </Button>
                 {isOwner && (
-                  <Button
-                    variant="destructive"
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this family? This cannot be undone.")) {
-                        deleteMutation.mutate();
-                      }
-                    }}
-                    disabled={deleteMutation.isPending}
-                    data-testid="button-delete-family"
-                  >
-                    Delete
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        disabled={deleteMutation.isPending}
+                        data-testid="button-delete-family"
+                      >
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent data-testid="dialog-confirm-delete-family">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this family?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This cannot be undone. All members will be removed and the family will be permanently deleted.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel data-testid="button-cancel-delete-family">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteMutation.mutate()}
+                          disabled={deleteMutation.isPending}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          data-testid="button-confirm-delete-family"
+                        >
+                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </div>
             </div>
