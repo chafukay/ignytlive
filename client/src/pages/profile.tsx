@@ -331,18 +331,18 @@ export default function Profile() {
             </Link>
           )}
           <div className="flex justify-center gap-6 text-center bg-black/70 rounded-xl px-4 py-3">
-            <div>
+            <Link href={`/follows/${user.id}/followers`} className="cursor-pointer hover:opacity-80 transition-opacity">
               <div className="font-bold text-white" data-testid="text-followers">
                 {formatNumber(user.followersCount)}
               </div>
               <div className="text-xs text-white/70">Followers</div>
-            </div>
-            <div>
+            </Link>
+            <Link href={`/follows/${user.id}/following`} className="cursor-pointer hover:opacity-80 transition-opacity">
               <div className="font-bold text-white" data-testid="text-following">
                 {formatNumber(user.followingCount)}
               </div>
               <div className="text-xs text-white/70">Following</div>
-            </div>
+            </Link>
             <div>
               <div className="font-bold text-white flex items-center gap-1" data-testid="text-received">
                 <span className="text-yellow-400">💎</span>{formatNumber(user.diamonds)}

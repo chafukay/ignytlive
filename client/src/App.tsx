@@ -19,6 +19,7 @@ import Leaderboard from "@/pages/leaderboard";
 import Shorts from "@/pages/shorts";
 import Groups from "@/pages/groups";
 import Following from "@/pages/following";
+import FollowList from "@/pages/follow-list";
 import Coins from "@/pages/coins";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -160,6 +161,8 @@ function Router() {
       <Route path="/">{user ? <Home /> : <Redirect to="/login" />}</Route>
       <Route path="/notifications">{() => <ProtectedRoute component={Notifications} />}</Route>
       <Route path="/following">{() => <ProtectedRoute component={Following} />}</Route>
+      <Route path="/follows/:userId/:tab">{() => <ProtectedRoute component={FollowList} />}</Route>
+      <Route path="/follows/:userId">{() => <ProtectedRoute component={FollowList} />}</Route>
       <Route path="/explore">{() => <ProtectedRoute component={Explore} />}</Route>
       <Route path="/coins">{() => <ProtectedRoute component={Coins} />}</Route>
       <Route path="/go-live">{() => <ProtectedRoute component={GoLive} />}</Route>
